@@ -1,0 +1,18 @@
+chain:
+  - name: Framing
+    parameters:
+      windowsize: 10
+      stepsize: 10
+      axis: 0
+  - name: FFT
+    parameters:
+      axis: 1
+  - name: Logarithm
+  - name: Aggregation
+    parameters:
+      methods: [mean,std]
+      combine: concatenate
+      axis: 0
+  - name: Normalizer
+    parameters:
+      type: standard

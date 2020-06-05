@@ -1,0 +1,20 @@
+chain:
+  - name: Framing
+    parameters:
+      windowsize: 0.040
+      stepsize: 0.020
+      axis: -1
+  - name: FFT
+    parameters:
+      format: magnitude
+  - name: Filterbank
+    parameters:
+      scale: mel
+      n_bands: 40
+  - name: Logarithm
+  - name: Aggregation
+    parameters:
+      methods: [mean,std]
+      combine: concatenate
+      axis: 0
+

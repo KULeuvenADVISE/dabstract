@@ -1,0 +1,23 @@
+# base
+base_data: &base_data data
+base_results: &base_results results
+
+# data sources (reference)
+base_datasets:
+    EXAMPLE:
+      data: !pathjoin [*base_data, example, data]
+      meta: !pathjoin [*base_data, example, data]
+      tmp: !pathjoin [*base_data, example, data]
+
+# experiment
+features: features
+expname: &results_name !pathjoin [!kwarg [dataset],
+                                  !usjoin [!kwarg [features],
+                                           !kwarg [proc_chain_data],
+                                           !kwarg [proc_chain_meta]],
+                                  !usjoin [
+                                          !kwarg [model],
+                                          !kwarg [model_opt]]]
+results: !pathjoin [*base_results, *results_name]
+xval: !pathjoin [*base_results, !kwarg [dataset]]
+feat_save: !pathjoin [*base_results, !kwarg [dataset], !kwarg [features]]

@@ -1,0 +1,24 @@
+datasets:
+  - name: !class [EXAMPLE_db.EXAMPLE]
+    parameters:
+      paths:
+        data: !pathjoin [data,data]
+        meta: !pathjoin [data,data]
+        tmp: !pathjoin [data,tmp]
+      subdb: normal
+      split: 10 # split data in 10s segments
+      test_only: 0
+  - name: !class [EXAMPLE_db.EXAMPLE]
+    parameters:
+      paths:
+        data: !pathjoin [data,data]
+        meta: !pathjoin [data,data]
+        tmp: !pathjoin [data,tmp]
+      subdb: abnormal
+      split: 10 # split data in 10s segments
+      test_only: 1
+xval:
+    name: sequential_random
+    parameters:
+      folds: 4
+      val_frac: 0.3

@@ -1,0 +1,32 @@
+datasets:
+  - name: EXAMPLE
+    parameters:
+      paths:
+        data: !kwarg [base_datasets,EXAMPLE,data]
+        meta: !kwarg [base_datasets,EXAMPLE,meta]
+        feat: !kwarg [base_datasets,EXAMPLE,feat]
+      subdb: normal
+      filter:
+        name: subsample
+        parameters:
+          method: random
+          ratio: 0.5
+      test_only: 0
+  - name: EXAMPLE
+    parameters:
+      paths:
+        data: !kwarg [base_datasets,EXAMPLE,data]
+        meta: !kwarg [base_datasets,EXAMPLE,meta]
+        feat: !kwarg [base_datasets,EXAMPLE,feat]
+      subdb: abnormal
+      filter:
+        name: subsample
+        parameters:
+          method: random
+          ratio: 0.5
+      test_only: 1
+xval:
+    name: random
+    parameters:
+      folds: 4
+      val_frac: 0.3

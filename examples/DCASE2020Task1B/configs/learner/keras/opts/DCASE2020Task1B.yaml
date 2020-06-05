@@ -1,0 +1,27 @@
+output_target: scenes
+test_metrics:
+  - method: accuracy
+    input: scenes
+modsel_metric: &modsel_metric accuracy
+keras:
+  batch_size: 16
+  epochs: 200
+  compile:
+    loss: categorical_crossentropy
+    metrics: [accuracy]
+    optimizer:
+      method: Adam
+      param:
+        lr: 0.001
+  callbacks:
+    - ModelCheckpoint_custom:
+        filepath: !kwarg [filepath_mcpcb]
+        period: 5
+        save_best_only: True
+        save_weights_only: True
+        mode: min
+        monitor: !join [val_, *modsel_metric]
+data_generator:
+  subsampling:
+    method: random
+    ratio: 1

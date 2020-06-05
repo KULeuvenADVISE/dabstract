@@ -1,0 +1,5 @@
+chain:
+  - name: Normalizer
+    parameters:
+      type: minmax
+      feature_range: [0,1]

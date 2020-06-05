@@ -1,0 +1,10 @@
+chain:
+  - name: Aggregation
+    parameters:
+      methods: [mean,std]
+      combine: concatenate
+      axis: 1
+  - name: Normalizer
+    parameters:
+      type: minmax
+      feature_range: [0,1]
