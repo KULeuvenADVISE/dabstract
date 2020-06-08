@@ -1,0 +1,16 @@
+chain:
+  - name: Framing
+    parameters:
+      windowsize: 0.005
+      stepsize: 0.0025
+      axis: -1
+  - name: FFT
+    parameters:
+      format: power
+  - name: Filterbank
+    parameters:
+      scale: linear
+      n_bands: 64
+  - name: Logarithm
+
+

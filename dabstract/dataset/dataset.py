@@ -53,6 +53,9 @@ class dataset():
     def __getitem__(self,index):
         return self._data[index]
 
+    def __setitem__(self, k, v):
+        self._data[k] = v
+
     def __len__(self):
         return len(self._data)
 
@@ -61,6 +64,9 @@ class dataset():
 
     def add(self, key, data, **kwargs):
         self._data.add(key, data, **kwargs)
+
+    def add_dict(self,data,**kwargs):
+        self._data.add_dict(data,**kwargs)
 
     def concat(self, data, intersect=False):
         # check
@@ -82,15 +88,20 @@ class dataset():
         self._data.remove(key)
 
     def add_map(self, key, map_fct, *arg, **kwargs):
-        assert key in self.keys()
-        if isinstance(self._data[key],DictSeqAbstract):
-            assert len(self._data[key].active_key)==1
-            self._data[key].add_map(self._data[key].active_key[0], map_fct, *arg, **kwargs)
-        else:
-            self._data[key] = MapAbstract(copy.deepcopy(self._data[key]), map_fct=map_fct)
+        # assert key in self.keys()
+        # if isinstance(self._data[key],DictSeqAbstract):
+        #     assert len(self._data[key].active_key)==1
+        #     self._data[key].add_map(self._data[key].active_key[0], map_fct, *arg, **kwargs)
+        # else:
+        self._data[key] = MapAbstract(copy.deepcopy(self._data[key]), map_fct=map_fct)
 
     def add_select(self, select, *arg, **kwargs):
-        self._data = SelectAbstract(self._data, select, *arg, **kwargs)
+        eval_data = copy.deepcopy(self)
+        for key in self.keys():
+            self[key]  = SelectAbstract(self[key], select, eval_data = eval_data, *arg, **kwargs)
+
+    # def add_select(self, select, *arg, **kwargs):
+    #     self._data.add_select(select,*arg,**kwargs)
 
     # def pop(self, key=None):
     #     if key is None:
@@ -119,7 +130,7 @@ class dataset():
             xval_ind = self.xval_dict[set][fold]
         return SelectAbstract(self._data,xval_ind)
 
-    def prepare_feat(self,key,fe_name,fe_dp, path, new_key=None, overwrite=False, verbose=True,
+    def prepare_feat(self,key,fe_name,fe_dp, new_key=None, overwrite=False, verbose=True,
                      multi_processing=False, workers=2, buffer_len=2):
         # checks
         assert [file is not None for file in self[key]['filepath']], "not all entries contain filepath"
@@ -128,7 +139,10 @@ class dataset():
         assert [file is not None for file in self[key]['info']], "not all entries contain info"
         # inits
         data = copy.deepcopy(self._data)
-        data[key].add_map('data', fe_dp)
+        data.add_map('data', fe_dp)
+        a = data['data']
+        b = a['filepath']
+        b[0]
         subdb = [subdb for subdb in data[key]['subdb']]
         example = [example for example in data[key]['example']]
         subdbs = list(np.unique(subdb))
@@ -136,8 +150,8 @@ class dataset():
         # extract
         for dataset_id in range(self._nr_datasets):
             print('Dataset ' + self._param[dataset_id]['name'])
+            featpath_base = os.path.join(self._param[dataset_id]['paths']['feat'], self._param[dataset_id]['name'], key, fe_name)
             for subdb in subdbs: # for every subdb
-                featpath_base = os.path.join(path, self._param[dataset_id]['name'], key, fe_name)
                 os.makedirs(os.path.join(featpath_base, subdb), exist_ok=True)
                 sel_ind = np.where([i==subdb and j==dataset_id for i,j in zip(data[key]['subdb'],data['dataset_id'])])[0] # get indices
                 if verbose: print('Preparing ' + str(len(sel_ind)) + ' examples in ' + subdb)
@@ -264,15 +278,19 @@ class dataset():
         # get dirs
         filepath = []
         for root, dirs, files in os.walk(path):
-            filepath += [os.path.join(root, file) for file in files if extension in file]
+            tmp = [os.path.join(root, file) for file in files if extension in file]
+            if len(tmp)>0:
+                tmp.sort()
+                filepath += tmp
         example = [os.path.relpath(file, path) for file in filepath if extension in file]
         filename = [os.path.split(file)[1] for file in example if extension in file]
         subdb = [os.path.split(file)[0] for file in example if extension in file]
         if save_path is None:
             save_path is path
+        os.makedirs(save_path,exist_ok=True)
 
         # get additional info
-        if not os.path.isfile(os.path.join(path, 'file_info.pickle')):
+        if not os.path.isfile(os.path.join(save_path, 'file_info.pickle')):
             info = [dict()] * len(filepath)
             if extension == '.wav':
                 import soundfile as sf
@@ -283,9 +301,9 @@ class dataset():
                     info[k]['fs'] = f.samplerate
                     info[k]['time_step'] = 1 / f.samplerate
                 if save_info:
-                    with open(pathlib.Path(path, 'file_info.pickle'), "wb") as fp: pickle.dump(info, fp)
+                    with open(pathlib.Path(save_path, 'file_info.pickle'), "wb") as fp: pickle.dump(info, fp)
         else:
-            with open(os.path.join(path, 'file_info.pickle'), "rb") as fp:
+            with open(os.path.join(save_path, 'file_info.pickle'), "rb") as fp:
                 info = pickle.load(fp)
             assert len(info) == len(filepath), "info file not of same size as directory"
         return {'filepath': filepath, 'example': example, 'filename': filename, 'subdb': subdb, 'info': info}

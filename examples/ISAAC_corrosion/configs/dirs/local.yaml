@@ -1,0 +1,21 @@
+# base
+base_data: &base_data \\Duke.edu.khk.be
+base_results: &base_results !pathjoin [\\Duke.edu.khk.be, WorkingData, researchers, gertd, ISAAC, Experiments, DCASE2020Task1B, results]
+
+# data sources (reference)
+base_datasets:
+    DCASE2020Task1B:
+      data: !pathjoin [*base_data, JBOD2,DCASE2020,datasets,TAU-urban-acoustic-scenes-2020-3class-development,audio]
+      meta: !pathjoin [*base_data, JBOD2,DCASE2020,datasets,TAU-urban-acoustic-scenes-2020-3class-development]
+    DCASE2020Task1A:
+      data: !pathjoin [*base_data, JBOD2,DCASE2020,datasets,TAU-urban-acoustic-scenes-2020-mobile-development,audio]
+      meta: !pathjoin [*base_data, JBOD2,DCASE2020,datasets,TAU-urban-acoustic-scenes-2020-mobile-development]
+
+# experiment
+features: &features !pathjoin [*base_data, JBOD2,DCASE2020,datasets]
+tmp_folder: *features
+expname: &results_name !pathjoin [!kwarg [dataset], !usjoin [!kwarg [features], !kwarg [proc_chain_data], !kwarg [proc_chain_meta]], !usjoin [!kwarg [model],!kwarg [model_opt]]]
+results: !pathjoin [*base_results, *results_name]
+xval: !pathjoin [*base_results, !kwarg [dataset]]
+feat_save: !pathjoin [*base_results, !kwarg [dataset], !kwarg [features]]
+

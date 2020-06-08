@@ -32,8 +32,8 @@ def dataset_factory(name=None,
         if not hasattr(module, name):  # check customs
             module = safe_import_module(os.environ['dabstract_CUSTOM_DIR'] + '.dataset.dbs')
             assert hasattr(module, name), 'Database class is not supported in both dabstract.dataset.dbs and dabstract.custom.dbs. Please check'
-        return getattr(module, name)(paths=paths,filter=filter, test_only=test_only, xval=xval, tmp_folder=tmp_folder)
+        return getattr(module, name)(paths=paths,filter=filter, test_only=test_only, xval=xval, tmp_folder=tmp_folder, **kwargs)
     elif isinstance(name, DictSeqAbstract):
         pass
     elif isinstance(name,(type, types.ClassType)):
-        return name(paths=paths,filter=filter, test_only=test_only, xval=xval, tmp_folder=tmp_folder)
+        return name(paths=paths,filter=filter, test_only=test_only, xval=xval, tmp_folder=tmp_folder, **kwargs)

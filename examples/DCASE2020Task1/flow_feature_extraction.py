@@ -16,7 +16,7 @@ def flow_feature_extraction(cg_in=dict(),co_in=dict()):
     co = {'dir_conf': 'local_server',
           'overwrite': False,
           'verbose': True,
-          'multi_processing': True,
+          'multi_processing': False,
           'workers': 5,
           'buffer_len': 5}
     # --- parameter overloading

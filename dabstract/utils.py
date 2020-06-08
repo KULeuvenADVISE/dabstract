@@ -77,6 +77,11 @@ def load_yaml_config(filename, dir, walk=False, verbose=True, post_process=None,
 
     return cfg
 
+def str_in_list(lst,string):
+    if isinstance(string,(list,np.ndarray)):
+        return [str_in_list(lst,_string) for _string in string]
+    indices = [i for i in range(len(lst)) if lst[i] == string]
+    return indices
 
 def listnp_combine(lst,method='concatenate',axis=0, allow_error=False):
     def combine(lst):

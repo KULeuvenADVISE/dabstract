@@ -4,6 +4,8 @@ import numpy as np
 from tqdm import tqdm
 import inspect
 
+import warnings
+
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 
@@ -147,7 +149,8 @@ class MapAbstract(abstract):
                 data = self._map_fct(data)
             return ((data, info) if return_info else data)
         elif isinstance(index,str):
-            return KeyAbstract(self,index)
+            warnings.warn("Ignoring a mapping. Mapping works on __getitem__, so if you have a nested DictSeqAbstract with active key, then you will access the active key without mapping and the meta information")
+            return self._data[index]
         else:
             raise TypeError('Index should be a number. Note that a str works too as it does not provide any error but it will only a \
                             value which is not None in case a it actually contains a key. \
@@ -244,17 +247,18 @@ class SplitAbstract(abstract):
         return self._data.__repr__() + "\n split: " + str(self._window_size*self._sample_period) + ' ' + self._type
 
 class SelectAbstract(abstract):
-    def __init__(self, data, selector, **kwargs):
+    def __init__(self, data, selector, eval_data=None, **kwargs):
         self._data = data
+        self._eval_data = (data if eval_data is None else eval_data)
         self._selector = selector
         if callable(selector):
             if len(inspect.getargspec(selector)[0])==1:
                 self._indices = selector(data)
             else:
-                self._indices = np.where([selector(self._data,k) for k in range(len(self._data))])[0]
+                self._indices = np.where([selector(self._eval_data,k) for k in range(len(self._eval_data))])[0]
         elif isinstance(selector,slice):
             self._indices = np.arange(  (0 if selector.start is None else selector.start), \
-                                        (len(self._data) if selector.stop is None else selector.stop), \
+                                        (len(self._eval_data) if selector.stop is None else selector.stop), \
                                         (1 if selector.step is None else selector.step))
         elif isinstance(selector,(tuple,list,np.ndarray)):
             self._indices = selector
@@ -275,12 +279,13 @@ class SelectAbstract(abstract):
             assert index<len(self)
             index = self._indices[index]
             if self._abstract:
-                data,info = self._data.get(index,return_info=True,*arg,**kwargs,**self._kwargs)
+                data,info = self._data.get(index, return_info=True,*arg,**kwargs,**self._kwargs)
             else:
                 data,info = self._data[index], {}
             return ((data, info) if return_info else data)
         elif isinstance(index,str):
-            return KeyAbstract(self,index)
+            return SelectAbstract(self._data[index], self._indices)
+            #return KeyAbstract(self, index)
         else:
             raise TypeError('Index should be a str our number')
 
@@ -355,12 +360,30 @@ class KeyAbstract(abstract):
         return self.get(index)
 
     def get(self, index, return_info=False, *arg, **kwargs):
-        assert index<len(self)
-        try:
-            data, info = self._data.get(key=self._key, index=index, return_info=True, *arg, **kwargs, **self._kwargs)
-        except:
-            data, info = None, {}
-        return ((data, info) if return_info else data)
+        if isinstance(index, numbers.Integral):
+            assert index<len(self)
+            try:
+                data, info = self._data.get(key=self._key, index=index, return_info=True, *arg, **kwargs, **self._kwargs)
+            except:
+                data, info = None, {}
+            return ((data, info) if return_info else data)
+        else:
+            return KeyAbstract(self,index)
+
+        # if isinstance(index, str):
+        #     assert key is None
+        #     return self._data[index]
+        # elif isinstance(index,numbers.Integral):
+        #     if key is None:
+        #         data, info = dict(), dict()
+        #         for k, key in enumerate(self._active_keys):
+        #             data[key], info[key] = self._data[key].get(index=index, return_info=True,**kwargs)
+        #         if len(self._active_keys)==1:
+        #             data, info = data[key], info[key]
+        #     else:
+        #         assert isinstance(key,str)
+        #         data, info = self._data[key].get(index=index, return_info=True, **kwargs)
+        #     return ((data, info) if return_info else data)
 
     def __len__(self):
         return len(self._data)
@@ -429,12 +452,18 @@ class DictSeqAbstract(abstract):
         return self
 
     def add_map(self,key, map_fct, *arg, **kwargs):
-        assert key in self.keys()
+        # assert key in self.keys()
+        # if isinstance(self[key], DictSeqAbstract):
+        #     assert len(self._data[key].active_key)==1
+        #     self._data[key].add_map(self._data[key].active_key[0], map_fct, *arg, **kwargs)
+        # else:
         self[key] = MapAbstract(self[key], map_fct, *arg, **kwargs)
 
-    def add_select(self,map_fct, *arg, **kwargs):
-        for key in self.keys():
-            self[key] = SeqAbstract().add(SelectAbstract(self[key], map_fct, *arg, **kwargs))
+    # def add_select(self, select, *arg, **kwargs):
+    #     eval_data = copy.deepcopy(self)
+    #     for key in self.keys():
+    #         if self[key]
+    #         self[key]  = SelectAbstract(self[key], select, eval_data = eval_data, *arg, **kwargs)
 
     def set_active_keys(self,keys):
         if isinstance(keys,list):
@@ -461,7 +490,7 @@ class DictSeqAbstract(abstract):
         return self.concat(other)
 
     def __setitem__(self, k, v):
-        assert k in self.keys()
+        #assert k in self.keys()
         self._data[k] = v
 
     def get(self, index, key=None, return_info=False, verbose=False, **kwargs):
