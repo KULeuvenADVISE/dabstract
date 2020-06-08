@@ -17,10 +17,6 @@ class dataset():
                  split=None,
                  select=None,
                  test_only=False,
-                 xval_func=None,
-                 xval_save=False,
-                 xval_dir='',
-                 xval_overwrite=False,
                  **kwargs):
         # Inits
         self.prepare(paths)
@@ -41,9 +37,6 @@ class dataset():
         if split is not None:
             raise NotImplementedError
             #ToDo(gert): add split
-        # xval
-        if xval_func is not None:
-            self.set_xval(xval_func, save=xval_save, save_dir=xval_dir, overwrite=xval_overwrite)
         # dataset meta
         if len(self.keys()) != 0:
             self._param = [{'name': self.__class__.__name__,
@@ -64,7 +57,7 @@ class dataset():
         return len(self._data)
 
     def __add__(self,data):
-        self.concat(data)
+        return self.concat(data)
 
     def add(self, key, data, **kwargs):
         self._data.add(key, data, **kwargs)
@@ -80,16 +73,21 @@ class dataset():
             self._param.append(par)
         nr_datasets = self._nr_datasets
         data.add_map('dataset_id', (lambda x: x + nr_datasets))
-        self._nr_datasets += data.nr_datasets
+        self._nr_datasets += data._nr_datasets
         # concat
-        self._data.concat(data, intersect=intersect)
+        self._data.concat(data._data, intersect=intersect)
         return self
 
     def remove(self, key):
         self._data.remove(key)
 
     def add_map(self, key, map_fct, *arg, **kwargs):
-        self._data.add_map(self._data[key], map_fct, *arg, **kwargs)
+        assert key in self.keys()
+        if isinstance(self._data[key],DictSeqAbstract):
+            assert len(self._data[key].active_key)==1
+            self._data[key].add_map(self._data[key].active_key[0], map_fct, *arg, **kwargs)
+        else:
+            self._data[key] = MapAbstract(copy.deepcopy(self._data[key]), map_fct=map_fct)
 
     def add_select(self, select, *arg, **kwargs):
         self._data = SelectAbstract(self._data, select, *arg, **kwargs)
@@ -115,6 +113,7 @@ class dataset():
 
     def get_xval_set(self, set=None, fold=None, **kwargs):
         if set is not None and fold is not None:
+            assert hasattr(self,'xval_dict'), "xval is not set. Please exec self.set_xval()"
             assert set in list(self.xval_dict.keys()), "xval_set not in xval sets. Available sets are: " + str(list(self.xval_dict.keys()))
             assert fold<self.xval_dict['folds']
             xval_ind = self.xval_dict[set][fold]
@@ -129,11 +128,9 @@ class dataset():
         assert [file is not None for file in self[key]['info']], "not all entries contain info"
         # inits
         data = copy.deepcopy(self._data)
-        data._data[key].add_map(key, fe_dp)
+        data[key].add_map('data', fe_dp)
         subdb = [subdb for subdb in data[key]['subdb']]
-        filepath = [filepath for filepath in data[key]['filepath']]
         example = [example for example in data[key]['example']]
-        info = [info for info in data[key]['info']]
         subdbs = list(np.unique(subdb))
 
         # extract
@@ -142,20 +139,20 @@ class dataset():
             for subdb in subdbs: # for every subdb
                 featpath_base = os.path.join(path, self._param[dataset_id]['name'], key, fe_name)
                 os.makedirs(os.path.join(featpath_base, subdb), exist_ok=True)
-                sel_ind = np.where([i==subdb and j==dataset_id for i,j in zip(self[key]['subdb'],self['dataset_id'])])[0] # get indices
+                sel_ind = np.where([i==subdb and j==dataset_id for i,j in zip(data[key]['subdb'],data['dataset_id'])])[0] # get indices
                 if verbose: print('Preparing ' + str(len(sel_ind)) + ' examples in ' + subdb)
 
                 if np.any([not pathlib.Path(os.path.join(featpath_base,os.path.splitext(example[k])[0] + '.npy')).is_file() for k in sel_ind]) or overwrite: #if all does not exist
                     output_info = [None] * len(sel_ind)
                     # extract for every example
-                    for k, example in enumerate(tqdm(DataAbstract(self[key]['data']).get(slice(0,len(sel_ind)), return_generator=True, return_info=True, \
-                                                                                         multi_processing=False, workers=2, buffer_len=2), \
+                    for k, example in enumerate(tqdm(DataAbstract(data[key]['data']).get(slice(0,len(sel_ind)), return_generator=True, return_info=True, \
+                                                                                         multi_processing=multi_processing, workers=workers, buffer_len=buffer_len), \
                                                      disable=(not verbose))): # for every sample
-                        data, info = example
+                        data_tmp, info_tmp = example
                         # save data
-                        np.save(os.path.join(featpath_base,os.path.splitext(self[key]['example'][sel_ind[k]])[0] + '.npy'), data)
+                        np.save(os.path.join(featpath_base,os.path.splitext(data[key]['example'][sel_ind[k]])[0] + '.npy'), data_tmp)
                         # keep info
-                        output_info[k] = info
+                        output_info[k] = info_tmp
                     # save info
                     if (not pathlib.Path(featpath_base, subdb, 'file_info.pickle').is_file()) or overwrite:
                         with open(os.path.join(featpath_base, subdb, 'file_info.pickle'),"wb") as fp: pickle.dump(output_info, fp)

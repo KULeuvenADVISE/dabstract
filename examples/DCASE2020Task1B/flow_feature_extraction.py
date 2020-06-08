@@ -9,15 +9,16 @@ os.environ["dabstract_CUSTOM_DIR"] = "dabstract_custom"
 
 def flow_feature_extraction(cg_in=dict(),co_in=dict()):
     # -- General params
-    cg = {'dataset': 'DCASE2020Task1B',
+    cg = {'dataset': 'DCASE2020Task1A',
           'key': 'audio',
-          'features': 'DCASE2020Task1B_avg'}
+          'features': 'DCASE2020Task1'}
     # general
     co = {'dir_conf': 'local_server',
           'overwrite': False,
           'verbose': True,
-          'multi_processing': False,
-          'workers': 5}
+          'multi_processing': True,
+          'workers': 5,
+          'buffer_len': 5}
     # --- parameter overloading
     cg.update(cg_in), co.update(co_in)
     # -- get dirs
@@ -25,8 +26,6 @@ def flow_feature_extraction(cg_in=dict(),co_in=dict()):
     # -- get_dataset
     data = load_yaml_config(filename=cg['dataset'], dir=os.path.join('configs', 'db'), walk=True,
                             post_process=dataset_from_config, **dirs)
-    # -- init multi processing
-    data.initialize(multi_processing=co['multi_processing'], workers=co['workers'])
     # -- get processing chain
     fe_dp = load_yaml_config(filename=cg['features'], dir=os.path.join('configs', 'dp'), walk=True,
                              post_process=processing_chain)
@@ -37,8 +36,10 @@ def flow_feature_extraction(cg_in=dict(),co_in=dict()):
                       dirs['features'],
                       overwrite=co['overwrite'],
                       verbose=co['verbose'],
-                      new_key='feat')
-
+                      new_key='feat',
+                      multi_processing=co['multi_processing'],
+                      workers=co['workers'],
+                      buffer_len=co['buffer_len'])
 
 def parameter_overloading(arglist, cg, co):
     unixOptions = "df"

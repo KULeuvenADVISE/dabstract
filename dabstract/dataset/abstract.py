@@ -430,7 +430,7 @@ class DictSeqAbstract(abstract):
 
     def add_map(self,key, map_fct, *arg, **kwargs):
         assert key in self.keys()
-        self._data[key] = MapAbstract(self[key], map_fct, *arg, **kwargs)
+        self[key] = MapAbstract(self[key], map_fct, *arg, **kwargs)
 
     def add_select(self,map_fct, *arg, **kwargs):
         for key in self.keys():
@@ -459,6 +459,10 @@ class DictSeqAbstract(abstract):
     def __add__(self, other):
         assert isinstance(other, DictSeqAbstract)
         return self.concat(other)
+
+    def __setitem__(self, k, v):
+        assert k in self.keys()
+        self._data[k] = v
 
     def get(self, index, key=None, return_info=False, verbose=False, **kwargs):
         if isinstance(index, str):

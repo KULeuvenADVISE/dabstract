@@ -3,19 +3,17 @@ import types
 
 from dabstract.utils import safe_import_module
 from dabstract.dataset import dbs
-from dabstract.dataset.abstract import DictSeqAbstract
+from dabstract.dataset.abstract import *
+from dabstract.dataset.dataset import dataset
 
 def dataset_from_config(config):
     assert isinstance(config,dict), "config should be a dictionary"
     assert 'datasets' in config, "config should have a datasets key"
     assert isinstance(config['datasets'],list), "config['dataset'] should be represented as a list where each item is a dictionary containing kwargs of your dataset."
-    if 'xval'in config:
-        dataset = DictSeqAbstract(xval=config['xval'])
-    else:
-        dataset = DictSeqAbstract()
+    ddataset = dataset()
     for k,db in enumerate(config['datasets']):
-        dataset += dataset_factory(name=db['name'], **db['parameters'])
-    return dataset
+        ddataset += dataset_factory(name=db['name'], **db['parameters'])
+    return ddataset
 
 def dataset_factory(name=None,
                     paths=None,
