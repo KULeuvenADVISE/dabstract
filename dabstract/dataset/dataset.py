@@ -3,6 +3,8 @@ import pickle
 from tqdm import tqdm
 import copy
 import types
+import os
+import numpy as np
 from pprint import pprint
 
 from dabstract.dataprocessor.processing_chain import processing_chain
@@ -122,13 +124,15 @@ class dataset():
     def set_data(self, paths):
         pass
 
-    def get_xval_set(self, set=None, fold=None, **kwargs):
+    def get_xval_set(self, set=None, fold=None, keys='all', **kwargs):
         if set is not None and fold is not None:
-            assert hasattr(self,'xval_dict'), "xval is not set. Please exec self.set_xval()"
-            assert set in list(self.xval_dict.keys()), "xval_set not in xval sets. Available sets are: " + str(list(self.xval_dict.keys()))
-            assert fold<self.xval_dict['folds']
-            xval_ind = self.xval_dict[set][fold]
-        return SelectAbstract(self._data,xval_ind)
+            assert hasattr(self,'xval'), "xval is not set. Please exec self.set_xval()"
+            assert set in list(self.xval.keys()), "xval_set not in xval sets. Available sets are: " + str(list(self.xval_dict.keys()))
+            assert fold<self.xval['folds']
+        if keys is 'all':
+            return SelectAbstract(self._data,self.xval[set][fold])
+        else:
+            raise NotImplementedError("In future release zipping will be addded")
 
     def prepare_feat(self,key,fe_name,fe_dp, new_key=None, overwrite=False, verbose=True,
                      multi_processing=False, workers=2, buffer_len=2):
@@ -138,11 +142,8 @@ class dataset():
         assert [file is not None for file in self[key]['subdb']], "not all entries contain subdb"
         assert [file is not None for file in self[key]['info']], "not all entries contain info"
         # inits
-        data = copy.deepcopy(self._data)
-        data.add_map('data', fe_dp)
-        a = data['data']
-        b = a['filepath']
-        b[0]
+        data = copy.deepcopy(self)
+        data.add_map(key, fe_dp)
         subdb = [subdb for subdb in data[key]['subdb']]
         example = [example for example in data[key]['example']]
         subdbs = list(np.unique(subdb))
@@ -154,15 +155,15 @@ class dataset():
             for subdb in subdbs: # for every subdb
                 os.makedirs(os.path.join(featpath_base, subdb), exist_ok=True)
                 sel_ind = np.where([i==subdb and j==dataset_id for i,j in zip(data[key]['subdb'],data['dataset_id'])])[0] # get indices
-                if verbose: print('Preparing ' + str(len(sel_ind)) + ' examples in ' + subdb)
+                if verbose: print('Preparing ' + str(len(sel_ind)) + ' examples in ' + self._param[dataset_id]['name'] + ' - ' + subdb)
 
                 if np.any([not pathlib.Path(os.path.join(featpath_base,os.path.splitext(example[k])[0] + '.npy')).is_file() for k in sel_ind]) or overwrite: #if all does not exist
                     output_info = [None] * len(sel_ind)
                     # extract for every example
-                    for k, example in enumerate(tqdm(DataAbstract(data[key]['data']).get(slice(0,len(sel_ind)), return_generator=True, return_info=True, \
+                    for k, data_tmp in enumerate(tqdm(DataAbstract(data[key]).get(slice(0,len(sel_ind)), return_generator=True, return_info=True, \
                                                                                          multi_processing=multi_processing, workers=workers, buffer_len=buffer_len), \
                                                      disable=(not verbose))): # for every sample
-                        data_tmp, info_tmp = example
+                        data_tmp, info_tmp = data_tmp
                         # save data
                         np.save(os.path.join(featpath_base,os.path.splitext(data[key]['example'][sel_ind[k]])[0] + '.npy'), data_tmp)
                         # keep info
@@ -187,17 +188,16 @@ class dataset():
         if isinstance(key,str):
             da = SeqAbstract()
             for dataset_id in range(self._nr_datasets):
-                featpath_base = os.path.join(path, self._param[dataset_id]['name'], key, fe_name)
-                da.concat(self.dict_from_folder(featpath_base,extension='.npy', map_fct=processing_chain().add(NumpyDatareader),save_info=False))
+                featpath_base = os.path.join(self._param[dataset_id]['paths']['feat'], self._param[dataset_id]['name'], key, fe_name)
+                da.concat(self.dict_from_folder(featpath_base,extension='.npy', map_fct=processing_chain().add(NumpyDatareader)))
             self.add(new_key,da)
         else:
             assert 0, "new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced."
 
-    def dict_from_folder(self,path, extension='.wav', map_fct=None, save_info=True, save_path=None, save_name='raw'):
+    def dict_from_folder(self,path, extension='.wav', map_fct=None, save_path=None):
         data = DictSeqAbstract()
-        save_path = os.path.join((path if save_path is None else save_path), self.__class__.__name__, 'data', save_name)
         # get info
-        fileinfo = self._get_dir_info(path,extension=extension, save_info=save_info, save_path=save_path)
+        fileinfo = self._get_dir_info(path,extension=extension, save_path=save_path)
         # add data
         data.add('data', fileinfo['filepath'], info=fileinfo['info'], active_key=True)
         # add meta
@@ -213,9 +213,9 @@ class dataset():
         raise NotImplementedError
         #ToDo(gert): add functionality to return current feature config
 
-    def set_xval(self, func, save=False, save_dir='', overwrite=False):
+    def set_xval(self, name, parameters = dict(), save_dir=None, overwrite=False):
         data = DataAbstract(self._data)
-        assert func is not None
+        assert name is not None
         sel_vect_train = np.where(data['test_only'][:] == 0)[0]
         sel_vect_test = np.where(data['test_only'][:] == 1)[0]
 
@@ -223,7 +223,7 @@ class dataset():
 
         # checks
         get_xval = True
-        if save:
+        if save_dir is not None:
             savefile_xval = os.path.join(save_dir, 'xval.pickle')
             if os.path.isfile(savefile_xval):
                 get_xval = False
@@ -231,50 +231,49 @@ class dataset():
         # get
         if get_xval | overwrite:
             # get xval class
-            if func is None:
-                if isinstance(self.xval, dict):
-                    name = self.xval['name']
-                    if isinstance(name, str):
-                        module = xval
-                        if not hasattr(module, name):
-                            module = safe_import_module(os.environ['dabstract_CUSTOM_DIR'] + '.evaluation.xval')
-                            assert hasattr(module,name), "Xval " + name + " is not supported in both dabstract and custom xvals. Please check"
-                        self.xval = getattr(module, name)(**self.xval['parameters'])
-                    elif isinstance(name, (type, types.FunctionType)):
-                        self.xval = name(**self.xval['parameters'])
-                    elif hasattr(self, name):
-                        self.xval = getattr(self, name)(**self.xval['parameters'])
-                elif isinstance(self.xval, types.FunctionType):
-                    pass
-            else:
-                self.xval = func
+            if isinstance(name, str):
+                module = xval
+                if not hasattr(module, name):
+                    module = safe_import_module(os.environ['dabstract_CUSTOM_DIR'] + '.evaluation.xval')
+                    assert hasattr(module,name), "Xval " + name + " is not supported in both dabstract and custom xvals. Please check"
+                func = getattr(module, name)(**parameters)
+            elif isinstance(name, (type, (types.FunctionType,types.ClassType))):
+                func = name(**parameters)
 
-            self.xval_dict = self.xval(self_train)
-            assert 'test' in self.xval_dict, "please return a dict with minimally a test key"
+            self.xval = func(self_train)
+            assert 'test' in self.xval, "please return a dict with minimally a test key"
 
-            if save:
+            if save_dir is not None:
                 os.makedirs(os.path.split(savefile_xval)[0], exist_ok=True)
-                with open(savefile_xval, 'wb') as f: pickle.dump(self.xval_dict, f)
-        elif save:
-            with open(savefile_xval, "rb") as f:
-                self.xval_dict = pickle.load(f)  # load
+                with open(savefile_xval, 'wb') as f: pickle.dump(self.xval, f)
+        elif save_dir is not None:
+            with open(savefile_xval, "rb") as f: self.xval = pickle.load(f)  # load
 
         # sanity check
-        keys = list(self.xval_dict.keys())
+        keys = list(self.xval.keys())
         for key in keys:
-            assert isinstance(self.xval_dict[key], list), 'Crossvalidation indices should be formatted in a list (for each fold).'
-            assert len(self.xval_dict[keys[0]]) == len(self.xval_dict[key]), 'Amount of folds (items in list) should be the same for each test phase (train/val/test).'
+            assert isinstance(self.xval[key], list), 'Crossvalidation indices should be formatted in a list (for each fold).'
+            assert len(self.xval[keys[0]]) == len(self.xval[key]), 'Amount of folds (items in list) should be the same for each test phase (train/val/test).'
 
         # add other test data
-        for k in range(len(self.xval_dict['test'])):
-            self.xval_dict['test'][k] = np.append(self.xval_dict['test'][k], sel_vect_test)
+        for k in range(len(self.xval['test'])):
+            self.xval['test'][k] = np.append(self.xval['test'][k], sel_vect_test)
 
         # add info
-        self.xval_dict['folds'] = len(self.xval_dict['train'])
+        self.xval['folds'] = len(self.xval['train'])
 
-        return self.xval_dict
+        return self.xval
 
-    def _get_dir_info(self,path, extension='.wav', save_info=False,save_path=None):
+    def load_memory(self, key, multi_processing=False,workers=2,buffer_len=2, verbose=True):
+        if verbose:
+            print('Loading data in memory of key ' + key + ' containing ' + str(len(self)) + ' examples.')
+        self[key] = SeqAbstract().concat(DataAbstract(self._data['audio']).get(slice(0,len(self)),
+                                              verbose=True,
+                                              multi_processing=multi_processing,
+                                              workers=workers,
+                                              buffer_len=buffer_len))
+
+    def _get_dir_info(self,path, extension='.wav', save_path=None):
         # get dirs
         filepath = []
         for root, dirs, files in os.walk(path):
@@ -285,12 +284,12 @@ class dataset():
         example = [os.path.relpath(file, path) for file in filepath if extension in file]
         filename = [os.path.split(file)[1] for file in example if extension in file]
         subdb = [os.path.split(file)[0] for file in example if extension in file]
-        if save_path is None:
-            save_path is path
-        os.makedirs(save_path,exist_ok=True)
+
+        if save_path is not None:
+            path = save_path
 
         # get additional info
-        if not os.path.isfile(os.path.join(save_path, 'file_info.pickle')):
+        if not os.path.isfile(os.path.join(path, 'file_info.pickle')):
             info = [dict()] * len(filepath)
             if extension == '.wav':
                 import soundfile as sf
@@ -300,10 +299,11 @@ class dataset():
                     info[k]['output_shape'] = np.array([len(f), f.channels])
                     info[k]['fs'] = f.samplerate
                     info[k]['time_step'] = 1 / f.samplerate
-                if save_info:
-                    with open(pathlib.Path(save_path, 'file_info.pickle'), "wb") as fp: pickle.dump(info, fp)
+                if save_path is not None:
+                    os.makedirs(path, exist_ok=True)
+                    with open(pathlib.Path(path, 'file_info.pickle'), "wb") as fp: pickle.dump(info, fp)
         else:
-            with open(os.path.join(save_path, 'file_info.pickle'), "rb") as fp:
+            with open(os.path.join(path, 'file_info.pickle'), "rb") as fp:
                 info = pickle.load(fp)
             assert len(info) == len(filepath), "info file not of same size as directory"
         return {'filepath': filepath, 'example': example, 'filename': filename, 'subdb': subdb, 'info': info}

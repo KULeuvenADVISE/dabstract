@@ -60,9 +60,9 @@ class processing_chain():
 
     # inverse process
     def inv_process(self, data=None):
-        for fid, fstr in enumerate(reversed(self.chain_names) if len(self.chain)>1 else self.chain):
-            assert hasattr(self.chain[fid],'inv_process'), 'Not all processes in your chain contain inv_process methods.'
-            data = self.chain[fid].inv_process(data)
+        for fid, chain in enumerate(reversed(self._chain)):
+            assert hasattr(chain,'inv_process'), 'Not all processes in your chain contain inv_process methods.'
+            data = chain.inv_process(data)
         return data
 
     # Initialize dataprocessing chain with data (including recursive data loading and processing if needed)
@@ -70,16 +70,13 @@ class processing_chain():
         from dabstract.dataset.abstract import abstract, SelectAbstract, MapAbstract, DataAbstract
         assert data is not None
         if len(self._chain) > 0:
-            # get data
-            if isinstance(data,abstract):
-                data, kwargs = data.get(return_info=True, **kwargs)
             # init separate layers in the chain (+ causal recursive processing if init needs data)
             init_processor = processing_chain(chain=list())
-            for chain in self._chain:
+            for k, chain in enumerate(self._chain):
                 # fit if needed
                 if hasattr(chain,'fit'):
-                    if hasattr(chain,'init_subsample'):
-                        sel_ind = np.random_choice(np.arange(len(data),size=int(chain.init_subsample * len(data))))
+                    if hasattr(self._info[k]['parameters'],'init_subsample'):
+                        sel_ind = np.random.choice(np.arange(len(data)),size=int(self._info[k]['parameters']['init_subsample'] * len(data)), replace=False)
                         data = SelectAbstract(data, (lambda x,k: k in sel_ind))
                     data_tmp, info_tmp = DataAbstract(MapAbstract(data, init_processor)).get(slice(0,len(data)),return_info=True, **kwargs)
                     chain.fit(data_tmp, info_tmp)
@@ -96,6 +93,6 @@ class processor():
     def __init__(self):
         pass
     def process(self, data, **kwargs):
-        return data
+        return data, {}
     def inv_process(self, data, **kwargs):
         return data

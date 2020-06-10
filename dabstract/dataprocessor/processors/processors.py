@@ -8,7 +8,6 @@ import scipy.signal as signal
 
 from dabstract.utils import listnp_combine, flatten_nested_lst
 from dabstract.dataprocessor import processor
-from dabstract.utils import filter_data
 
 class WavDatareader(processor):
     def __init__(self, format=None, select_channel=None, fs=None, read_range=None, dtype=None, **kwargs):
@@ -55,13 +54,14 @@ class NumpyDatareader(processor):
         return data, {}
 
 class Normalizer(processor):
-    def __init__(self, type=None, **kwargs):
+    def __init__(self, type=None, init_subsample=None, **kwargs):
         if type is None:
             print('Specify normalization type in dp.py/Normalizer')
             sys.exit()
         self.type = type
         if 'feature_range' in kwargs:
             self.feature_range = kwargs['feature_range']
+        self.init_subsample = init_subsample
 
     def fit(self, data, info):
         if self.type == 'minmax':
@@ -73,8 +73,8 @@ class Normalizer(processor):
             self.scaler.fit(data)
         elif self.type == 'standard':
             self.scaler = pp.StandardScaler()
-            if len(data.shape) == 3:  # based on the assumption that we will at most read 3D data
-                data = flatten_nested_lst(data)
+            if len(data.shape) >= 3:  # based on the assumption that we will at most read 3D data
+                data = data.reshape(np.prod(data.shape[:-1]), data.shape[-1])
             self.scaler.fit(data)
 
     def process(self, data, **kwargs):

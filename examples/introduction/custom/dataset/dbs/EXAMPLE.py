@@ -8,30 +8,20 @@ class EXAMPLE(dataset):
                  paths=None,
                  split=None,
                  select=None,
-                 xval=None,
                  test_only=0,
-                 xval_func=None,
-                 xval_save=False,
-                 xval_dir='',
-                 xval_overwrite=False,
                  **kwargs):
         # init dict abstract
         super().__init__(name=self.__class__.__name__,
                          paths=paths,
                          split=split,
                          select=select,
-                         xval=xval,
-                         test_only=test_only,
-                         xval_func=xval_func,
-                         xval_save=xval_save,
-                         xval_dir=xval_dir,
-                         xval_overwrite=xval_overwrite)
+                         test_only=test_only)
 
     # Data: get data
     def set_data(self, paths):
         # audio
         chain = processing_chain().add(WavDatareader())
-        self.add('data',self.dict_from_folder(paths['data'],map_fct=chain, save_path=paths['tmp']))
+        self.add('data',self.dict_from_folder(paths['data'],map_fct=chain, save_path=paths['feat']))
         # add labels
         self.add('binary_anomaly',self._get_binary_anomaly(paths))
         self.add('group', self['data']['subdb'])

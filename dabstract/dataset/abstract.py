@@ -65,6 +65,9 @@ class DataAbstract(abstract):
         return GeneratorAbstract(self._data, multi_processing=self._multi_processing, \
                                  workers=self._workers, buffer_len=self._buffer_len, return_info=False, **self._kwargs)
 
+    def __call__(self):
+        return self.__iter__()
+
     def get(self, index, *args, return_info=False, multi_processing=False, workers=2, buffer_len=3, return_generator=False, verbose=False, **kwargs):
         if isinstance(index, numbers.Integral):
             if self._abstract:
@@ -94,7 +97,7 @@ class DataAbstract(abstract):
                             if return_info: info_out = [dict()] * len(self._data)
                             if isinstance(tmp_data, (np.ndarray)):
                                 data_out = np.zeros((len(_data),) + tmp_data.shape)
-                            elif isinstance(tmp_data, (np.int, np.int64, int)):
+                            elif isinstance(tmp_data, (np.int, np.int64, int, np.float64)):
                                 data_out = np.zeros((len(_data), 1))
                             else:
                                 data_out = [None] * len(_data)
@@ -588,6 +591,19 @@ class SeqAbstract(abstract):
 
     def summary(self):
         return {'nr_examples': self.nr_examples, 'name': self._name}
+
+    def shape(self):
+        data = self[0]
+        if isinstance(data,np.ndarray):
+            return data.shape
+        elif hasattr(data,'__len__'):
+            return len(data)
+        else:
+            return []
+
+    def type(self):
+        data = self[0]
+        return type(data)
 
     def __repr__(self):
         r = 'seq containing:'

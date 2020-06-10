@@ -33,34 +33,12 @@ def flow_feature_extraction(cg_in=dict(),co_in=dict()):
     data.prepare_feat(cg['key'],
                       cg['features'],
                       fe_dp,
-                      dirs['features'],
                       overwrite=co['overwrite'],
                       verbose=co['verbose'],
                       new_key='feat',
                       multi_processing=co['multi_processing'],
                       workers=co['workers'],
                       buffer_len=co['buffer_len'])
-
-def parameter_overloading(arglist, cg, co):
-    unixOptions = "df"
-    gnuOptions = ["dataset=", "features="]
-    try:
-        arguments, values = getopt.getopt(arglist[1:], unixOptions, gnuOptions)
-    except getopt.error as err:
-        # output error, and return with an error code
-        print(str(err))
-        sys.exit(2)
-
-    # evaluate given options
-    for currentArgument, currentValue in arguments:
-        if currentArgument in ("-d", "--dataset"):
-            cg['dataset'] = currentValue
-        elif currentArgument in ("-f", "--features"):
-            cg['features'] = currentValue
-
-        print(currentValue)
-    return cg, co
-
 
 if __name__ == "__main__":
     try:
