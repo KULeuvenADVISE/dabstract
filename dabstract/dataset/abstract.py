@@ -22,6 +22,28 @@ def class_str(data):
         return str(data.__class__)
     return
 
+
+class UnpackAbstract():
+    def __init__(self, data, keys):
+        self._data = data
+        self._keys = keys
+
+    def __getitem__(self, index):
+        if isinstance(index, numbers.Integral):
+            out = list()
+            for key in self._keys:
+                out.append(self._data[key][index])
+            return out
+        else:
+            return self._data[index]
+        #ToDo(gert): might add support for .get() if needed to also have info in return
+
+    def __len__(self):
+        return len(self._data)
+
+    def __repr__(self):
+        return self._data.__repr__() + "\n Unpack of keys: " + str(self._keys)
+
 def GeneratorAbstract(data, *args, multi_processing=False, workers=2, buffer_len=3, return_info=False, **kwargs):
     # define function to evaluate
     if isinstance(data, abstract):
@@ -160,6 +182,15 @@ class MapAbstract(abstract):
                             This is because a SeqAbstract may contain a DictSeqAbstract with a single active key \
                             and other data including no keys.')
             #ToDo(gert) add a way to raise a error in case data does not contain any key.
+
+    def shape(self):
+        data = self[0]
+        if isinstance(data, np.ndarray):
+            return data.shape
+        elif hasattr(data, '__len__'):
+            return len(data)
+        else:
+            return []
 
     def __len__(self):
         return len(self._data)
@@ -468,6 +499,10 @@ class DictSeqAbstract(abstract):
     #         if self[key]
     #         self[key]  = SelectAbstract(self[key], select, eval_data = eval_data, *arg, **kwargs)
 
+    def add_alias(self,key, new_key):
+        assert new_key not in self.keys(), "alias key already in existing keys."
+        self.add(new_key, self[key])
+
     def set_active_keys(self,keys):
         if isinstance(keys,list):
             for key in keys:
@@ -493,8 +528,7 @@ class DictSeqAbstract(abstract):
         return self.concat(other)
 
     def __setitem__(self, k, v):
-        #assert k in self.keys()
-        self._data[k] = v
+        self.add(k,v)
 
     def get(self, index, key=None, return_info=False, verbose=False, **kwargs):
         if isinstance(index, str):
@@ -514,8 +548,22 @@ class DictSeqAbstract(abstract):
         else:
             raise IndexError('index should be a number or str')
 
+    def unpack(self, keys):
+        return UnpackAbstract(self._data, keys)
+
     def keys(self):
         return list(self._data.keys())
+
+    def shape(self):
+        if len(self._active_keys)==1:
+            data = self[0]
+            if isinstance(data, np.ndarray):
+                return data.shape
+            elif hasattr(data, '__len__'):
+                return len(data)
+            else:
+                return []
+        raise NotImplementedError("Shape only available if a single active key is set and if that item has a .shape() method.")
 
     def summary(self):
         summary = dict()

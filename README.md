@@ -6,3 +6,11 @@ This is a -lightweight- library for defining and processing data(sets). The goal
 A full documentation will be made available soon. Till then, one can check the examples/introduction folder for the readme1/2/3_*.py scripts. 
 
 This repo will also serve as a container for all ISAAC related datasets and ADVISE datasets (public and private branch).
+
+## Install instruction
+1) clone to a folder of choice (should be easily accessible, e.g. among other utilities)
+2) go to folder in terminal
+3) pip install --editable 
+
+The --editable flag makes sure that the package uses the files you used for installing as source, such that you can adjust and push updates to this repository when you have a new feature or for a bug fix.
+

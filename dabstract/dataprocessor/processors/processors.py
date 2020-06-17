@@ -79,23 +79,21 @@ class Normalizer(processor):
 
     def process(self, data, **kwargs):
         if (self.type == 'minmax') | (self.type == 'standard'):
-            #if len(data.shape) == 1:
-            data = data.reshape(1, -1)
-            data = self.scaler.transform(data)
-            return data.reshape(-1), {}
-            # elif len(data.shape) == 2:
-            #     return self.scaler.transform(data)
-            # elif len(data.shape) == 3:
-            #     for k in range(data.shape[0]):
-            #         data[k] = self.scaler.transform(data[k])
-            # elif len(data.shape) == 4:
-            #     for k in range(data.shape[0]):
-            #         for i in range(data[k].shape[2]):
-            #             data[k, :, :, i] = self.scaler.transform(data[k, :, :, i])
-            #ToDo(gert) check if still valid (process should only do a SINGLE example. It used to be multiple.
-            # else:
-            #     print('Not supported.')
-            #     sys.exit()
+            if len(data.shape) == 1:
+                data = data.reshape(1, -1)
+                data = self.scaler.transform(data)
+                return data.reshape(-1), {}
+            elif len(data.shape) == 2:
+                 return self.scaler.transform(data), {}
+            elif len(data.shape) == 3:
+                for k in range(data.shape[0]):
+                     data[k] = self.scaler.transform(data[k])
+                return data, {}
+            elif len(data.shape) == 4:
+                for k in range(data.shape[0]):
+                    for i in range(data[k].shape[2]):
+                        data[k, :, :, i] = self.scaler.transform(data[k, :, :, i])
+                return data, {}
         else:
             print('Not supported.')
             sys.exit()

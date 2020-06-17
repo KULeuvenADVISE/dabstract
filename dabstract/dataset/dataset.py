@@ -102,15 +102,8 @@ class dataset():
         for key in self.keys():
             self[key]  = SelectAbstract(self[key], select, eval_data = eval_data, *arg, **kwargs)
 
-    # def add_select(self, select, *arg, **kwargs):
-    #     self._data.add_select(select,*arg,**kwargs)
-
-    # def pop(self, key=None):
-    #     if key is None:
-    #         assert hasattr(self._data, '_data'), "Can't pop the dataset any further."
-    #         self._data = self._data._data
-    #     else:
-    #         self._data[key]._data = self._data[key]._data
+    def add_alias(self,key, new_key):
+        self._data.add_alias(key, new_key)
 
     def keys(self):
         if hasattr(self._data,'keys'):
@@ -121,16 +114,30 @@ class dataset():
     def set_active_keys(self,keys):
         self._data.set_active_keys(keys)
 
-    def set_data(self, paths):
+    def reset_active_key(self):
+        self._data.reset_active_key()
+
+    def unpack(self, keys):
+        return self._data.unpack(keys)
+
+    def set_data(self,paths):
         pass
 
     def get_xval_set(self, set=None, fold=None, keys='all', **kwargs):
-        if set is not None and fold is not None:
+        # checks
+        if set is not None:
             assert hasattr(self,'xval'), "xval is not set. Please exec self.set_xval()"
             assert set in list(self.xval.keys()), "xval_set not in xval sets. Available sets are: " + str(list(self.xval_dict.keys()))
             assert fold<self.xval['folds']
+        assert fold is not None
+        assert fold < self.xval['folds']
         if keys is 'all':
-            return SelectAbstract(self._data,self.xval[set][fold])
+            if set is None:
+                def get_xval_set(set=None):
+                    return SelectAbstract(self._data,self.xval[set][fold])
+                return get_xval_set
+            else:
+                return SelectAbstract(self._data,self.xval[set][fold])
         else:
             raise NotImplementedError("In future release zipping will be addded")
 
@@ -216,8 +223,9 @@ class dataset():
     def set_xval(self, name, parameters = dict(), save_dir=None, overwrite=False):
         data = DataAbstract(self._data)
         assert name is not None
-        sel_vect_train = np.where(data['test_only'][:] == 0)[0]
-        sel_vect_test = np.where(data['test_only'][:] == 1)[0]
+        test_only = data['test_only'][:]
+        sel_vect_train = np.where(test_only == 0)[0]
+        sel_vect_test = np.where(test_only == 1)[0]
 
         self_train = DataAbstract(SelectAbstract(copy.deepcopy(self._data),sel_vect_train))
 

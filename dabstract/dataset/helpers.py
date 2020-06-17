@@ -17,6 +17,10 @@ def dataset_from_config(config, overwrite=False):
     # add other functionality
     if 'xval' in config:
         ddataset.set_xval(**config['xval'], overwrite=overwrite)
+    # if 'unpack' in config:
+    #     ddataset = ddataset.unpack(config['unpack'])
+    # if 'alias' in config:
+    #     ddataset.add_alias(key,new_key)
     return ddataset
 
 def dataset_factory(name=None,
