@@ -9,14 +9,14 @@ os.environ["dabstract_CUSTOM_DIR"] = "dabstract_custom"
 
 def flow_feature_extraction(cg_in=dict(),co_in=dict()):
     # -- General params
-    cg = {'dataset': 'EXAMPLE',
+    cg = {'dataset': 'ISAAC_steel',
           'key': 'data',
-          'features': 'EXAMPLE'}
+          'features': 'Lin_64f_5w_2_5s'}
     # general
     co = {'dir_conf': 'local_server',
           'overwrite': False,
           'verbose': True,
-          'multi_processing': False,
+          'multi_processing': True,
           'workers': 5,
           'buffer_len': 5}
     # --- parameter overloading
@@ -39,6 +39,27 @@ def flow_feature_extraction(cg_in=dict(),co_in=dict()):
                       multi_processing=co['multi_processing'],
                       workers=co['workers'],
                       buffer_len=co['buffer_len'])
+
+def parameter_overloading(arglist, cg, co):
+    unixOptions = "df"
+    gnuOptions = ["dataset=", "features="]
+    try:
+        arguments, values = getopt.getopt(arglist[1:], unixOptions, gnuOptions)
+    except getopt.error as err:
+        # output error, and return with an error code
+        print(str(err))
+        sys.exit(2)
+
+    # evaluate given options
+    for currentArgument, currentValue in arguments:
+        if currentArgument in ("-d", "--dataset"):
+            cg['dataset'] = currentValue
+        elif currentArgument in ("-f", "--features"):
+            cg['features'] = currentValue
+
+        print(currentValue)
+    return cg, co
+
 
 if __name__ == "__main__":
     try:

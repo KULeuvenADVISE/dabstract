@@ -1,7 +1,0 @@
-chain:
-  - name: Aggregation
-    methods: [mean,std]
-    combine: concatenate
-    axis: 1
-  - name: Normalizer
-    type: standard

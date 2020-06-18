@@ -9,9 +9,16 @@ os.environ["dabstract_CUSTOM_DIR"] = "dabstract_custom"
 
 def flow_feature_extraction(cg_in=dict(),co_in=dict()):
     # -- General params
-    cg = {'dataset': 'EXAMPLE',
+    cg = {'dataset': 'EXAMPLE_anomaly',
           'key': 'data',
-          'features': 'EXAMPLE'}
+          'features': 'feature_mel'}
+    # loop parameters
+    # general
+    co = {'dir_conf': 'local',
+          'overwrite': False,
+          'verbose': True,
+          'multi_processing': False,
+          'workers': 5}
     # general
     co = {'dir_conf': 'local_server',
           'overwrite': False,
