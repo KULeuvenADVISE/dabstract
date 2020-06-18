@@ -41,11 +41,12 @@ def sequential_kfold(folds=4,val_frac=1/3, **kwargs):
     return get
 
 # Stratified KFold
-def stratified_kfold(folds=4, val_frac=1 / 3, **kwargs):
+def stratified_kfold(folds=4, val_frac=1 / 3, label = None, **kwargs):
+    assert label is not None, "please provide a label to stratify on"
     def get(data):
         skf = modsel.StratifiedKFold(n_splits=folds, shuffle=True, random_state=0)
         train_index, val_index, test_index = [None] * folds, [None] * folds, [None] * folds
-        for k, (train_index_tmp, test_index_tmp) in enumerate(skf.split(np.arange(len(data)), np.arange(len(data)))):
+        for k, (train_index_tmp, test_index_tmp) in enumerate(skf.split(np.arange(len(data)), data[label])):
             train_index[k], test_index[k] = train_index_tmp, test_index_tmp
             val_inds = np.random.choice(range(len(train_index[k])), int(np.ceil(len(train_index[k]) * val_frac)), replace=False)
             val_index[k] = train_index[k][val_inds]

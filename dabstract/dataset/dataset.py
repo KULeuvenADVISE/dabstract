@@ -6,6 +6,7 @@ import types
 import os
 import numpy as np
 from pprint import pprint
+from pylab import plot, imshow, show
 
 from dabstract.dataprocessor.processing_chain import processing_chain
 from dabstract.dataprocessor.processors import *
@@ -167,7 +168,7 @@ class dataset():
                 if np.any([not pathlib.Path(os.path.join(featpath_base,os.path.splitext(example[k])[0] + '.npy')).is_file() for k in sel_ind]) or overwrite: #if all does not exist
                     output_info = [None] * len(sel_ind)
                     # extract for every example
-                    for k, data_tmp in enumerate(tqdm(DataAbstract(data[key]).get(slice(0,len(sel_ind)), return_generator=True, return_info=True, \
+                    for k, data_tmp in enumerate(tqdm(DataAbstract(data[key]).get(sel_ind, return_generator=True, return_info=True, \
                                                                                          multi_processing=multi_processing, workers=workers, buffer_len=buffer_len), \
                                                      disable=(not verbose))): # for every sample
                         data_tmp, info_tmp = data_tmp

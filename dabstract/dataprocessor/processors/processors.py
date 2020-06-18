@@ -374,6 +374,36 @@ class FIR_filter(processor):
             self.get_filter(kwargs['fs'])
         return signal.lfilter(self.filter, 1.0, data, axis=self.axis), {}
 
+class FIR_filter(processor):
+    def __init__(self, type=type, f=None, taps=None, axis=1, fs=None, window='hamming'):
+        self.type = type
+        self.f = f
+        self.taps = taps
+        self.taps |= 1 #make uneven
+        self.axis = axis
+        self.window = window
+        self.fs = fs
+
+    def get_filter(self,fs):
+        if self.type=='bandstop':
+            self.filter = signal.firwin(self.taps, self.f, window=self.window,fs=fs)
+        elif self.type=='bandpass':
+            self.filter = signal.firwin(self.taps, self.f, window=self.window,fs=fs,pass_zero=False)
+        elif self.type == 'highpass':
+            self.filter = signal.firwin(self.taps, self.f, window=self.window, fs=fs, pass_zero=False)
+        elif self.type == 'lowpass':
+            self.filter = signal.firwin(self.taps, self.f, window=self.window, fs=fs)
+
+    def process(self, data, **kwargs):
+        if not hasattr(self,'filter'):
+            if 'fs' in kwargs:
+                self.get_filter(kwargs['fs'])
+            elif hasattr(self,'fs'):
+                self.get_filter(self.fs)
+            else:
+                raise Exception("Sampling frequency should be provided to FIR_filter as init or passed on the process()")
+        return signal.lfilter(self.filter, 1.0, data, axis=self.axis), {}
+
 class expand_dims(processor):
     def __init__(self, axis = -1):
         self.axis = axis

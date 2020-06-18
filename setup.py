@@ -11,7 +11,7 @@ setuptools.setup(
     description="Database and preprocessing abstractor",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://bitbucket.org/account/user/kuleuvenadvise/projects/dabstract",
+    url="https://github.com/KULeuvenADVISE/dabstract",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
