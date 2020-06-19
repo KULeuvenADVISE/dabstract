@@ -44,7 +44,7 @@ class UnpackAbstract():
     def __repr__(self):
         return self._data.__repr__() + "\n Unpack of keys: " + str(self._keys)
 
-def GeneratorAbstract(data, *args, multi_processing=False, workers=2, buffer_len=3, return_info=False, **kwargs):
+def GeneratorAbstract(data, *args, workers=0, buffer_len=3, return_info=False, **kwargs):
     # define function to evaluate
     if isinstance(data, abstract):
         def func(index):
@@ -53,7 +53,7 @@ def GeneratorAbstract(data, *args, multi_processing=False, workers=2, buffer_len
         def func(index):
             return data[index]
     # create generator
-    if multi_processing:
+    if workers>0:
         Q = Queue()
         with ThreadPoolExecutor(workers) as E:
             for k in range(len(data)):
@@ -67,10 +67,9 @@ def GeneratorAbstract(data, *args, multi_processing=False, workers=2, buffer_len
             yield func(k)
 
 class DataAbstract(abstract):
-    def __init__(self, data, multi_processing=False, workers=2, buffer_len=3, load_memory=False, **kwargs):
+    def __init__(self, data, workers=0, buffer_len=3, load_memory=False, **kwargs):
         self._data = data
         self._abstract = (True if isinstance(data, abstract) else False)
-        self._multi_processing = multi_processing
         self._workers = workers
         self._buffer_len = buffer_len
         self._load_memory = load_memory
@@ -84,13 +83,13 @@ class DataAbstract(abstract):
         return self.get(index)
 
     def __iter__(self):
-        return GeneratorAbstract(self._data, multi_processing=self._multi_processing, \
-                                 workers=self._workers, buffer_len=self._buffer_len, return_info=False, **self._kwargs)
+        return GeneratorAbstract(self._data,workers=self._workers, buffer_len=self._buffer_len, \
+                                 return_info=False, **self._kwargs)
 
     def __call__(self):
         return self.__iter__()
 
-    def get(self, index, *args, return_info=False, multi_processing=False, workers=2, buffer_len=3, return_generator=False, verbose=False, **kwargs):
+    def get(self, index, *args, return_info=False, workers=0, buffer_len=3, return_generator=False, verbose=False, **kwargs):
         if isinstance(index, numbers.Integral):
             if self._abstract:
                 data, info = self._data.get(index, return_info=True, *args,**kwargs,**self._kwargs)
@@ -100,8 +99,7 @@ class DataAbstract(abstract):
         elif isinstance(index, (tuple, list, np.ndarray, slice)):
             # generator
             _data = SelectAbstract(self._data,index)
-            gen = GeneratorAbstract(_data, \
-                                    *args, multi_processing=multi_processing, workers=workers, buffer_len=buffer_len, \
+            gen = GeneratorAbstract(_data, *args, workers=workers, buffer_len=buffer_len, \
                                     return_info=return_info, **kwargs, **self._kwargs)
             # return
             if return_generator:
@@ -143,7 +141,7 @@ class DataAbstract(abstract):
             return self._data._data.keys()
 
     def __repr__(self):
-        return class_str(self._data) + "\n data abstract: multi_processing " + str(self._multi_processing)
+        return class_str(self._data) + "\n data abstract: multi_processing " + str((True if self._workers>0 else False))
 
 class MapAbstract(abstract):
     def __init__(self, data, map_fct, *arg, **kwargs):
