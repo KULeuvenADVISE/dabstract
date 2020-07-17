@@ -76,7 +76,7 @@ class processing_chain():
             for k, chain in enumerate(self._chain):
                 # fit if needed
                 if hasattr(chain,'fit'):
-                    if hasattr(self._info[k]['parameters'],'init_subsample'):
+                    if 'init_subsample' in self._info[k]['parameters']:
                         sel_ind = np.random.choice(np.arange(len(data)),size=int(self._info[k]['parameters']['init_subsample'] * len(data)), replace=False)
                         data = SelectAbstract(data, (lambda x,k: k in sel_ind))
                     data_tmp, info_tmp = DataAbstract(MapAbstract(data, init_processor)).get(slice(0,len(data)),return_info=True, **kwargs)

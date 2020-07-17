@@ -3,11 +3,15 @@ import copy
 import numpy as np
 from tqdm import tqdm
 import inspect
+import os
 
 import warnings
 
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
+
+os.environ['OMP_NUM_THREADS'] = "1"
+os.environ['MKL_NUM_THREADS'] = "1"
 
 from dabstract.utils import intersection
 from dabstract.dataprocessor import processing_chain
@@ -162,6 +166,8 @@ class MapAbstract(abstract):
 
     def get(self, index, return_info=False, *arg, **kwargs):
         if isinstance(index, numbers.Integral):
+            if index < 0:
+                index = index % len(self)
             if self._abstract:
                 data, info = self._data.get(index, return_info=True,*arg,**kwargs)
             else:
@@ -201,6 +207,106 @@ class MapAbstract(abstract):
 
     def __repr__(self):
         return class_str(self._data) + "\n map: " + str(self._map_fct)
+
+class ReplicateAbstract(abstract):
+    def __init__(self, data, factor, type = 'on_sample', **kwargs):
+        self._data = data
+        self._type = type
+        self._factor = factor
+        self._abstract = (True if isinstance(data, abstract) else False)
+        if self._type == 'on_sample':
+            self.rep_function = (lambda x: int(np.floor(x / self._factor)))
+        elif self._type == 'full':
+            self.rep_function = (lambda x: int(np.floor(x / len(self._data))))
+        else:
+            raise NotImplemented
+
+    def __iter__(self):
+        for k in range(len(self)):
+            yield self[k]
+
+    def __getitem__(self, index):
+        return self.get(index)
+
+    def get(self, index, return_info=False, *arg, **kwargs):
+        if isinstance(index, numbers.Integral):
+            if index < 0:
+                index = index % len(self)
+            assert index < len(self)
+            k = self.rep_function(index)
+            if self._abstract:
+                data, info = self._data.get(k, return_info=True, *arg, **kwargs, **self._kwargs)
+            else:
+                data, info = self._data[k], {}
+            return ((data, info) if return_info else data)
+        elif isinstance(index, str):
+            return KeyAbstract(self, index)
+        else:
+            raise TypeError('Index should be a str our number')
+
+    def __len__(self):
+        return len(self._data) * self._factor
+
+    def keys(self):
+        if hasattr(self._data, 'keys'):
+            return self._data.keys()
+        else:
+            return self._data._data.keys()
+
+    def __repr__(self):
+        return self._data.__repr__() + "\n replicate: " + str(
+            self._factor) + ' ' + self._type
+
+class SampleReplicateAbstract(abstract):
+    def __init__(self, data, factor, type = 'on_sample', **kwargs):
+        self._data = data
+        self._type = type
+        self._factor = factor
+        if isinstance(self._factor,numbers.Integral):
+            self._factor = self._factor * np.ones(len(data))
+        self._abstract = (True if isinstance(data, abstract) else False)
+
+    def __iter__(self):
+        for k in range(len(self)):
+            yield self[k]
+
+    def __getitem__(self, index):
+        return self.get(index)
+
+    def get(self, index, return_info=False, **kwargs):
+        if isinstance(index,numbers.Integral):
+            assert index < len(self), 'Index should be lower than len(dataset)'
+            if index < 0:
+                index = index % len(self)
+            for k,factor in enumerate(self._factor):
+                if factor <= index:
+                    index -= factor
+                else:
+                    # get
+                    if self._abstract:
+                        data, info = self._data.get(k, return_info=True, **kwargs)
+                    else:
+                        data = self._data[k]
+                    # return
+                    return ((data, info) if return_info else data)
+        elif isinstance(index, str):
+            return KeyAbstract(self, index)
+        else:
+            raise TypeError('Index should be a str our number')
+
+    def __len__(self):
+        return int(np.sum(self._factor))
+
+    def keys(self):
+        if hasattr(self._data, 'keys'):
+            return self._data.keys()
+        else:
+            return self._data._data.keys()
+
+    def __repr__(self):
+        return self._data.__repr__() + "\n replicate: " + \
+               str(self._factor.min()) + ' - ' + str(self._factor.max()) + \
+               ' ' + self._type
 
 class SplitAbstract(abstract):
     def __init__(self, data, split_size=None, constraint=None,

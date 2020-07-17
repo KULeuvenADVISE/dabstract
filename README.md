@@ -7,7 +7,7 @@ A full documentation will be made available soon. Till then, one can check the e
 
 This repo will also serve as a container for all ISAAC related datasets and ADVISE datasets (public and private branch).
 
-## Install instruction
+## Install instructions
 1) clone to a folder of choice (should be easily accessible, e.g. among other utilities)
 2) go to folder in terminal
 3) "pip install --editable ."

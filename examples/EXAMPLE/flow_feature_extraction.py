@@ -29,6 +29,7 @@ def flow_feature_extraction(cg_in=dict(),co_in=dict()):
     # -- get processing chain
     fe_dp = load_yaml_config(filename=cg['features'], dir=os.path.join('configs', 'dp'), walk=True,
                              post_process=processing_chain)
+
     # -- get features
     data.prepare_feat(cg['key'],
                       cg['features'],

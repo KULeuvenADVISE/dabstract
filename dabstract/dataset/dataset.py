@@ -10,7 +10,7 @@ from pylab import plot, imshow, show
 
 from dabstract.dataprocessor.processing_chain import processing_chain
 from dabstract.dataprocessor.processors import *
-from dabstract.dataset.abstract import DictSeqAbstract, SeqAbstract, MapAbstract, SelectAbstract, DataAbstract
+from dabstract.dataset.abstract import *
 from dabstract.dataset import xval
 from dabstract.utils import safe_import_module
 
@@ -38,16 +38,18 @@ class dataset():
                 self.add_select(f)
         # split
         if split is not None:
-            raise NotImplementedError
-            #ToDo(gert): add split
+            self.add_split(**split)
         # dataset meta
         if len(self.keys()) != 0:
+            # get default param
             self._param = [{'name': self.__class__.__name__,
                           'test_only': test_only,
                           'paths': paths,
                           'filter': filter,
                           'split': split,
                            **kwargs}]
+            # add other meta
+            self._param[0] = self.set_meta(self._param[0])
         else:
             self._param = []
         # other
@@ -98,10 +100,51 @@ class dataset():
         # else:
         self._data[key] = MapAbstract(copy.deepcopy(self._data[key]), map_fct=map_fct)
 
-    def add_select(self, select, *arg, **kwargs):
-        eval_data = copy.deepcopy(self)
+    def set_meta(self,param):
+        return param
+
+    def add_split(self, split_size=None, constraint=None, type='seconds', **kwargs):
+        # prep sample lengths
+        sample_len, sample_period, sample_duration = dict(), dict(), dict()
         for key in self.keys():
-            self[key]  = SelectAbstract(self[key], select, eval_data = eval_data, *arg, **kwargs)
+            # check if info available
+            if isinstance(self[key],DictSeqAbstract):
+                if 'info' in self[key].keys():
+                    if all([(('output_shape' in info) and ('time_step' in info)) for info in self[key]['info']]):
+                        sample_duration[key] = np.array([info['output_shape'][0]*info['time_step'] for info in self[key]['info']])
+                        sample_len[key] = np.array([info['output_shape'][0] for info in self[key]['info']])
+                        sample_period[key] = np.array([info['time_step'] for info in self[key]['info']])
+                        assert [sample_period[key][0]==time_step for time_step in sample_period[key]], "sample_period should be uniform"
+                        sample_period[key] = sample_period[key][0]
+                        continue
+            sample_len[key], sample_period[key], sample_duration[key] = None, None, None
+        # adjust sample_len based on minimum covered duration (e.g. framing at edges vs raw audio)
+        min_duration = np.min(np.array([sample_duration[key] for key in self.keys() if sample_duration[key] is not None]),axis=0)
+        for key in sample_len:
+            if sample_len[key] is not None:
+                sample_len[key] = (sample_len[key] * min_duration/sample_duration[key]).astype(int)
+        # Apply split for the ones with sample_len information
+        new_data = DictSeqAbstract()
+        for key in self.keys():
+            if sample_len[key] is not None:
+                new_data[key] = SplitAbstract(self[key], split_size=split_size, sample_len=sample_len[key], sample_period=sample_period[key], type=type, constraint=constraint)
+        # check split lengths
+        for k, key in enumerate(new_data.keys()):
+            if k == 0:
+                ref = new_data[key]._split_len
+            assert np.all(ref == new_data[key]._split_len), "split length are not equal. Please check why!"
+        # do other keys (replicating)
+        for key in self.keys():
+            if sample_len[key] is None:
+                new_data[key] = SampleReplicateAbstract(self[key],factor=ref)
+        # replace existing dataset
+        self._data = new_data
+
+    def add_select(self, select, *arg, **kwargs):
+        orig_data = copy.deepcopy(self._data)
+        self._data = DictSeqAbstract()
+        for key in orig_data.keys():
+            self[key] = SelectAbstract(orig_data[key], select,  *arg, eval_data=orig_data, **kwargs)
 
     def add_alias(self,key, new_key):
         self._data.add_alias(key, new_key)
@@ -157,6 +200,7 @@ class dataset():
         subdbs = list(np.unique(subdb))
 
         # extract
+        featfilelist, infofilelist = [], []
         for dataset_id in range(self._nr_datasets):
             print('Dataset ' + self._param[dataset_id]['name'])
             featpath_base = os.path.join(self._param[dataset_id]['paths']['feat'], self._param[dataset_id]['name'], key, fe_name)
@@ -165,7 +209,8 @@ class dataset():
                 sel_ind = np.where([i==subdb and j==dataset_id for i,j in zip(data[key]['subdb'],data['dataset_id'])])[0] # get indices
                 if verbose: print('Preparing ' + str(len(sel_ind)) + ' examples in ' + self._param[dataset_id]['name'] + ' - ' + subdb)
 
-                if np.any([not pathlib.Path(os.path.join(featpath_base,os.path.splitext(example[k])[0] + '.npy')).is_file() for k in sel_ind]) or overwrite: #if all does not exist
+                tmp_featfilelist = [os.path.join(featpath_base, os.path.splitext(example[k])[0] + '.npy') for k in sel_ind]
+                if np.any([not pathlib.Path(tmp_featfile).is_file() for tmp_featfile in tmp_featfilelist]) or overwrite: #if all does not exist
                     output_info = [None] * len(sel_ind)
                     # extract for every example
                     for k, data_tmp in enumerate(tqdm(DataAbstract(data[key]).get(sel_ind, return_generator=True, return_info=True, \
@@ -173,12 +218,16 @@ class dataset():
                                                      disable=(not verbose))): # for every sample
                         data_tmp, info_tmp = data_tmp
                         # save data
-                        np.save(os.path.join(featpath_base,os.path.splitext(data[key]['example'][sel_ind[k]])[0] + '.npy'), data_tmp)
+                        #np.save(os.path.join(featpath_base,os.path.splitext(data[key]['example'][sel_ind[k]])[0] + '.npy'), data_tmp)
+                        np.save(tmp_featfilelist[k],data_tmp)
                         # keep info
                         output_info[k] = info_tmp
                     # save info
                     if (not pathlib.Path(featpath_base, subdb, 'file_info.pickle').is_file()) or overwrite:
                         with open(os.path.join(featpath_base, subdb, 'file_info.pickle'),"wb") as fp: pickle.dump(output_info, fp)
+                featfilelist += tmp_featfilelist
+                # open file info
+                with open(os.path.join(featpath_base, subdb, 'file_info.pickle'), "rb") as fp: infofilelist += pickle.load(fp)
 
         # save chain config
         feconfdir = pathlib.Path(featpath_base, 'config.pickle')
@@ -194,41 +243,78 @@ class dataset():
             new_key = key
             self.remove(key)
         if isinstance(key,str):
-            da = SeqAbstract()
-            for dataset_id in range(self._nr_datasets):
-                featpath_base = os.path.join(self._param[dataset_id]['paths']['feat'], self._param[dataset_id]['name'], key, fe_name)
-                da.concat(self.dict_from_folder(featpath_base,extension='.npy', map_fct=processing_chain().add(NumpyDatareader)))
-            self.add(new_key,da)
+            self.add(new_key,self.dict_from_folder(featpath_base, filepath=featfilelist, extension='.npy', map_fct=processing_chain().add(NumpyDatareader)))
+            self[new_key]['info']._data = [infofilelist]
         else:
             assert 0, "new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced."
 
-    def dict_from_folder(self,path, extension='.wav', map_fct=None, save_path=None):
+    def get_dir_info(self,path, extension='.wav', save_path=None, filepath=None, overwrite_file_info=False):
+        # get dirs
+        if not isinstance(filepath,list):
+            filepath = []
+            for root, dirs, files in os.walk(path):
+                tmp = [os.path.join(root, file) for file in files if extension in file]
+                if len(tmp)>0:
+                    tmp.sort()
+                    filepath += tmp
+        example = [os.path.relpath(file, path) for file in filepath if extension in file]
+        filename = [os.path.split(file)[1] for file in example if extension in file]
+        subdb = [os.path.split(file)[0] for file in example if extension in file]
+
+        if save_path is not None:
+            path = save_path
+
+        # get additional info
+        if not os.path.isfile(os.path.join(path, 'file_info.pickle')) or overwrite_file_info:
+            info = self._get_dir_info(filepath,extension)
+            if (save_path is not None) and (info is not None):
+                os.makedirs(path, exist_ok=True)
+                with open(pathlib.Path(path, 'file_info.pickle'), "wb") as fp: pickle.dump((info, example),  fp)
+        else:
+            with open(os.path.join(path, 'file_info.pickle'), "rb") as fp:
+                info, example_in = pickle.load(fp)
+            info = [info[k] for k in range(len(example)) if example[k] in example_in]
+            assert len(example_in) == len(filepath), "info file not of same size as directory"
+        return {'filepath': filepath, 'example': example, 'filename': filename, 'subdb': subdb, 'info': info}
+
+    def _get_dir_info(self, filepath, extension):
+        info = [dict()] * len(filepath)
+        if extension == '.wav':
+            import soundfile as sf
+            for k in range(len(filepath)):
+                import soundfile as sf
+                f = sf.SoundFile(filepath[k])
+                info[k]['output_shape'] = np.array([len(f), f.channels])
+                info[k]['fs'] = f.samplerate
+                info[k]['time_step'] = 1 / f.samplerate
+        return info
+
+    def dict_from_folder(self,path, extension='.wav', map_fct=None, save_path=None, filepath=None, overwrite_file_info=False):
         data = DictSeqAbstract()
         # get info
-        fileinfo = self._get_dir_info(path,extension=extension, save_path=save_path)
+        fileinfo = self.get_dir_info(path,extension=extension, save_path=save_path, filepath=filepath, overwrite_file_info=overwrite_file_info)
         # add data
-        data.add('data', fileinfo['filepath'], info=fileinfo['info'], active_key=True)
+        data.add('data', fileinfo['filepath'], active_key=True)
         # add meta
         for key in fileinfo:
             data.add(key,fileinfo[key])
+        # add map
+        data['data'] = MapAbstract(data['data'],map_fct=map_fct)
         # set active key
         data.set_active_keys('data')
-        # add map
-        data._data['data'] = MapAbstract(data['data'],map_fct=map_fct)
         return data
 
     def get_featconf(self):
         raise NotImplementedError
         #ToDo(gert): add functionality to return current feature config
 
-    def set_xval(self, name, parameters = dict(), save_dir=None, overwrite=False):
-        data = DataAbstract(self._data)
+    def set_xval(self, name, parameters = dict(), save_dir=None, overwrite=True):
         assert name is not None
-        test_only = data['test_only'][:]
+        test_only = np.array([k for k in self['test_only']])
         sel_vect_train = np.where(test_only == 0)[0]
         sel_vect_test = np.where(test_only == 1)[0]
 
-        self_train = DataAbstract(SelectAbstract(copy.deepcopy(self._data),sel_vect_train))
+        self_train = DataAbstract(SelectAbstract(self._data,sel_vect_train))
 
         # checks
         get_xval = True
@@ -273,49 +359,13 @@ class dataset():
 
         return self.xval
 
-    def load_memory(self, key, multi_processing=False,workers=2,buffer_len=2, verbose=True):
+    def load_memory(self, key, workers=2,buffer_len=2, verbose=True):
         if verbose:
             print('Loading data in memory of key ' + key + ' containing ' + str(len(self)) + ' examples.')
-        self[key] = SeqAbstract().concat(DataAbstract(self._data['audio']).get(slice(0,len(self)),
+        self[key] = SeqAbstract().concat(DataAbstract(self[key]).get(slice(0,len(self)),
                                               verbose=True,
-                                              multi_processing=multi_processing,
                                               workers=workers,
                                               buffer_len=buffer_len))
-
-    def _get_dir_info(self,path, extension='.wav', save_path=None):
-        # get dirs
-        filepath = []
-        for root, dirs, files in os.walk(path):
-            tmp = [os.path.join(root, file) for file in files if extension in file]
-            if len(tmp)>0:
-                tmp.sort()
-                filepath += tmp
-        example = [os.path.relpath(file, path) for file in filepath if extension in file]
-        filename = [os.path.split(file)[1] for file in example if extension in file]
-        subdb = [os.path.split(file)[0] for file in example if extension in file]
-
-        if save_path is not None:
-            path = save_path
-
-        # get additional info
-        if not os.path.isfile(os.path.join(path, 'file_info.pickle')):
-            info = [dict()] * len(filepath)
-            if extension == '.wav':
-                import soundfile as sf
-                for k in range(len(filepath)):
-                    import soundfile as sf
-                    f = sf.SoundFile(filepath[k])
-                    info[k]['output_shape'] = np.array([len(f), f.channels])
-                    info[k]['fs'] = f.samplerate
-                    info[k]['time_step'] = 1 / f.samplerate
-                if save_path is not None:
-                    os.makedirs(path, exist_ok=True)
-                    with open(pathlib.Path(path, 'file_info.pickle'), "wb") as fp: pickle.dump(info, fp)
-        else:
-            with open(os.path.join(path, 'file_info.pickle'), "rb") as fp:
-                info = pickle.load(fp)
-            assert len(info) == len(filepath), "info file not of same size as directory"
-        return {'filepath': filepath, 'example': example, 'filename': filename, 'subdb': subdb, 'info': info}
 
     def summary(self):
         summary = {'keys': self._data.keys(),

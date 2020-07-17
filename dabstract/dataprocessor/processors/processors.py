@@ -79,7 +79,7 @@ class Normalizer(processor):
 
     def process(self, data, **kwargs):
         if (self.type == 'minmax') | (self.type == 'standard'):
-            if len(data.shape) == 1:
+            if len(data.shape)<=1:
                 data = data.reshape(1, -1)
                 data = self.scaler.transform(data)
                 return data.reshape(-1), {}
@@ -100,7 +100,11 @@ class Normalizer(processor):
 
     def inv_process(self, data, **kwargs):
         if (self.type == 'minmax') | (self.type == 'standard'):
-            if len(data.shape) == 2:
+            if len(data.shape)<=1:
+                data = data.reshape(1, -1)
+                data = self.scaler.inverse_transform(data)
+                return data.reshape(-1)
+            elif len(data.shape) == 2:
                 return self.scaler.inverse_transform(data)
             elif len(data.shape) == 3:
                 for k in range(data.shape[0]):
@@ -355,26 +359,6 @@ class Aggregation(processor):
         return output, {'time_step': 0} if self.axis == 0 else dict()
 
 class FIR_filter(processor):
-    def __init__(self, type, f, taps, axis=1, window='hamming'):
-        self.type = type
-        self.f = f
-        self.taps = taps
-        self.taps |= 1 #make uneven
-        self.axis = axis
-        self.window = window
-
-    def get_filter(self,fs):
-        #ToDo(gert): add support for the others
-        assert self.type in ('bandstop',), self.type + ' not supported in FIR_filter()'
-        if self.type=='bandstop':
-            self.filter = signal.firwin(self.taps, self.f, window=self.window,fs=fs)
-
-    def process(self, data, **kwargs):
-        if not hasattr(self,'filter'):
-            self.get_filter(kwargs['fs'])
-        return signal.lfilter(self.filter, 1.0, data, axis=self.axis), {}
-
-class FIR_filter(processor):
     def __init__(self, type=type, f=None, taps=None, axis=1, fs=None, window='hamming'):
         self.type = type
         self.f = f
@@ -403,6 +387,32 @@ class FIR_filter(processor):
             else:
                 raise Exception("Sampling frequency should be provided to FIR_filter as init or passed on the process()")
         return signal.lfilter(self.filter, 1.0, data, axis=self.axis), {}
+
+class AD_std(processor):
+    def __init__(self, windowsize=0.0025, stepsize=0.0025, threshold=4,forgetting_factor=0.9, init_subsample=0.01):
+        self.windowsize = windowsize
+        self.stepsize = stepsize
+        self.threshold = threshold
+        self.forgetting_factor = forgetting_factor
+        self.init_subsample = init_subsample
+        self.framer = Framing(windowsize=self.windowsize, stepsize=self.stepsize)
+    def process(self, data, **kwargs):
+        data_fr = self.framer.process(data,**kwargs)[0]
+        max_val = np.max(np.abs(data_fr), axis=1)
+        det = max_val > self.max_mean + (self.threshold * self.max_std)
+        output = np.stack((np.where(det)[0], max_val[det == True]), axis=1)
+        if len(np.where(det)[0])==0:
+            output = np.expand_dims(np.array([np.nan, np.nan]),0)
+        return np.expand_dims(output,0), {}
+
+    def fit(self, data, info, **kwargs):
+        max_mean, max_std = np.zeros(len(data)),  np.zeros(len(data))
+        for k in range(len(data)):
+            data_fr = self.framer.process(data[k],**info[k])[0]
+            tmp = np.max(np.abs(data_fr), axis=1)
+            max_mean[k], max_std[k] = np.mean(tmp), np.std(tmp)
+        self.max_mean, self.max_std = np.mean(max_mean), np.mean(max_std)
+
 
 class expand_dims(processor):
     def __init__(self, axis = -1):
