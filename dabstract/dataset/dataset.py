@@ -196,7 +196,7 @@ class dataset():
         data = copy.deepcopy(self)
         data.add_map(key, fe_dp)
         subdb = [subdb for subdb in data[key]['subdb']]
-        example = [example for example in data[key]['example']]
+        example = [os.path.splitext(example)[0] + '.npy' for example in data[key]['example']]
         subdbs = list(np.unique(subdb))
 
         # extract
@@ -209,7 +209,7 @@ class dataset():
                 sel_ind = np.where([i==subdb and j==dataset_id for i,j in zip(data[key]['subdb'],data['dataset_id'])])[0] # get indices
                 if verbose: print('Preparing ' + str(len(sel_ind)) + ' examples in ' + self._param[dataset_id]['name'] + ' - ' + subdb)
 
-                tmp_featfilelist = [os.path.join(featpath_base, os.path.splitext(example[k])[0] + '.npy') for k in sel_ind]
+                tmp_featfilelist = [os.path.join(featpath_base, example[k]) for k in sel_ind]
                 if np.any([not pathlib.Path(tmp_featfile).is_file() for tmp_featfile in tmp_featfilelist]) or overwrite: #if all does not exist
                     output_info = [None] * len(sel_ind)
                     # extract for every example
@@ -224,10 +224,10 @@ class dataset():
                         output_info[k] = info_tmp
                     # save info
                     if (not pathlib.Path(featpath_base, subdb, 'file_info.pickle').is_file()) or overwrite:
-                        with open(os.path.join(featpath_base, subdb, 'file_info.pickle'),"wb") as fp: pickle.dump(output_info, fp)
+                        with open(os.path.join(featpath_base, subdb, 'file_info.pickle'),"wb") as fp: pickle.dump((output_info,example), fp)
                 featfilelist += tmp_featfilelist
                 # open file info
-                with open(os.path.join(featpath_base, subdb, 'file_info.pickle'), "rb") as fp: infofilelist += pickle.load(fp)
+                #with open(os.path.join(featpath_base, subdb, 'file_info.pickle'), "rb") as fp: infofilelist += pickle.load(fp)
 
         # save chain config
         feconfdir = pathlib.Path(featpath_base, 'config.pickle')
@@ -244,7 +244,7 @@ class dataset():
             self.remove(key)
         if isinstance(key,str):
             self.add(new_key,self.dict_from_folder(featpath_base, filepath=featfilelist, extension='.npy', map_fct=processing_chain().add(NumpyDatareader)))
-            self[new_key]['info']._data = [infofilelist]
+            #self[new_key]['info']._data = [infofilelist]
         else:
             assert 0, "new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced."
 
