@@ -555,7 +555,7 @@ class dataset():
             new_key = key
             self.remove(key)
         if isinstance(key,str):
-            self.add(new_key,self.dict_from_folder(featpath_base, filepath=featfilelist, extension='.npy', map_fct=processing_chain().add(NumpyDatareader)))
+            self.add_subdict_from_folder(new_key, featpath_base, filepath=featfilelist, extension='.npy', map_fct=processing_chain().add(NumpyDatareader))
             self[new_key]['info'] = infofilelist #adhoc add of info
             self[new_key].set_active_keys('data')
         else:
