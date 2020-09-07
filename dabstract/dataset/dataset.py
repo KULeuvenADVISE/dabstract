@@ -380,7 +380,7 @@ class dataset():
             func = getattr(module, name)(**parameters)
         elif isinstance(name, (type, types.ClassType)):
             func = name(**parameters)
-        elif isinstance(name, (type, types.FunctionType)):
+        else: #if isinstance(name, (type, types.FunctionType)):
             func = name
         # apply selection
         orig_data = copy.deepcopy(self._data)
