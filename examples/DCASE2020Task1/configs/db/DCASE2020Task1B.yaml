@@ -4,4 +4,4 @@ datasets:
       paths:
         data: !kwarg [base_datasets,DCASE2020Task1B,data]
         meta: !kwarg [base_datasets,DCASE2020Task1B,meta]
-        feat: !kwarg [base_datasets,DCASE2020Task1B,tmp]
+        feat: !kwarg [base_datasets,DCASE2020Task1B,feat]

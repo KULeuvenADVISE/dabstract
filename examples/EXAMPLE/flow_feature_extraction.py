@@ -20,10 +20,10 @@ co = {'dir_conf': 'local_server',
       'workers': 5,
       'buffer_len': 5}
 
-def flow_feature_extraction(cg_in=dict(),co_in=dict()):
+def flow_feature_extraction():
     # ---------- params ---------- #
     # -- cmdline parser
-    parser = argparse.ArgumentParser(description='dabstract feature extraction')
+    parser = argparse.ArgumentParser(description='JEF Feature extraction')
     # experiment params
     exp = parser.add_argument_group('experiment')
     exp.add_argument('--dataset', type=str, default=cg['dataset'], metavar='D',
@@ -48,26 +48,26 @@ def flow_feature_extraction(cg_in=dict(),co_in=dict()):
                         help='length of the worker buffer (default: %d)' % co['buffer_len'])
     args = parser.parse_args()
 
-    # --- parameter overloading
-    cg.update(cg_in), co.update(co_in)
     # -- get dirs
-    dirs = load_yaml_config(filename=co['dir_conf'], dir=os.path.join(args.config_dir, 'dirs'), walk=True)
+    dirs = load_yaml_config(filename=args.dir_conf, dir=os.path.join(args.config_dir, 'dirs'), walk=True)
     # -- get_dataset
-    data = load_yaml_config(filename=cg['dataset'], dir=os.path.join(args.config_dir, 'db'), walk=True,
+    data = load_yaml_config(filename=args.dataset, dir=os.path.join(args.config_dir, 'db'), walk=True,
                             post_process=dataset_from_config, **dirs)
     # -- get processing chain
-    fe_dp = load_yaml_config(filename=cg['features'], dir=os.path.join(args.config_dir, 'dp'), walk=True,
+    # get fe
+    fe_dp = load_yaml_config(filename=args.features, dir=os.path.join(args.config_dir, 'dp'), walk=True,
                              post_process=processing_chain)
+    # fit if needed
+    fe_dp.fit(data[cg['key']]['data'])
     # -- get features
-    data.prepare_feat(cg['key'],
-                      cg['features'],
+    data.prepare_feat(args.key,
+                      args.features,
                       fe_dp,
-                      overwrite=co['overwrite'],
-                      verbose=co['verbose'],
+                      overwrite=args.overwrite,
+                      verbose=args.verbose,
                       new_key='feat',
-                      multi_processing=co['multi_processing'],
-                      workers=co['workers'],
-                      buffer_len=co['buffer_len'])
+                      workers=args.workers,
+                      buffer_len=args.buffer_len)
 
 if __name__ == "__main__":
     try:
@@ -75,5 +75,3 @@ if __name__ == "__main__":
 
     except (ValueError, IOError) as e:
         sys.exit(e)
-
-

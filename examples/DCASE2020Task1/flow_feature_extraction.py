@@ -19,7 +19,7 @@ co = {'dir_conf': 'local',
       'workers': 5,
       'buffer_len': 5}
 
-def flow_feature_extraction(cg_in=dict(),co_in=dict()):
+def flow_feature_extraction():
     # ---------- params ---------- #
     # -- cmdline parser
     parser = argparse.ArgumentParser(description='JEF Feature extraction')
@@ -48,13 +48,13 @@ def flow_feature_extraction(cg_in=dict(),co_in=dict()):
     args = parser.parse_args()
 
     # -- get dirs
-    dirs = load_yaml_config(filename=args.dir_conf, dir=os.path.join(co['config_dir'], 'dirs'), walk=True)
+    dirs = load_yaml_config(filename=args.dir_conf, dir=os.path.join(args.config_dir, 'dirs'), walk=True)
     # -- get_dataset
-    data = load_yaml_config(filename=args.dataset, dir=os.path.join(co['config_dir'], 'db'), walk=True,
+    data = load_yaml_config(filename=args.dataset, dir=os.path.join(args.config_dir, 'db'), walk=True,
                             post_process=dataset_from_config, **dirs)
     # -- get processing chain
     # get fe
-    fe_dp = load_yaml_config(filename=args.features, dir=os.path.join(co['config_dir'], 'dp'), walk=True,
+    fe_dp = load_yaml_config(filename=args.features, dir=os.path.join(args.config_dir, 'dp'), walk=True,
                              post_process=processing_chain)
     # fit if needed
     fe_dp.fit(data[cg['key']]['data'])
