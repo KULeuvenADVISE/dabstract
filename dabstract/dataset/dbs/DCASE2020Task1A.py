@@ -24,7 +24,7 @@ class DCASE2020Task1A(dataset):
     def set_data(self, paths):
         # audio
         chain = processing_chain().add(WavDatareader(select_channel=0))
-        self.add('audio',self.dict_from_folder(paths['data'],map_fct=chain,save_path=os.path.join(paths['feat'],self.__class__.__name__, 'audio', 'raw')))
+        self.add_subdict_from_folder('audio',paths['data'],map_fct=chain,save_path=os.path.join(paths['feat'],self.__class__.__name__, 'audio', 'raw'))
         # get meta
         labels = pandas.read_csv(os.path.join(paths['meta'], 'meta.csv'), delimiter='\t')
         # make sure audio and meta is aligned

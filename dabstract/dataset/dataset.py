@@ -534,10 +534,10 @@ class dataset():
                     # save info
                     if (not pathlib.Path(featpath_base, subdb, 'file_info.pickle').is_file()) or overwrite:
                         with open(os.path.join(featpath_base, subdb, 'file_info.pickle'),"wb") as fp: pickle.dump((output_info,tmp_example), fp)
-                else:
-                    with open(os.path.join(featpath_base, subdb, 'file_info.pickle'), "rb") as fp:
-                        info_in, example_in = pickle.load(fp)
-                    infofilelist += [info_in[k] for k in range(len(tmp_example)) if tmp_example[k] in example_in]
+
+                with open(os.path.join(featpath_base, subdb, 'file_info.pickle'), "rb") as fp:
+                    info_in, example_in = pickle.load(fp)
+                infofilelist += [info_in[k] for k in range(len(tmp_example)) if tmp_example[k] in example_in]
                 featfilelist += tmp_featfilelist
 
 
