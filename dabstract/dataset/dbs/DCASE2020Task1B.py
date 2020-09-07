@@ -4,9 +4,9 @@ import pandas
 from dabstract.dataprocessor.processing_chain import processing_chain
 from dabstract.dataset.dataset import dataset
 from dabstract.dataprocessor.processors import *
-from dabstract.utils import listnp_combine, group_to_ind
+from dabstract.utils import listnp_combine, stringlist2ind
 
-class DCASE2020Task1A(dataset):
+class DCASE2020Task1B(dataset):
     def __init__(self,
                  paths=None,
                  split=None,
@@ -30,11 +30,11 @@ class DCASE2020Task1A(dataset):
         self.add('identifier', labels['identifier'].to_list())
         self.add('source', labels['source_label'].to_list())
         self.add('scene', labels['source_label'].to_list())
-        self.add('group', group_to_ind(labels['identifier'].to_list()))
+        self.add('group', stringlist2ind(labels['identifier'].to_list()))
         return self
 
     def prepare(self,paths):
         dcase_util.datasets.dataset_factory(
-            dataset_class_name='TAUUrbanAcousticScenes_2020_Mobile_DevelopmentSet',
+            dataset_class_name='TAUUrbanAcousticScenes_2020_3Class_DevelopmentSet',
             data_path=os.path.split(os.path.split(paths['data'])[0])[0],
         ).initialize()

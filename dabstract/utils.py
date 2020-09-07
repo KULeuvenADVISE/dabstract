@@ -9,6 +9,23 @@ import copy
 import importlib
 
 def load_yaml_config(filename, dir, walk=False, verbose=True, post_process=None, unpack=False, **kwargs):
+    """Load a yaml configuration file with some additional functionality
+
+    ...
+
+    Example:
+        $  data = load_yaml_config(filename=path_to_dir, dir=path_to_yaml, walk=True/False,
+        $  post_process=dataset_from_config, **kwargs)
+
+    ...
+
+    Arguments:
+        ...
+
+    Returns:
+        ...
+    """
+
     # search directory
     if walk:
         for root, subFolders, files in os.walk(dir):
@@ -78,12 +95,40 @@ def load_yaml_config(filename, dir, walk=False, verbose=True, post_process=None,
     return cfg
 
 def str_in_list(lst,string):
+    """Get indices of a string in a list
+
+    Example:
+        $  indices = str_in_list(lst,string)
+
+    ...
+
+    Arguments:
+        lst (lst): list of strings
+        string (str): string to search for
+
+    Returns:
+        list of integers
+    """
     if isinstance(string,(list,np.ndarray)):
         return [str_in_list(lst,_string) for _string in string]
     indices = [i for i in range(len(lst)) if lst[i] == string]
     return indices
 
 def listnp_combine(lst,method='concatenate',axis=0, allow_error=False):
+    """Concatenate or stack a list of numpy along with error handling
+
+    Example:
+        $  nparray = listnp_combine(lst,method='concatenate',axis=0, allow_error=False)
+
+    Arguments:
+        lst (lst): list of np arrays
+        method (str): 'concatenate' or 'stack'
+        axis (int): axis to concat or stack over
+        allow_error (bool): allow for error handling. If op does not succes, list is provided
+
+    Returns:
+        np.array OR list of np.array in case of error
+    """
     def combine(lst):
         if isinstance(lst, list):
             lst = np.array(lst)
@@ -109,10 +154,23 @@ def listnp_combine(lst,method='concatenate',axis=0, allow_error=False):
     return npcombine
 
 def listdictnp_combine(lst, method='concatenate',axis=0, keep_nested=False, allow_error=False):
+    """Concatenate or stack a list of dictionaries contains numpys along with error handling
+
+    Example:
+        $  nparray = listdictnp_combine(lst, method='concatenate',axis=0, keep_nested=False, allow_error=False)
+
+    Arguments:
+        lst (lst): list of dicts containings np arrays
+        method (str): 'concatenate' or 'stack'
+        axis (int): axis to concat or stack over
+        keep_nested (bool): keep nested structure of list or not
+        allow_error (bool): allow for error handling. If op does not succes, list is provided
+
+    Returns:
+        np.array OR list of np.array in case of error
+    """
     for k in range(len(lst)):
-        if lst[0].keys()!=lst[k].keys():
-            print('Dict keys do not match in listdictnp_stack fct')
-            sys.error()
+        assert lst[0].keys()==lst[k].keys(), 'Dict keys do not match in listdictnp_combine fct'
     # get keys
     keys = lst[0].keys()
     output_dict = dict()
@@ -132,114 +190,68 @@ def listdictnp_combine(lst, method='concatenate',axis=0, keep_nested=False, allo
         output_dict[key] = listnp_combine(tmp, method=method, axis=axis, allow_error=allow_error)
     return output_dict
 
-def dict_listappend(lst):
-    # check if keys match in all lists
-    for k in range(len(lst)):
-        if lst[0].keys()!=lst[k].keys():
-            print('Dict keys do not match in listdictnp_stack fct')
-            sys.error()
-    # get keys
-    keys = lst[0].keys()
-    output_dict = dict()
-    for key in keys:
-        output_dict[key] = [lst[k][key] for k in range(len(lst))]
-    return output_dict
-
 def unique_list(seq):
+    """Get unique entries in a list
+
+    Example:
+        $  unique_seq = unique_list(seq)
+
+    Arguments:
+        seq (list)
+    Returns:
+        list of unique values
+    """
     seen = set()
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x))]
 
-def listfilterdict(lst):
-    # get keys
-    keys = list()
-    for k in range(len(lst)):
-        keys.extend(list(lst[k].keys()))
-    # get keys to keep
-    unique_keys = list(set(keys))
-    keep_key = list()
-    for k in range(len(unique_keys)):
-        if len(np.where([keys[j]==unique_keys[k] for j in range(len(keys))])[0])==len(lst):
-            keep_key.append(unique_keys[k])
-    # filter out
-    lst_out = [None] * len(lst)
-    for k in range(len(lst)):
-        lst_out[k] = dict()
-        for j in range(len(keep_key)):
-            lst_out[k][keep_key[j]] = lst[k][keep_key[j]]
-    return lst_out
-
 def flatten_nested_lst(nested_lst):
+    """Flatten a nested list
+
+    Example:
+        $  flattened_list = flatten_nested_lst(nested_lst)
+
+    Arguments:
+        nested_lst (list)
+    Returns:
+        flattened list
+    """
     return [item for sublist in nested_lst for item in sublist]
 
-def flatten_nested_lst_save(nested_lst):
-    flat_list = []
-    for sublist in nested_lst:
-        if isinstance(sublist, list):
-            for item in sublist:
-                flat_list.append(item)
-        else:
-            flat_list.append(sublist)
-    return flat_list
-
-def ss_type(object, indices = None):
-    if isinstance(object, list):
-        object = ss_list(object, indices=indices)
-    elif isinstance(object,np.ndarray):
-        object = object[indices]
-    else:
-        print('Object not supported.')
-        sys.exit()
-    return object
-
-def ss_list(lst, indices = None):
-    return [lst[k] for k in indices]
-
-def listdir_folder(dir):
-    return [name for name in os.listdir(dir) if os.path.isdir(os.path.join(dir, name))]
-
 def any2str(obj):
+    """Convert anything to a string
+
+    Example:
+        $  str = any2str(obj)
+
+    Arguments:
+        obj: anything to convert to a str rep
+    Returns:
+        string
+    """
     if isinstance(obj,str):
         return obj
-    elif isinstance(obj,int) | isinstance(obj,np.ndarray)  | isinstance(obj,np.int64):
+    elif isinstance(obj,int) | isinstance(obj,np.ndarray)  | isinstance(obj,np.int64) | isinstance(obj,dict):
         return str(obj)
     elif obj is None:
         return 'None'
     else:
         print('Instance not supported in any2str()')
-
-def linear_interpolation(new_time, orig_time, orig_data, missing_comp=True):
-    new_data = np.zeros(len(new_time))
-    for k in range(len(new_time)):
-        diff = orig_time - new_time[k]
-        diffs = np.abs(diff)
-        lower_ids = np.where(diff <= 0)[0]
-        higher_ids = np.where(diff >= 0)[0]
-        if (missing_comp != 0) & (len(higher_ids) == 0):
-            higher_ids = lower_ids
-        if len(higher_ids) != 0:
-            ids1 = np.argmin(diffs[lower_ids])
-            ids2 = np.argmin(diffs[higher_ids])
-            ids1 = lower_ids[ids1]
-            ids2 = higher_ids[ids2]
-            if np.sum(diffs[[ids1, ids2]]) != 0:
-                new_value = orig_data[ids1] * diffs[ids2] / np.sum([diffs[[ids1, ids2]]]) + orig_data[ids2] * diffs[ids1] / np.sum([diffs[[ids1, ids2]]])
-            else:
-                new_value = orig_data[ids1]
-        else:
-            new_value = np.nan
-        new_data[k] = new_value
-
-    return new_data
-
-def wrap_time(timelist):
-    wrapped = np.empty(len(timelist))
-    for k2 in range(len(timelist)):
-        dt_object = datetime.fromtimestamp(timelist[k2])
-        wrapped[k2] = dt_object.weekday() + (dt_object.hour * 60 * 60 + dt_object.minute * 60 + dt_object.second) / (24 * 60 * 60)
-    return wrapped
+        sys.exit()
 
 def filter_data(data,sel_vect,squeeze=False):
+    """Filter any sequential data object based on indices
+
+    Example:
+        $  filtered_data = filter_data(data,sel_vect,squeeze=False)
+
+    Arguments:
+        data (obj): seq object to be filtered
+        sel_vect: indices to filter
+        squeeze: squeeze output when numpy
+    Returns:
+        filtered data
+    """
     # inits
     from dabstract.dataset import abstract
     if isinstance(sel_vect, (np.int64,int)):
@@ -274,32 +286,39 @@ def filter_data(data,sel_vect,squeeze=False):
     return out
 
 def safe_import_module(module_string):
+    """Import module with error handling
+
+    Example:
+        $  module = safe_import_module(module_string)
+
+    Arguments:
+        module_string: module string to import
+    Returns:
+        imported module
+    """
     try:
         return importlib.import_module(module_string)
     except ImportError:
         return object()
 
-def any2str(obj):
-    if isinstance(obj,str):
-        return obj
-    elif isinstance(obj,int) | isinstance(obj,np.ndarray)  | isinstance(obj,np.int64) | isinstance(obj,dict):
-        return str(obj)
-    elif obj is None:
-        return 'None'
-    else:
-        print('Instance not supported in any2str()')
-        sys.exit()
-
 def combs_numpy(delays):
+    """All possible combinations of numpy entries
+    """
     return np.unique(np.array(list(itertools.product(*[delays[:,k] for k in range(delays.shape[1])]))),axis=0)
 
 def combs_list(delays):
+    """All possible combinations of list entries
+    """
     return list(itertools.product(*delays))
 
 def combs_size_numpy(values,size):
+    """Size of all possible combinations of numpy entries
+    """
     return np.array([comb for comb in itertools.combinations(values, size)])
 
 def reformat_yaml(cfg):
+    """Reformat yaml list to numpy if possible
+    """
     if isinstance(cfg, list):
         tmp_cfg = cfg
         if any(isinstance(i, list) for i in tmp_cfg): # nested
@@ -309,6 +328,8 @@ def reformat_yaml(cfg):
     return cfg
 
 def reformat_yaml_iter(cfg):
+    """Reformat yaml list to numpy if possible in iterative fashion
+    """
     for k, v in cfg.items():
         if isinstance(v, dict):
             reformat_yaml_iter(v)
@@ -317,93 +338,40 @@ def reformat_yaml_iter(cfg):
     return cfg
 
 def load_yaml(filepath):
+    """Load yaml file
+    """
     # load file
     with open(filepath, 'r') as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.Loader)
 
     return cfg
 
-class circularlist(object):
-    def __init__(self, size):
-        """Initialization"""
-        self.index = 0
-        self.size = size
-        self._data = []
-
-    def append(self, value):
-        """Append an element"""
-        if len(self._data) == self.size:
-            self._data[self.index] = value
-        else:
-            self._data.append(value)
-        self.index = (self.index + 1) % self.size
-
-    def __getitem__(self, key):
-        """Get element by index, relative to the current index"""
-        if len(self._data) == self.size:
-            return(self._data[(key + self.index) % self.size])
-        else:
-            return(self._data[key])
-
-    def __repr__(self):
-        """Return string representation"""
-        return self._data.__repr__() + ' (' + str(len(self._data))+' items)'
-
 def pprint_ext(str,dict,np_precision=2):
+    """pprint with np precision specification and title
+    """
     np.set_printoptions(precision=np_precision, suppress=True)
     print(str)
     pprint(dict)
 
 def safe_len(var):
+    """safely get length
+    """
     try:
         return len(var)
     except TypeError:
         return 1
 
-def unlink_wrap(dat, lims=[-np.pi, np.pi], thresh = 0.95):
-    """
-    Iterate over contiguous regions of `dat` (i.e. where it does not
-    jump from near one limit to the other).
-
-    This function returns an generator object that yields slice
-    objects, which index the contiguous portions of `dat`.
-
-    This function implicitly assumes that all points in `dat` fall
-    within `lims`.
-
-    """
-    jump = np.nonzero(np.abs(np.diff(dat)) > ((lims[1] - lims[0]) * thresh))[0]
-    lasti = 0
-    for ind in jump:
-        yield slice(lasti, ind + 1)
-        lasti = ind + 1
-    yield slice(lasti, len(dat))
-
-class GeneratorLen(object):
-    def __init__(self, gen, length):
-        self.gen = gen
-        self.length = length
-
-    def __len__(self):
-        return self.length
-
-    def __iter__(self):
-        return self.gen
-
-#Data/meta: get group
-def group_to_ind(group_str):
-    subdb_ext = unique_list(group_str)
-    group_np = np.zeros((len(group_str)))
-    for k in range(len(group_str)):
-        group_np[k] = subdb_ext.index(group_str[k])
-    return group_np
-
-def intersection(lst1, lst2):
-    return [(k,value) for k,value in enumerate(lst1) if value in lst2]
 
 def stringlist2ind(strlist):
+    """list to unique indices
+    """
     subdb_ext = unique_list(strlist)
     group_np = np.zeros((len(strlist)))
     for k in range(len(strlist)):
         group_np[k] = subdb_ext.index(strlist[k])
     return group_np.astype(np.int)
+
+def intersection(lst1, lst2):
+    """List intersection
+    """
+    return [(k,value) for k,value in enumerate(lst1) if value in lst2]

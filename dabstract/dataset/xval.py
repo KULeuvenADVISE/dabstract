@@ -1,7 +1,7 @@
 import numpy as np
 import sklearn.model_selection as modsel
 
-from dabstract.utils import listnp_combine, filter_data, stringlist2ind
+from dabstract.utils import listnp_combine, stringlist2ind
 
 # Group random (random KFolds with groups)
 def group_random_kfold(folds=4,val_frac=1/3, group_key='group', **kwargs):

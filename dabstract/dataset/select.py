@@ -12,3 +12,15 @@ def random_subsample(ratio=1, **kwargs):
         return indexes
     return func
 
+def subsample_by_str(key=None, keep=None, **kwargs):
+    def func(data):
+        if isinstance(key,list):
+            for tmp in key:
+                data = data[tmp]
+        elif isinstance(key,str):
+            data = data[key]
+        assert keep is not None
+        return [k for k in np.arange(len(data)) if data[k]==keep]
+    return func
+
+

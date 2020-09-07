@@ -77,8 +77,9 @@ class processing_chain():
                 # fit if needed
                 if hasattr(chain,'fit'):
                     if 'init_subsample' in self._info[k]['parameters']:
-                        sel_ind = np.random.choice(np.arange(len(data)),size=int(self._info[k]['parameters']['init_subsample'] * len(data)), replace=False)
-                        data = SelectAbstract(data, (lambda x,k: k in sel_ind))
+                        if self._info[k]['parameters']['init_subsample'] is not None:
+                            sel_ind = np.random.choice(np.arange(len(data)),size=int(self._info[k]['parameters']['init_subsample'] * len(data)), replace=False)
+                            data = SelectAbstract(data, (lambda x,k: k in sel_ind))
                     data_tmp, info_tmp = DataAbstract(MapAbstract(data, init_processor)).get(slice(0,len(data)),return_info=True, **kwargs)
                     chain.fit(data_tmp, info_tmp)
                 # keep processor of previous stages (to be used for recursion if fit is needed)

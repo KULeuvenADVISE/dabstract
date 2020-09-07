@@ -5,3 +5,8 @@ datasets:
         data: !pathjoin [data,data]
         meta: !pathjoin [data,data]
         feat: !pathjoin [data,feat]
+xval:
+    name: random_kfold
+    parameters:
+      folds: 4
+      val_frac: 0.3

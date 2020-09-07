@@ -19,15 +19,9 @@ from dabstract.dataprocessor import processing_chain
 class abstract():
     pass
 
-def class_str(data):
-    if isinstance(data,abstract):
-        return repr(data)
-    else:
-        return str(data.__class__)
-    return
-
-
-class UnpackAbstract():
+class UnpackAbstract(abstract):
+    """Unpack a dictionary into a list
+    """
     def __init__(self, data, keys):
         self._data = data
         self._keys = keys
@@ -49,6 +43,8 @@ class UnpackAbstract():
         return self._data.__repr__() + "\n Unpack of keys: " + str(self._keys)
 
 def GeneratorAbstract(data, *args, workers=0, buffer_len=3, return_info=False, **kwargs):
+    """Apply a multiproc generator to the input sequence
+    """
     # define function to evaluate
     if isinstance(data, abstract):
         def func(index):
@@ -71,6 +67,8 @@ def GeneratorAbstract(data, *args, workers=0, buffer_len=3, return_info=False, *
             yield func(k)
 
 class DataAbstract(abstract):
+    """Allow for multi-indexing and multi-processing on a sequence or dictseq
+    """
     def __init__(self, data, workers=0, buffer_len=3, load_memory=False, **kwargs):
         self._data = data
         self._abstract = (True if isinstance(data, abstract) else False)
@@ -148,6 +146,8 @@ class DataAbstract(abstract):
         return class_str(self._data) + "\n data abstract: multi_processing " + str((True if self._workers>0 else False))
 
 class MapAbstract(abstract):
+    """Add a mapping on input data
+    """
     def __init__(self, data, map_fct, *arg, **kwargs):
         assert callable(map_fct), map_fct
         self._map_fct = map_fct
@@ -209,6 +209,8 @@ class MapAbstract(abstract):
         return class_str(self._data) + "\n map: " + str(self._map_fct)
 
 class ReplicateAbstract(abstract):
+    """Replicate data a particular factor
+    """
     def __init__(self, data, factor, type = 'on_sample', **kwargs):
         self._data = data
         self._type = type
@@ -258,6 +260,8 @@ class ReplicateAbstract(abstract):
             self._factor) + ' ' + self._type
 
 class SampleReplicateAbstract(abstract):
+    """Replicate data on sample-by-sample basis
+    """
     def __init__(self, data, factor, type = 'on_sample', **kwargs):
         self._data = data
         self._type = type
@@ -309,6 +313,8 @@ class SampleReplicateAbstract(abstract):
                ' ' + self._type
 
 class SplitAbstract(abstract):
+    """Split the datastream
+    """
     def __init__(self, data, split_size=None, constraint=None,
                  sample_len=None, sample_period=None, type='seconds', **kwargs):
         self._data = data
@@ -332,6 +338,7 @@ class SplitAbstract(abstract):
             self._window_size = int(self._split_size)
         if self._constraint == 'power2':
             self._window_size = int(2 ** np.ceil(np.log2(self._window_size)))
+        assert self._window_size>0
         # prepare splits
         self._split_range, self._split_len = [None] * len(self._data), np.zeros(len(self._data),dtype=int)
         for j in range(len(self._data)):
@@ -385,13 +392,16 @@ class SplitAbstract(abstract):
         return self._data.__repr__() + "\n split: " + str(self._window_size*self._sample_period) + ' ' + self._type
 
 class SelectAbstract(abstract):
+    """Select a subset of your input sequence. Selection is performed directly, this means that it should be a
+    variable which is readily available from memory.
+    """
     def __init__(self, data, selector, eval_data=None, **kwargs):
         self._data = data
         self._eval_data = (data if eval_data is None else eval_data)
         self._selector = selector
         if callable(selector):
             if len(inspect.getargspec(selector)[0])==1:
-                self._indices = selector(data)
+                self._indices = selector(self._eval_data)
             else:
                 self._indices = np.where([selector(self._eval_data,k) for k in range(len(self._eval_data))])[0]
         elif isinstance(selector,slice):
@@ -440,6 +450,8 @@ class SelectAbstract(abstract):
         return self._data.__repr__() + "\n select: " + str(type(self._selector))
 
 class FilterAbstract(abstract):
+    """Filter on the fly. Interesting when the variable to filter on takes long to compute.
+    """
     def __init__(self, abstract, filter_fct, **kwargs):
         assert callable(filter_fct), filter_fct
         self.filter_fct = filter_fct
@@ -484,6 +496,9 @@ class FilterAbstract(abstract):
         return self._data.__repr__() + "\n filter: " + str(type(self.filter_function))
 
 class KeyAbstract(abstract):
+    """Error handling wrapper for a concatenated sequence where one might have a dictseq and the other doesnt.
+    This will allow for key/index indexing even if the particular index does not have a key.
+    """
     def __init__(self, data, key, **kwargs):
         assert isinstance(data,abstract)
         self._data = data
@@ -536,6 +551,8 @@ class KeyAbstract(abstract):
         return 'key_abstract of key ' + self._key + ' on ' + str(self._data)
 
 class DictSeqAbstract(abstract):
+    """DictSeq base class
+    """
     def __init__(self, name=''):
         self._nr_keys = 0
         self._name = name
@@ -679,12 +696,20 @@ class DictSeqAbstract(abstract):
         return 'dict_seq containing: ' + str(self.keys())
 
 class SeqAbstract(abstract):
-    def __init__(self, name='seq'):
+    """Seq base class
+    """
+    def __init__(self, data = None, name='seq'):
         self._nr_sources = 0
         self._data = []
         self._info = []
         self._kwargs = []
         self._name = name
+        if data is not None:
+            if isinstance(data, list):
+                for _data in data:
+                    self.concat(_data)
+            else:
+                raise AssertionError('Input data should be a list')
 
     def concat(self, data, info=None, **kwargs):
         # Check
@@ -715,7 +740,7 @@ class SeqAbstract(abstract):
         return self.get(index)
 
     def __add__(self, other):
-        assert isinstance(other)
+        #assert isinstance(other)
         return self.concat(other)
 
     def get(self, index, key=None, return_info=False, **kwargs):
@@ -766,3 +791,10 @@ class SeqAbstract(abstract):
                 r += '\n[ \t' + repr(data) + '\t]'
             #r += '\n'
         return r
+
+def class_str(data):
+    if isinstance(data,abstract):
+        return repr(data)
+    else:
+        return str(data.__class__)
+    return

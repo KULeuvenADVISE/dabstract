@@ -1,9 +1,0 @@
-datasets:
-  - name: ISAAC_steel
-    parameters:
-      paths:
-        data: !kwarg [base_datasets,ISAAC_steel,data]
-        meta: !kwarg [base_datasets,ISAAC_steel,meta]
-        feat: !kwarg [base_datasets,ISAAC_steel,feat]
-      sensor: piezo
-      subdb: [None_f, 0uA_f, 10uA_f, 100uA_f, 1mA_f]

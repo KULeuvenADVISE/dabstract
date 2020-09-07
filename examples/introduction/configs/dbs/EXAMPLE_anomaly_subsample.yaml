@@ -1,30 +1,30 @@
 datasets:
-  - name: !class [EXAMPLE_db.EXAMPLE]
+  - name: EXAMPLE
     parameters:
       paths:
         data: !pathjoin [data,data]
         meta: !pathjoin [data,data]
-        tmp: !pathjoin [data,tmp]
-      subdb: normal
-      filter:
-        name: subsample
-        method: random
-        ratio: 0.5
+        feat: !pathjoin [data,feat]
+      select:
+        name: subsample_by_str
+        parameters:
+          key: [data,subdb]
+          keep: normal
       test_only: 0
-  - name: !class [EXAMPLE_db.EXAMPLE]
+  - name: EXAMPLE
     parameters:
       paths:
         data: !pathjoin [data,data]
         meta: !pathjoin [data,data]
-        tmp: !pathjoin [data,tmp]
-      subdb: abnormal
-      filter:
-        name: subsample
-        method: random
-        ratio: 0.5
+        feat: !pathjoin [data,feat]
+      select:
+        name: subsample_by_str
+        parameters:
+          key: [data,subdb]
+          keep: abnormal
       test_only: 1
-xval:
-    name: sequential_random
-    parameters:
-      folds: 4
-      val_frac: 0.3
+select:
+  name: random_subsample
+  parameters:
+    method: random
+    ratio: 0.5
