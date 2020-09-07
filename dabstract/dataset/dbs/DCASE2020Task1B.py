@@ -4,7 +4,7 @@ import pandas
 from dabstract.dataprocessor.processing_chain import processing_chain
 from dabstract.dataset.dataset import dataset
 from dabstract.dataprocessor.processors import *
-from dabstract.utils import listnp_combine, stringlist2ind
+from dabstract.utils import stringlist2ind
 
 class DCASE2020Task1B(dataset):
     def __init__(self,

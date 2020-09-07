@@ -3,7 +3,7 @@ DAtaset and preprocessing ABSTRACTion library
 
 This is a -lightweight- library for defining and processing data(sets). The goals of the library are to a) uniformize dataset classes, b) speed up experiments where the data does not fit into memory, c) offer a general way of processing data independent of the data source, d) seamlessly combine different datasets.
  
-The reader is advised to first go through EXAMPLESintroduction_notebook/Readme1/2/3_* and then check an example implementation using a dummy dataset.
+The reader is advised to first go through EXAMPLES/introduction_notebook/Readme1/2/3_* and then check the EXAMPLE implementation.
 Each function is documented using docstrings if insights into core functionality are needed.
 
 ## Install instructions

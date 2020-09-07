@@ -7,7 +7,6 @@ from dabstract.dataprocessor.processors import *
 from dabstract.dataset.abstract import *
 from dabstract.dataset import xval
 from dabstract.dataset import select as selectm
-from dabstract.dataset.helpers import dictseq_from_folder
 from dabstract.utils import safe_import_module
 
 class dataset():
@@ -233,7 +232,7 @@ class dataset():
                                         'time_step' ..: # sample period
                                         }
         """
-
+        from dabstract.dataset.helpers import dictseq_from_folder
         tmp = dictseq_from_folder(path, extension=extension, map_fct=map_fct, file_info_save_path=file_info_save_path, \
                                 filepath=filepath, overwrite_file_info=overwrite_file_info, **kwargs)
         self.add(key, tmp)

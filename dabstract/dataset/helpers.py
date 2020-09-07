@@ -5,7 +5,6 @@ import soundfile as sf
 
 from dabstract.utils import safe_import_module
 from dabstract.dataset.abstract import *
-from dabstract.dataset.dataset import dataset
 from dabstract.dataset import dbs
 
 def dataset_from_config(config, overwrite_xval=False):
@@ -73,6 +72,7 @@ def dataset_from_config(config, overwrite_xval=False):
     assert isinstance(config,dict), "config should be a dictionary"
     assert 'datasets' in config, "config should have a datasets key"
     assert isinstance(config['datasets'],list), "config['dataset'] should be represented as a list where each item is a dictionary containing kwargs of your dataset."
+    from dabstract.dataset.dataset import dataset
     ddataset = dataset()
     # init datasets
     for k,db in enumerate(config['datasets']):
