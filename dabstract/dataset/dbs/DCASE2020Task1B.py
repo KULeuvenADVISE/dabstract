@@ -23,7 +23,7 @@ class DCASE2020Task1B(dataset):
     # Data: get data
     def set_data(self, paths):
         # audio
-        chain = processing_chain().add(WavDatareader())
+        chain = processing_chain().add(WavDatareader(select_channel=0))
         self.add_subdict_from_folder('audio',paths['data'],map_fct=chain,save_path=paths['feat'])
         # add labels
         labels = pandas.read_csv(os.path.join(paths['meta'],'meta.csv'), delimiter='\t')
