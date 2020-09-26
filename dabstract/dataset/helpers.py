@@ -239,10 +239,12 @@ def get_dir_info(path, extension='.wav', file_info_save_path=None, filepath=None
     if not isinstance(filepath,list):
         filepath = []
         for root, dirs, files in os.walk(path):
+            dirs.sort()
             tmp = [os.path.join(root, file) for file in files if extension in file]
             if len(tmp)>0:
                 tmp.sort()
                 filepath += tmp
+
     example = [os.path.relpath(file, path) for file in filepath if extension in file]
     filename = [os.path.split(file)[1] for file in example if extension in file]
     subdb = [os.path.split(file)[0] for file in example if extension in file]

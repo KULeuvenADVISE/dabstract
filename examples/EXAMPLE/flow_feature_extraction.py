@@ -12,7 +12,7 @@ cg = {'dataset': 'EXAMPLE',
       'key': 'data',
       'features': 'EXAMPLE'}
 # general
-co = {'dir_conf': 'local_server',
+co = {'dir_conf': 'local',
       'config_dir': os.path.join('configs'),
       'overwrite': False,
       'verbose': True,

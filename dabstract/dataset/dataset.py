@@ -275,7 +275,7 @@ class dataset():
     def set_meta(self,param):
         return param
 
-    def add_split(self, split_size=None, constraint=None, type='seconds', **kwargs):
+    def add_split(self, split_size=None, constraint=None, type='seconds', reference_key=None, **kwargs):
         """Add a splitting operation to the dataset
 
         This is a functionality handy if you for example have a dataset with chunks of 60s while you
@@ -289,12 +289,25 @@ class dataset():
         while keys including only data will be replicated depending on the splitting rate.
 
         Example:
-            $  self.add_split(self, split_size=None, constraint=None, type='seconds', **kwargs)
+            $  self.add_split(self, split_size=None, constraint=None, metric='seconds', **kwargs)
         Arguments:
-            split_size (float/integer): split size in seconds/samples depending on 'type'
+            split_size (float/integer): split size in seconds/samples depending on 'metric'
             constraint: None/'power2', creates sizes with a order of 2 (used for autoencoders)
             type (str): split_size type ('seconds','samples')
+            reference_key (str): if samples is set as a size, one needs to provide a key reference to acquire
+            time_step information from.
         """
+
+        # get time_step in case of samples
+        if type=='samples':
+            assert reference_key is not None, "When choosing for samples, you should select a reference key."
+            assert isinstance(reference_key,str), "reference_key should be a str"
+            assert 'info' in self[reference_key].keys(), "info should be a key in self[reference_key]. Splitting is currently only supported when that information is available"
+            assert 'time_step' in self[reference_key]['info'][0], "time_step should be a key in self[reference_key]['info'][..]. Splitting is currently only supported when that information is available"
+            assert 'output_shape' in self[reference_key]['info'][0], "output_shape should be a key in self[reference_key]['info'][..]. Splitting is currently only supported when that information is available"
+            type = 'seconds'
+            split_size = np.unique(np.array([info['time_step'] for info in self[reference_key]['info']])) * split_size
+            assert len(split_size)==1, "can only do splittig when the time_steps in each example of your dataset/key are uniform."
 
         # prep sample lengths
         sample_len, sample_period, sample_duration = dict(), dict(), dict()
@@ -539,7 +552,6 @@ class dataset():
                     info_in, example_in = pickle.load(fp)
                 infofilelist += [info_in[k] for k in range(len(tmp_example)) if tmp_example[k] in example_in]
                 featfilelist += tmp_featfilelist
-
 
         # save chain config
         feconfdir = pathlib.Path(featpath_base, 'config.pickle')

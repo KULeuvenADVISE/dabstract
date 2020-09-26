@@ -10,7 +10,7 @@ datafolder = 'data_intro/data'
 os.makedirs(datafolder,exist_ok=True)
 os.makedirs(datafolder + '_numpy',exist_ok=True)
 for k,D in enumerate(DATA):
-    wavfiles.append(os.path.join(datafolder + '_numpy',str(k) + '.wav'))
+    wavfiles.append(os.path.join(datafolder,str(k) + '.wav'))
     numpyfiles.append(os.path.join(datafolder + '_numpy',str(k) + '.npy'))
     np.save(numpyfiles[k], D)
     audio_write(wavfiles[k], rate=1, data=D)
@@ -230,7 +230,7 @@ print(output_data.shape)
 
 print('\n\n\n')
 # -------------------------------------------------------------------------
-### Example on how to add a custom processing layer within configuration using !kwarg
+### Example on how to add a custom processing layer within configuration using !class
 from dabstract.dataprocessor import processing_chain
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
@@ -261,7 +261,7 @@ dp.fit(DATA, fs=1)
 # you can now access data as with typical indexing
 # e.g. datab[0], data[1]
 # in this way it accesses DATA[0] and DATA[1] respectively with the additional dp
-datab = MapAbstract(DATA,dp)
+datab = MapAbstract(DATA,dp, fs=1)
 print(datab)
 # allow for multi indexing, e.g. data[:] or data[0,1]
 datab = DataAbstract(datab, fs=1)

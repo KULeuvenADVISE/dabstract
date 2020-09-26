@@ -178,7 +178,7 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Another example to show how you could play aroud with a DictSeq
 ### Also shows how to use the SelectAbstract for subsetting datasets
-from dabstract.dataset.abstract import SeqAbstract, SelectAbstract
+from dabstract.dataset.abstract import SeqAbstract, SelectAbstract, DataAbstract
 
 # chain
 processor = processing_chain().add(Framing(windowsize=10, stepsize=10))
