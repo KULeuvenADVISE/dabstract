@@ -32,19 +32,6 @@ class EXAMPLE(dataset):
     def prepare(self,paths):
         if not os.path.isdir(paths['data']):
             from scipy.io.wavfile import write
-            # normal class
-            files = 100
-            duration = 60
-            sampling_rate = 16000
-            subdb = 'normal'
-            filt = FIR_filter(type='lowpass', f=4000, taps=100, fs=sampling_rate, axis=0)
-            for k in range(files):
-                os.makedirs(os.path.join(paths['data'],subdb), exist_ok=True)
-                data = filt.process(np.random.normal(size=duration * 16000))[0]
-                write(os.path.join(paths['data'],subdb, str(k) + '.wav'), sampling_rate, data/data.max())
-            labels = np.zeros(files)
-            np.save(os.path.join(paths['data'],subdb + '_labels.npy'), labels)
-
             # abnormal class
             files = 100
             duration = 60
@@ -56,6 +43,19 @@ class EXAMPLE(dataset):
                 data = filt.process(np.random.normal(size=duration * 16000))[0]
                 write(os.path.join(paths['data'],subdb, str(k) + '.wav'), sampling_rate, data/data.max())
             labels = np.ones(files)
+            np.save(os.path.join(paths['data'],subdb + '_labels.npy'), labels)
+
+            # normal class
+            files = 100
+            duration = 60
+            sampling_rate = 16000
+            subdb = 'normal'
+            filt = FIR_filter(type='lowpass', f=4000, taps=100, fs=sampling_rate, axis=0)
+            for k in range(files):
+                os.makedirs(os.path.join(paths['data'],subdb), exist_ok=True)
+                data = filt.process(np.random.normal(size=duration * 16000))[0]
+                write(os.path.join(paths['data'],subdb, str(k) + '.wav'), sampling_rate, data/data.max())
+            labels = np.zeros(files)
             np.save(os.path.join(paths['data'],subdb + '_labels.npy'), labels)
 
     def _get_binary_anomaly(self, paths):

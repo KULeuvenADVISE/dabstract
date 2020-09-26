@@ -1,0 +1,7 @@
+datasets:
+  - name: ISAAC_July2020_week4_SS316_ch0
+    parameters:
+      paths:
+        data: !kwarg [base_datasets,ISAAC_July2020_week4_SS316,data]
+        meta: !kwarg [base_datasets,ISAAC_July2020_week4_SS316,meta]
+        feat: !kwarg [base_datasets,ISAAC_July2020_week4_SS316,feat]

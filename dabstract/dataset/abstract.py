@@ -568,7 +568,7 @@ class DictSeqAbstract(abstract):
         self._data.update({key: data})
         self._nr_keys += 1
         self.__len__()
-        self.reset_active_key()
+        self.reset_active_keys()
         return self
 
     def add_dict(self,dct):
@@ -634,7 +634,14 @@ class DictSeqAbstract(abstract):
             self._active_keys = [keys]
 
     def reset_active_key(self):
+        warnings.warn('reset_active_key() in DictSeqAbstract is deprecated. Please use reset_active_keys()')
         self._active_keys = self.keys()
+
+    def reset_active_keys(self):
+        self._active_keys = self.keys()
+
+    def get_active_keys(self):
+        return self._active_keys
 
     def __len__(self):
         nr_examples = [len(self._data[key]) for key in self._data]

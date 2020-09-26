@@ -78,7 +78,7 @@ class dataset():
         .add_alias - add an alias to another key
         .keys - show the set of keys
         .set_active_keys - set an active key
-        .reset_active_key - reset the active keys
+        .reset_active_keys - reset the active keys
         .unpack - unpack DictSeq to a list representation
         .set_data - overwrite this method with yours to set your data
         .load_memory - load a particular key into memory
@@ -423,9 +423,15 @@ class dataset():
         self._data.set_active_keys(keys)
 
     def reset_active_key(self):
+        """Reset active keys (DEPRECATED)
+        """
+        warnings.warn('reset_active_key() in dataset is deprecated. Please use reset_active_keys()')
+        self._data.reset_active_key()
+
+    def reset_active_keys(self):
         """Reset active keys
         """
-        self._data.reset_active_key()
+        self._data.reset_active_keys()
 
     def unpack(self, keys):
         """Unpack the dictionary into a sequence
@@ -439,7 +445,7 @@ class dataset():
         """
         pass
 
-    def load_memory(self, key, workers=2,buffer_len=2, verbose=True):
+    def load_memory(self, key, workers=2,buffer_len=2, keep_structure=False, verbose=True):
         """Load data of a particular key from memory
 
         If you want to already load some data in memory as this might be the faster option you can use function.
@@ -450,13 +456,39 @@ class dataset():
             key (str): key to be loaded in memory
             workers (int): amount of workers used for loading the data
             buffer_len (int): buffer_len of the pool
+            keep_structure (bool): keep structure up another class than DictSeqAbstract
         """
         if verbose:
             print('Loading data in memory of key ' + key + ' containing ' + str(len(self)) + ' examples.')
-        self[key] = SeqAbstract().concat(DataAbstract(self[key]).get(slice(0,len(self)),
-                                              verbose=True,
-                                              workers=workers,
-                                              buffer_len=buffer_len))
+
+        if keep_structure:
+            def load_data(data):
+                return SeqAbstract().concat(DataAbstract(data).get(slice(0, len(self)),
+                                                                             verbose=True,
+                                                                             workers=workers,
+                                                                             buffer_len=buffer_len))
+            def iterative_load(data, key_str):
+                if isinstance(data, DictSeqAbstract):
+                    active_keys = data.get_active_keys()
+                    for key in data.keys():
+                        key_str2 = key_str+"/"+key
+                        if isinstance(data[key],DictSeqAbstract):
+                            data[key] = iterative_load(data[key], key_str2)
+                        else:
+                            print('Loading key ' + key_str2)
+                            data[key] = load_data(data[key])
+                    data.set_active_keys(active_keys)
+                else:
+                    print('Loading key ' + key_str)
+                    data = load_data(data)
+                return data
+
+            self[key] = iterative_load(self[key],key_str=key)
+        else:
+            self[key] = SeqAbstract().concat(DataAbstract(self[key]).get(slice(0,len(self)),
+                                                  verbose=True,
+                                                  workers=workers,
+                                                  buffer_len=buffer_len))
 
     def summary(self):
         """Print a dataset summary

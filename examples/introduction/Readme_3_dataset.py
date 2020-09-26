@@ -65,6 +65,40 @@ db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat')
 # db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat', workers=2)
 
 # -------------------------------------------------------------------------
+### Load data from memory
+from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
+from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor.processors import *
+
+# init db
+db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
+                         'meta': os.path.join('data','data'),
+                         'feat': os.path.join('data', 'feat')}) #mandatory
+# define processor
+processor = processing_chain().add(Framing(windowsize=10, stepsize=10))
+# do feature extraction on 'data'
+db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat')
+# load features into memory
+db.load_memory('feat')
+
+# -------------------------------------------------------------------------
+### Load data from memory and keep internal structure
+from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
+from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor.processors import *
+
+# init db
+db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
+                         'meta': os.path.join('data','data'),
+                         'feat': os.path.join('data', 'feat')}) #mandatory
+# define processor
+processor = processing_chain().add(Framing(windowsize=10, stepsize=10))
+# do feature extraction on 'data'
+db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat')
+# load features into memory
+db.load_memory('feat', keep_structure=True)
+
+# -------------------------------------------------------------------------
 ### Splitting
 from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
 from dabstract.dataprocessor import processing_chain
