@@ -375,8 +375,7 @@ class SplitAbstract(abstract):
                         data,info = self._data.get(k,return_info=True,*arg,**kwargs,**self._kwargs, range=range)
                     else:
                         data,info = self._data[k], {}
-                    # apply range if not already done in
-                    #ToDo(gert): add check for WavDatareader and NumpyDatareader, maybe check for len()?
+                    # apply range if not already done using range
                     data = data[range[0]:range[1]]
 
             return ((data, info) if return_info else data)
@@ -778,7 +777,7 @@ class SeqAbstract(abstract):
                         data, info = data.get(index, key=key, return_info=True, **info, **kwargs)
                     else:
                         assert key is None
-                        data = data[index]
+                        data, info = data[index], dict(**info,**kwargs)
                     # return
                     return ((data, info) if return_info else data)
             raise IndexError('Index should be lower than len(dataset)')

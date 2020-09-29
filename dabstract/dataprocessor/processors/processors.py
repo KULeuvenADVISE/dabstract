@@ -10,19 +10,21 @@ from dabstract.utils import listnp_combine, flatten_nested_lst
 from dabstract.dataprocessor import processor
 
 class WavDatareader(processor):
-    def __init__(self, format=None, select_channel=None, fs=None, read_range=None, dtype=None, **kwargs):
+    def __init__(self, format=None, select_channel=None, fs=None, range=None, dtype=None, **kwargs):
         self.force_format = format
         self.select_channel = select_channel
         self.fs = fs
-        self.read_range = read_range
+        self.range = range
         self.dtype = dtype
     def process(self, file, **kwargs):
         # get read params
         args = dict()
-        if hasattr(self, 'read_range'):
-            if self.read_range is not None:
-                args.update({'start': self.read_range[0],
-                             'stop': self.read_range[1]})
+        if self.range is not None:
+            args.update({'start': self.range[0],
+                         'stop': self.range[1]})
+        if 'range' in kwargs:
+            args.update({'start': kwargs['range'][0],
+                         'stop': kwargs['range'][1]})
         if hasattr(self,'dtype'):
             args.update({'dtype': self.dtype})
 
@@ -41,20 +43,23 @@ class WavDatareader(processor):
         return data, {'fs': fs}
 
 class NumpyDatareader(processor):
-    def __init__(self, format=None,  start=None, stop=None, **kwargs):
+    def __init__(self, format=None,  range=None, **kwargs):
         self.force_format = format
-        self.read_range = None
+        self.range = range
 
     def process(self, file, **kwargs):
         # get read params
         args = dict()
-        if hasattr(self, 'read_range'):
-            if self.read_range is not None:
-                args.update({'start': self.read_range[0],
-                             'stop': self.read_range[1]})
-        data = np.load(file)
-        #data = np.load(file, mmap_mode='r')
-        ##ToDo: Add range reading
+        if self.range is not None:
+            args.update({'range': self.range})
+        if 'range' in kwargs:
+            args.update({'range': kwargs['range']})
+
+        if 'range' in args:
+            data = np.load(file, mmap_mode='r')
+            data = data[args['range'][0]:args['range'][1],:]
+        else:
+            data = np.load(file)
         return data, {}
 
 class Normalizer(processor):
