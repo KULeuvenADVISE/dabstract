@@ -270,7 +270,12 @@ class dataset():
             key (str): key to apply the mapping to
             map_fct (fct): fct which performs y = f(x)
         """
-        self._data[key] = MapAbstract(copy.deepcopy(self._data[key]), map_fct=map_fct)
+        from dabstract.dataset.helpers import FolderDictSeqAbstract
+        if isinstance(self._data[key], FolderDictSeqAbstract):
+            self._data[key]['data'] = MapAbstract(copy.deepcopy(self._data[key]['data']),map_fct=map_fct)
+            self._data[key].set_active_keys('data')
+        else:
+            self._data[key] = MapAbstract(copy.deepcopy(self._data[key]), map_fct=map_fct)
 
     def set_meta(self,param):
         return param
@@ -542,10 +547,13 @@ class dataset():
             buffer_len (int): buffer_len of the pool
         """
         # checks
-        assert [file is not None for file in self[key]['filepath']], "not all entries contain filepath"
-        assert [item is not None for item in self[key]['example']], "not all entries contain filename"
-        assert [file is not None for file in self[key]['subdb']], "not all entries contain subdb"
-        assert [file is not None for file in self[key]['info']], "not all entries contain info"
+        from dabstract.dataset.helpers import FolderDictSeqAbstract
+        assert isinstance(self[key], FolderDictSeqAbstract), key + " should be of type FolderDictSeqAbstract"
+        # old definitio
+        # assert [file is not None for file in self[key]['filepath']], "not all entries contain filepath"
+        # assert [item is not None for item in self[key]['example']], "not all entries contain filename"
+        # assert [file is not None for file in self[key]['subdb']], "not all entries contain subdb"
+        # assert [file is not None for file in self[key]['info']], "not all entries contain info"
         # inits
         data = copy.deepcopy(self)
         data.add_map(key, fe_dp)
@@ -599,8 +607,9 @@ class dataset():
             new_key = key
             self.remove(key)
         if isinstance(key,str):
-            self.add_subdict_from_folder(new_key, featpath_base, filepath=featfilelist, extension='.npy', map_fct=processing_chain().add(NumpyDatareader))
-            self[new_key]['info'] = infofilelist #adhoc add of info
+            self.add_subdict_from_folder(new_key, featpath_base, filepath=featfilelist, extension='.npy')
+            self[new_key]['data'] = MapAbstract(self[new_key]['data'], map_fct=processing_chain().add(NumpyDatareader()), info=infofilelist)
+            self[new_key]['info'] = infofilelist
             self[new_key].set_active_keys('data')
         else:
             raise Exception("new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced.")

@@ -43,11 +43,15 @@ class WavDatareader(processor):
 class NumpyDatareader(processor):
     def __init__(self, format=None,  start=None, stop=None, **kwargs):
         self.force_format = format
-        self.start = start
-        self.stop = stop
         self.read_range = None
 
     def process(self, file, **kwargs):
+        # get read params
+        args = dict()
+        if hasattr(self, 'read_range'):
+            if self.read_range is not None:
+                args.update({'start': self.read_range[0],
+                             'stop': self.read_range[1]})
         data = np.load(file)
         #data = np.load(file, mmap_mode='r')
         ##ToDo: Add range reading

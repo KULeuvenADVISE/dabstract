@@ -64,6 +64,16 @@ db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat')
 # again you can specify multiprocessing as:
 # db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat', workers=2)
 
+from dabstract.dataset.abstract import MapAbstract
+from dabstract.dataprocessor.processing_chain import processor
+class custom_processor(processor):
+    def process(self, data, **kwargs):
+        return (data - 5) * 100, {'time_step': kwargs['time_step']}
+        # return data, information that can be propagated to consecutive layers
+pc = processing_chain()
+pc.add(custom_processor)
+db.add_map('feat', map_fct=pc)
+
 # -------------------------------------------------------------------------
 ### Load data from memory
 from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE

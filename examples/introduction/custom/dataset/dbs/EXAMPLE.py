@@ -21,7 +21,7 @@ class EXAMPLE(dataset):
     def set_data(self, paths):
         # audio
         chain = processing_chain().add(WavDatareader())
-        self.add_subdict_from_folder('data', paths['data'],map_fct=chain, save_path=paths['data'])
+        self.add_subdict_from_folder('data', paths['data'], map_fct=chain, save_path=paths['data'])
         # add labels
         self.add('binary_anomaly',self._get_binary_anomaly(paths))
         self.add('group', self['data']['subdb'])

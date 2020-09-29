@@ -170,24 +170,51 @@ def dictseq_from_folder(path, extension='.wav', map_fct=None, file_info_save_pat
                                     'time_step' ..: # sample period
                                     }
     """
-    if 'save_path' in kwargs:
-        file_info_save_path = kwargs['save_path']
-        warnings.warn("save_path is deprecated in dataset.py/dict_from_folder(). Change to 'file_info_save_path'", DeprecationWarning)
+    # if 'save_path' in kwargs:
+    #     file_info_save_path = kwargs['save_path']
+    #     warnings.warn("save_path is deprecated in dataset.py/dict_from_folder(). Change to 'file_info_save_path'", DeprecationWarning)
+    #
+    # data = DictSeqAbstract()
+    # # get info
+    # fileinfo = get_dir_info(path,extension=extension, file_info_save_path=file_info_save_path, filepath=filepath, overwrite_file_info=overwrite_file_info)
+    # # add data
+    # data.add('data', fileinfo['filepath'], active_key=True)
+    # # add meta
+    # for key in fileinfo:
+    #     data.add(key,fileinfo[key])
+    # # add map
+    # data['data'] = MapAbstract(data['data'],map_fct=map_fct)
+    # # set active key
+    # data.set_active_keys('data')
 
-    data = DictSeqAbstract()
-    # get info
-    fileinfo = get_dir_info(path,extension=extension, file_info_save_path=file_info_save_path, filepath=filepath, overwrite_file_info=overwrite_file_info)
-    # add data
-    data.add('data', fileinfo['filepath'], active_key=True)
-    # add meta
-    for key in fileinfo:
-        data.add(key,fileinfo[key])
-    # add map
-    data['data'] = MapAbstract(data['data'],map_fct=map_fct)
-    # set active key
-    data.set_active_keys('data')
+    data = FolderDictSeqAbstract(path, extension=extension, map_fct=map_fct, file_info_save_path=file_info_save_path, filepath=filepath, overwrite_file_info=overwrite_file_info, **kwargs)
+    warnings.warn("This function is deprecated. Please use the FolderDictSeqAbstract() class to initialise a data folder as DictSeqAbstract")
     return data
 
+class FolderDictSeqAbstract(DictSeqAbstract):
+    """ToDo(gert)
+    """
+    def __init__(self, path, extension='.wav', map_fct=None, file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs):
+        super().__init__()
+        if 'save_path' in kwargs:
+            file_info_save_path = kwargs['save_path']
+            warnings.warn("save_path is deprecated in dataset.py/dict_from_folder(). Change to 'file_info_save_path'",
+                          DeprecationWarning)
+        # get info
+        fileinfo = get_dir_info(path, extension=extension, file_info_save_path=file_info_save_path, filepath=filepath,
+                                overwrite_file_info=overwrite_file_info)
+        # add data
+        self.add('data', fileinfo['filepath'], active_key=True)
+        # add meta
+        for key in fileinfo:
+            self.add(key, fileinfo[key])
+        # add map
+        if map_fct is not None:
+            self['data'] = MapAbstract(self['data'], map_fct=map_fct)
+        # set active key
+        self.set_active_keys('data')
+    def __repr__(self):
+        return 'folder_dict_seq containing: ' + str(self.keys())
 
 def get_dir_info(path, extension='.wav', file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs):
     """Get meta information of the files in a directory.

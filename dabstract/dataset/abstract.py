@@ -148,13 +148,14 @@ class DataAbstract(abstract):
 class MapAbstract(abstract):
     """Add a mapping on input data
     """
-    def __init__(self, data, map_fct, *arg, **kwargs):
+    def __init__(self, data, map_fct, info=None, *arg, **kwargs):
         assert callable(map_fct), map_fct
         self._map_fct = map_fct
         self._data = data
         self._chain = (True if isinstance(map_fct, processing_chain) else False)
         self._abstract = (True if isinstance(data, abstract) else False)
         self._kwargs = kwargs
+        self._info = info
         self._args = arg
 
     def __iter__(self):
@@ -169,9 +170,14 @@ class MapAbstract(abstract):
             if index < 0:
                 index = index % len(self)
             if self._abstract:
-                data, info = self._data.get(index, return_info=True,*arg,**kwargs)
+                data, info = self._data.get(index,
+                                            return_info=True,
+                                            *arg,
+                                            **kwargs)
             else:
                 data, info = self._data[index], kwargs
+            if self._info is not None:
+                info = dict(info, **self._info[index])
             if self._chain:
                 data, info = self._map_fct(data, *self._args, **dict(self._kwargs, **info), return_info=True)
             else:
