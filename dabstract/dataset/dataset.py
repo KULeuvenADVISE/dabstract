@@ -274,7 +274,6 @@ class dataset():
         from dabstract.dataset.helpers import FolderDictSeqAbstract
         if isinstance(self._data[key], FolderDictSeqAbstract):
             self._data[key]['data'] = MapAbstract(copy.deepcopy(self._data[key]['data']),map_fct=map_fct)
-            self._data[key].set_active_keys('data')
         else:
             self._data[key] = MapAbstract(copy.deepcopy(self._data[key]), map_fct=map_fct)
 
@@ -483,7 +482,7 @@ class dataset():
                         else:
                             print('Loading key ' + key_str2)
                             data[key] = load_data(data[key])
-                    data.set_active_keys(active_keys)
+                    data._set_active_keys(active_keys)
                 else:
                     print('Loading key ' + key_str)
                     data = load_data(data)
@@ -608,10 +607,9 @@ class dataset():
             new_key = key
             self.remove(key)
         if isinstance(key,str):
-            self.add_subdict_from_folder(new_key, featpath_base, filepath=featfilelist, extension='.npy')
+            self.add(new_key, FolderDictSeqAbstract(featpath_base, filepath=featfilelist, extension='.npy'))
             self[new_key]['data'] = MapAbstract(self[new_key]['data'], map_fct=processing_chain().add(NumpyDatareader()), info=infofilelist)
             self[new_key]['info'] = infofilelist
-            self[new_key].set_active_keys('data')
         else:
             raise Exception("new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced.")
 

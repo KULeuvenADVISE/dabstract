@@ -212,12 +212,12 @@ class FolderDictSeqAbstract(DictSeqAbstract):
         if map_fct is not None:
             self['data'] = MapAbstract(self['data'], map_fct=map_fct)
         # set active key
-        self.set_active_keys('data')
+        self._set_active_keys('data')
 
     def set_active_keys(self,keys):
         raise Exception("A FolderDictSeqAbstract should always have data as the only active key. Setting not possible. Please use DictSeqAbstract if other functionality is needed.")
 
-    def reset_active_keys(self,keys):
+    def reset_active_keys(self):
         raise Exception("A FolderDictSeqAbstract should always have data as the only active key. Resetting not possible. Please use DictSeqAbstract if other functionality is needed.")
 
     def __repr__(self):

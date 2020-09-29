@@ -563,7 +563,7 @@ class DictSeqAbstract(abstract):
         self._nr_keys = 0
         self._name = name
         self._data = dict()
-        self._active_keys = None
+        self._active_keys = []
 
     def add(self, key, data,  **kwargs):
         assert hasattr(data, '__getitem__'), "provided data instance must have __getitem__ method."
@@ -571,12 +571,12 @@ class DictSeqAbstract(abstract):
         if self._nr_keys>0: assert len(data)==len(self), "len(self) is not the same as len(data)"
         if not isinstance(data,abstract):
             data = SeqAbstract().concat(data)
-        used_key = True if key in self.get_active_keys() else False
+        used_key = True if key in self.keys() or len(self) is 0 else False
         self._data.update({key: data})
         self._nr_keys += 1
         self.__len__()
         if not used_key:
-            self.reset_active_keys()
+            self._reset_active_keys()
         return self
 
     def add_dict(self,dct):
@@ -633,6 +633,16 @@ class DictSeqAbstract(abstract):
         self.add(new_key, self[key])
 
     def set_active_keys(self,keys):
+        self._set_active_keys(keys)
+
+    def reset_active_key(self):
+        warnings.warn('reset_active_key() in DictSeqAbstract is deprecated. Please use reset_active_keys()')
+        self._reset_active_keys()
+
+    def reset_active_keys(self):
+        self._reset_active_keys()
+
+    def _set_active_keys(self,keys):
         if isinstance(keys,list):
             for key in keys:
                 assert key in self.keys(), "key " + key + " does not exists."
@@ -641,11 +651,7 @@ class DictSeqAbstract(abstract):
             assert keys in self.keys(), "key " + keys + " does not exists."
             self._active_keys = [keys]
 
-    def reset_active_key(self):
-        warnings.warn('reset_active_key() in DictSeqAbstract is deprecated. Please use reset_active_keys()')
-        self._active_keys = self.keys()
-
-    def reset_active_keys(self):
+    def _reset_active_keys(self):
         self._active_keys = self.keys()
 
     def get_active_keys(self):
@@ -654,7 +660,7 @@ class DictSeqAbstract(abstract):
     def __len__(self):
         nr_examples = [len(self._data[key]) for key in self._data]
         assert all([nr_example == nr_examples[0] for nr_example in nr_examples])
-        return nr_examples[0]
+        return nr_examples[0] if len(nr_examples)>0 else 0
 
     def __getitem__(self, index):
         return self.get(index)
