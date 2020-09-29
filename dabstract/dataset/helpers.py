@@ -139,7 +139,8 @@ def dataset_factory(name=None,
         return name(paths=paths,select=select, test_only=test_only, xval=xval, tmp_folder=tmp_folder, **kwargs)
 
 def dictseq_from_folder(path, extension='.wav', map_fct=None, file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs):
-    """Get meta information of the files in a directory and place them in a DictSeq
+    """** Deprecated **
+    Get meta information of the files in a directory and place them in a DictSeq
 
     This function gets meta information (e.g. sampling frequency, length) of files in your provided directory.
     It return a DictSeq with the filenames/information/subfolders.
@@ -192,7 +193,39 @@ def dictseq_from_folder(path, extension='.wav', map_fct=None, file_info_save_pat
     return data
 
 class FolderDictSeqAbstract(DictSeqAbstract):
-    """ToDo(gert)
+    """Get meta information of the files in a directory and place them in a DictSeq
+
+    This function gets meta information (e.g. sampling frequency, length) of files in your provided directory.
+    It return a FolderDictSeq with the filenames/information/subfolders.
+    A FolderDictSeq is inherited from DictSeq and has similar functionality. However,
+    for a FolderDictSeq the active_keys are fixed to 'data'. In essence FolderDictSeq is a
+    data container showing information of a walk through a folder.
+    Additionally, this format keeps track of relevant information to either wav or numpy files.
+    prepare_feat and add_split only work on data fields that have this structure.
+
+    Example:
+        $  folderdictseq = FolderDictSeqAbstract(path_to_directory, extension='.wav', file_info_save_path=None, filepath=None, overwrite_file_info=False)
+
+    Arguments:
+        path (str): path to the directory to check
+        extension (string): only evaluate files with that extension
+        map_fct: add a mapping function y = f(x) to the 'data'
+        filepath: in case you already have the files you want to obtain information from, the dir tree search is not done
+                    and this is used instead
+        file_info_save_path: save the information to this location
+                             this function can be costly, so saving is useful
+        overwrite_file_info: overwrite file info file
+
+    Returns:
+        folderdictseq containing file information as a list, formatted as:
+        output['filepath'] = list of paths to files
+        output['example'] = example string (i.e. filename without extension)
+        output['filename'] = filename
+        output['subdb'] = relative subdirectory (starting from 'path') to file
+        output['info'][file_id] = { 'output_shape': .., #output shape of the wav file
+                                    'fs': .., # sampling frequency
+                                    'time_step' ..: # sample period
+                                    }
     """
     def __init__(self, path, extension='.wav', map_fct=None, file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs):
         super().__init__()
@@ -215,12 +248,18 @@ class FolderDictSeqAbstract(DictSeqAbstract):
         self._set_active_keys('data')
 
     def set_active_keys(self,keys):
+        """ Disables set of active keys
+        """
         raise Exception("A FolderDictSeqAbstract should always have data as the only active key. Setting not possible. Please use DictSeqAbstract if other functionality is needed.")
 
     def reset_active_keys(self):
+        """ Disables reset of active keys
+        """
         raise Exception("A FolderDictSeqAbstract should always have data as the only active key. Resetting not possible. Please use DictSeqAbstract if other functionality is needed.")
 
     def __repr__(self):
+        """ string print representation of function
+        """
         return 'folder_dict_seq containing: ' + str(self.keys())
 
 def get_dir_info(path, extension='.wav', file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs):

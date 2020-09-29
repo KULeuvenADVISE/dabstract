@@ -271,11 +271,11 @@ class dataset():
             key (str): key to apply the mapping to
             map_fct (fct): fct which performs y = f(x)
         """
-        from dabstract.dataset.helpers import FolderDictSeqAbstract
-        if isinstance(self._data[key], FolderDictSeqAbstract):
-            self._data[key]['data'] = MapAbstract(copy.deepcopy(self._data[key]['data']),map_fct=map_fct)
-        else:
-            self._data[key] = MapAbstract(copy.deepcopy(self._data[key]), map_fct=map_fct)
+        # from dabstract.dataset.helpers import FolderDictSeqAbstract
+        # if isinstance(self._data[key], FolderDictSeqAbstract):
+        #     self._data[key]['data'] = MapAbstract(copy.deepcopy(self._data[key]['data']),map_fct=map_fct)
+        # else:
+        self._data[key] = MapAbstract(copy.deepcopy(self._data[key]), map_fct=map_fct)
 
     def set_meta(self,param):
         return param

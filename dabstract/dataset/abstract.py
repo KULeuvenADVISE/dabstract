@@ -759,6 +759,22 @@ class SeqAbstract(abstract):
     def __getitem__(self, index):
         return self.get(index)
 
+    def __setitem__(self, index, value):
+        if isinstance(index,numbers.Integral):
+            if index < 0:
+                index = index % len(self)
+            for k,data in enumerate(self._data):
+                if len(data) <= index:
+                    index -= len(data)
+                else:
+                    data[index] = value
+                return None
+            raise IndexError('Index should be lower than len(dataset)')
+        elif isinstance(index,str):
+            return KeyAbstract(self, index)
+        else:
+            raise IndexError('index should be a number (or key in case of a nested dict_seq).')
+
     def __add__(self, other):
         #assert isinstance(other)
         return self.concat(other)
