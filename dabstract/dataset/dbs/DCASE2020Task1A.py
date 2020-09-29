@@ -29,7 +29,7 @@ class DCASE2020Task1A(dataset):
         labels = pandas.read_csv(os.path.join(paths['meta'], 'meta.csv'), delimiter='\t')
         # make sure audio and meta is aligned
         filenames = labels['filename'].to_list()
-        resort = np.array([filenames.index(os.path.join('audio',filename)) for filename in self['audio']['example']])
+        resort = np.array([filenames.index('audio/' + filename) for filename in self['audio']['example']])
         labels = labels.reindex(resort)
         # add labels
         self.add('identifier', labels['identifier'].to_list())

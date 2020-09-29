@@ -235,6 +235,7 @@ class dataset():
         from dabstract.dataset.helpers import dictseq_from_folder
         tmp = dictseq_from_folder(path, extension=extension, map_fct=map_fct, file_info_save_path=file_info_save_path, \
                                 filepath=filepath, overwrite_file_info=overwrite_file_info, **kwargs)
+        warnings.warn( "This function is deprecated. Please use the self.add(key, FolderDictSeqAbstract(*arg,**kwargs)) class to add a data folder to your dataset")
         self.add(key, tmp)
 
     def concat(self, data, intersect=False):

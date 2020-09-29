@@ -571,10 +571,12 @@ class DictSeqAbstract(abstract):
         if self._nr_keys>0: assert len(data)==len(self), "len(self) is not the same as len(data)"
         if not isinstance(data,abstract):
             data = SeqAbstract().concat(data)
+        used_key = True if key in self.get_active_keys() else False
         self._data.update({key: data})
         self._nr_keys += 1
         self.__len__()
-        self.reset_active_keys()
+        if not used_key:
+            self.reset_active_keys()
         return self
 
     def add_dict(self,dct):
