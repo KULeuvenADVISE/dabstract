@@ -330,22 +330,24 @@ for example in DSA2: #Prefetches data!!
     print(example)
     print("\n")
 
-# # -------------------------------------------------------------------------
-# ### Example of dictseq with active keys and mixed key/integer indexing
-# # dict
-# DSA = DictSeqAbstract().add_dict(fileinfodict)
-# DSA.add('data', fileinfodict['filepath'])
-# DSA.add('class', np.ones(len(DSA1)))
-# DSA.add_map('data', processor2,fs=1)
-# # merge
-# #DSA_DA = SeqAbstract().concat(DSA).concat(DATA) # fails, output should be identical in a seqabstract
-# DSA.set_active_keys('data')
-# DSA_DA = SeqAbstract().concat(DSA).concat(DATA)
-# print(DSA_DA)
-# # ok that works, what about indexing?
-# print(DSA_DA[0])
-# print(DSA_DA[-1])
-# # what with keys?
-# DSA_DA['filepath']  #opens up a "KeyAbstract" (will never give an error, will just return None if not exists)
-# print(DSA_DA['filepath'][0]) # returns correct up value
-# print(DSA_DA['filepath'][-1]) # returns None
+print('\n\n\n')
+# -------------------------------------------------------------------------
+### For some data entries like labels it might be interesting to avoid to Abstract() overhead
+### and directly operate on numpy or lists. For this we've added the lazy=True/False flag
+from dabstract.dataset.abstract import DictSeqAbstract
+
+# create a dictseqabstract object and fill it with two keys
+DSA = DictSeqAbstract()
+DSA.add('data',DATA) # 'data' key with numpy item
+DSA.add('filepath',wavfiles, lazy=False) # 'filepath' with a list of strings !equal length!
+DSA[0]
+DSA2 = DSA+DSA
+print(DSA[0])
+print(DSA['data'])
+print(DSA['data'][0])
+
+# concat and error
+DSA = DSA.concat(DSA) # concat two dictseq's
+#DSA.add('failure',DATA) # failure due to length requirement
+
+print('\n\n\n')

@@ -145,6 +145,17 @@ class DataAbstract(abstract):
     def __repr__(self):
         return class_str(self._data) + "\n data abstract: multi_processing " + str((True if self._workers>0 else False))
 
+def Map(data, map_fct, info=None, lazy=True, workers=1, buffer_len=3, *arg, **kwargs):
+    """Factory function to allow for choice between lazy and direct mapping
+    """
+    _abstract = (True if isinstance(data, abstract) else False)
+    if lazy:
+        return MapAbstract(data, map_fct, info=info, *arg, **kwargs)
+    else:
+        return DataAbstract(MapAbstract(data, map_fct, info=info, *arg, **kwargs),
+                            workers=workers,
+                            buffer_len=buffer_len)[:]
+
 class MapAbstract(abstract):
     """Add a mapping on input data
     """
@@ -214,63 +225,86 @@ class MapAbstract(abstract):
     def __repr__(self):
         return class_str(self._data) + "\n map: " + str(self._map_fct)
 
-class ReplicateAbstract(abstract):
-    """Replicate data a particular factor
+# def Replicate(data, factor, type = 'on_sample', lazy=True, workers=1, buffer_len=3, *arg, **kwargs):
+#     """Factory function to allow for choice between lazy and direct replication
+#     """
+#     _abstract = (True if isinstance(data, abstract) else False)
+#     if lazy:
+#         return ReplicateAbstract(data, factor, type = 'on_sample', **kwargs)
+#     else:
+#         #ToDo: replace by a list and np equivalent
+#         return DataAbstract(ReplicateAbstract(data, factor, type = 'on_sample', *arg, **kwargs),
+#                             workers=workers,
+#                             buffer_len=buffer_len)[:]
+
+# class ReplicateAbstract(abstract):
+#     """Replicate data a particular factor
+#     """
+#     def __init__(self, data, factor, type = 'on_sample', **kwargs):
+#         self._data = data
+#         self._type = type
+#         self._factor = factor
+#         self._abstract = (True if isinstance(data, abstract) else False)
+#         if self._type == 'on_sample':
+#             self.rep_function = (lambda x: int(np.floor(x / self._factor)))
+#         elif self._type == 'full':
+#             self.rep_function = (lambda x: int(np.floor(x / len(self._data))))
+#         else:
+#             raise NotImplemented
+#
+#     def __iter__(self):
+#         for k in range(len(self)):
+#             yield self[k]
+#
+#     def __getitem__(self, index):
+#         return self.get(index)
+#
+#     def get(self, index, return_info=False, *arg, **kwargs):
+#         if isinstance(index, numbers.Integral):
+#             if index < 0:
+#                 index = index % len(self)
+#             assert index < len(self)
+#             k = self.rep_function(index)
+#             if self._abstract:
+#                 data, info = self._data.get(k, return_info=True, *arg, **kwargs, **self._kwargs)
+#             else:
+#                 data, info = self._data[k], {}
+#             return ((data, info) if return_info else data)
+#         elif isinstance(index, str):
+#             return KeyAbstract(self, index)
+#         else:
+#             raise TypeError('Index should be a str our number')
+#
+#     def __len__(self):
+#         return len(self._data) * self._factor
+#
+#     def keys(self):
+#         if hasattr(self._data, 'keys'):
+#             return self._data.keys()
+#         else:
+#             return self._data._data.keys()
+#
+#     def __repr__(self):
+#         return self._data.__repr__() + "\n replicate: " + str(
+#             self._factor) + ' ' + self._type
+
+def SampleReplicate(data, factor, lazy=True, workers=1, buffer_len=3, *arg, **kwargs):
+    """Factory function to allow for choice between lazy and direct sample replication
     """
-    def __init__(self, data, factor, type = 'on_sample', **kwargs):
-        self._data = data
-        self._type = type
-        self._factor = factor
-        self._abstract = (True if isinstance(data, abstract) else False)
-        if self._type == 'on_sample':
-            self.rep_function = (lambda x: int(np.floor(x / self._factor)))
-        elif self._type == 'full':
-            self.rep_function = (lambda x: int(np.floor(x / len(self._data))))
-        else:
-            raise NotImplemented
-
-    def __iter__(self):
-        for k in range(len(self)):
-            yield self[k]
-
-    def __getitem__(self, index):
-        return self.get(index)
-
-    def get(self, index, return_info=False, *arg, **kwargs):
-        if isinstance(index, numbers.Integral):
-            if index < 0:
-                index = index % len(self)
-            assert index < len(self)
-            k = self.rep_function(index)
-            if self._abstract:
-                data, info = self._data.get(k, return_info=True, *arg, **kwargs, **self._kwargs)
-            else:
-                data, info = self._data[k], {}
-            return ((data, info) if return_info else data)
-        elif isinstance(index, str):
-            return KeyAbstract(self, index)
-        else:
-            raise TypeError('Index should be a str our number')
-
-    def __len__(self):
-        return len(self._data) * self._factor
-
-    def keys(self):
-        if hasattr(self._data, 'keys'):
-            return self._data.keys()
-        else:
-            return self._data._data.keys()
-
-    def __repr__(self):
-        return self._data.__repr__() + "\n replicate: " + str(
-            self._factor) + ' ' + self._type
+    _abstract = (True if isinstance(data, abstract) else False)
+    if lazy:
+        return SampleReplicateAbstract(data, factor,  **kwargs)
+    else:
+        #ToDo: replace by a list and np equivalent
+        return DataAbstract(SampleReplicateAbstract(data, factor, *arg, **kwargs),
+                            workers=workers,
+                            buffer_len=buffer_len)[:]
 
 class SampleReplicateAbstract(abstract):
     """Replicate data on sample-by-sample basis
     """
-    def __init__(self, data, factor, type = 'on_sample', **kwargs):
+    def __init__(self, data, factor, **kwargs):
         self._data = data
-        self._type = type
         self._factor = factor
         if isinstance(self._factor,numbers.Integral):
             self._factor = self._factor * np.ones(len(data))
@@ -296,7 +330,7 @@ class SampleReplicateAbstract(abstract):
                     if self._abstract:
                         data, info = self._data.get(k, return_info=True, **kwargs)
                     else:
-                        data = self._data[k]
+                        data, info = self._data[k], dict()
                     # return
                     return ((data, info) if return_info else data)
         elif isinstance(index, str):
@@ -315,8 +349,21 @@ class SampleReplicateAbstract(abstract):
 
     def __repr__(self):
         return self._data.__repr__() + "\n replicate: " + \
-               str(self._factor.min()) + ' - ' + str(self._factor.max()) + \
-               ' ' + self._type
+               str(self._factor.min()) + ' - ' + str(self._factor.max())
+
+def Split(data, split_size=None, constraint=None, sample_len=None, sample_period=None, type='seconds', lazy=True, workers=1, buffer_len=3, *arg, **kwargs):
+    """Factory function to allow for choice between lazy and direct example splittin
+    """
+    _abstract = (True if isinstance(data, abstract) else False)
+    if lazy:
+        return SplitAbstract(data, split_size=split_size, constraint=constraint,
+                    sample_len=sample_len, sample_period=sample_period, type=type,  **kwargs)
+    else:
+        #ToDo: replace by a list and np equivalent
+        return DataAbstract(SplitAbstract(data, split_size=split_size, constraint=constraint,
+                    sample_len=sample_len, sample_period=sample_period, type=type, *arg, **kwargs),
+                    workers=workers,
+                    buffer_len=buffer_len)[:]
 
 class SplitAbstract(abstract):
     """Split the datastream
@@ -396,6 +443,18 @@ class SplitAbstract(abstract):
     def __repr__(self):
         return self._data.__repr__() + "\n split: " + str(self._window_size*self._sample_period) + ' ' + self._type
 
+def Select(data, selector, eval_data=None, lazy=True, workers=1, buffer_len=3, *arg, **kwargs):
+    """Factory function to allow for choice between lazy and direct example selection
+    """
+    _abstract = (True if isinstance(data, abstract) else False)
+    if lazy:
+        return SelectAbstract(data, selector, eval_data=eval_data,  **kwargs)
+    else:
+        #ToDo: replace by a list and np equivalent
+        return DataAbstract(SelectAbstract(data, selector, eval_data=eval_data, *arg, **kwargs),
+                    workers=workers,
+                    buffer_len=buffer_len)[:]
+
 class SelectAbstract(abstract):
     """Select a subset of your input sequence. Selection is performed directly, this means that it should be a
     variable which is readily available from memory.
@@ -419,6 +478,10 @@ class SelectAbstract(abstract):
             self._indices = [selector]
         self._abstract = (True if isinstance(data, abstract) else False)
         self._kwargs = kwargs
+        if self._abstract:
+            if hasattr(self._data,'_lazy'):
+                if not self._data._lazy:
+                    return DataAbstract(self)[:]
 
     def __iter__(self):
         for k in range(len(self)):
@@ -453,6 +516,18 @@ class SelectAbstract(abstract):
 
     def __repr__(self):
         return self._data.__repr__() + "\n select: " + str(type(self._selector))
+
+def Filter(data, filter_fct, lazy=True, workers=1, buffer_len=3, *arg, **kwargs):
+    """Factory function to allow for choice between lazy and direct example selection
+    """
+    _abstract = (True if isinstance(data, abstract) else False)
+    if lazy:
+        return FilterAbstract(data, filter_fct,  **kwargs)
+    else:
+        #ToDo: replace by a list and np equivalent
+        return DataAbstract(FilterAbstract(data, filter_fct, *arg, **kwargs),
+                    workers=workers,
+                    buffer_len=buffer_len)[:]
 
 class FilterAbstract(abstract):
     """Filter on the fly. Interesting when the variable to filter on takes long to compute.
@@ -563,50 +638,62 @@ class DictSeqAbstract(abstract):
         self._name = name
         self._data = dict()
         self._active_keys = []
+        self._lazy = dict()
 
-    def add(self, key, data,  **kwargs):
+    def add(self, key, data, lazy=True, info=None, **kwargs):
         assert hasattr(data, '__getitem__'), "provided data instance must have __getitem__ method."
         assert key != 'all', "The name 'all' is reserved for referring to all keys when applying a transform."
         if self._nr_keys>0: assert len(data)==len(self), "len(self) is not the same as len(data)"
-        if not isinstance(data,abstract):
-            data = SeqAbstract().concat(data)
+        if not isinstance(data,abstract) and lazy:
+            data = SeqAbstract().concat(data, info=info)
         used_key = True if key in self.keys() or len(self) is 0 else False
         self._data.update({key: data})
+        self._lazy.update({key: lazy})
         self._nr_keys += 1
         self.__len__()
         if not used_key:
             self._reset_active_keys()
         return self
 
-    def add_dict(self,dct):
+    def add_dict(self,dct, lazy=True):
         for key in dct:
-            self.add(key,dct[key])
+            self.add(key,dct[key], lazy=lazy)
         return self
 
-    def concat(self, data, intersect=False):
+    def concat(self, data, intersect=False, adjust_base=True):
         if isinstance(data,list):
             for d in data:
                 self.concat(d,intersect=intersect)
         else:
+            self2 = (self if adjust_base else copy.deepcopy(self))
             data = copy.deepcopy(data)
             assert isinstance(data, DictSeqAbstract)
-            if self._nr_keys != 0:
+            if self2._nr_keys != 0:
                 if not intersect:
-                    assert data.keys() == self.keys(), "keys do not match. Set intersect=True for keeping common keys."
+                    assert data.keys() == self2.keys(), "keys do not match. Set intersect=True for keeping common keys."
                     keys = enumerate(data.keys())
                 else:
-                    keys = intersection(data.keys(), self.keys())
+                    keys = intersection(data.keys(), self2.keys())
                 for k, key in keys:
-                    if not isinstance(self._data[key], SeqAbstract):
-                        self._data[key] = SeqAbstract().concat(self._data[key])
-                    if not isinstance(data[key], SeqAbstract):
-                        self._data[key].concat(data[key])
+                    if self2._lazy[key]:
+                        # make sure that data format is as desired by the base dict
+                        if (not isinstance(self2._data[key], SeqAbstract)):
+                            self2._data[key] = SeqAbstract().concat(self2._data[key])
+                        # concatenate SeqAbstract
+                        if isinstance(data[key], SeqAbstract): # if already a SeqAbstract, concat cleaner to avoid overhead
+                            for _data in data[key]._data:
+                                self2._data[key].concat(_data)
+                        else: # if not just concat at once
+                            self2._data[key].concat(data[key])
                     else:
-                        for _data in data[key]._data:
-                            self._data[key].concat(_data)
+                        assert self2._data[key].__class__ == data[key].__class__, "When using lazy=False, datatypes should be same in case of concatenation."
+                        if isinstance(self2._data[key], list):
+                            self2._data[key] = self2._data[key] + data[key]
+                        elif isinstance(self2._data[key], np.ndarray):
+                            self2._data[key] = np.concatenate((self2._data[key],data[key]))
             else:
-                self.__dict__.update(data.__dict__)
-            return self
+                self2.__dict__.update(data.__dict__)
+            return self2
 
     def remove(self,key):
         del self._data[key]
@@ -614,18 +701,7 @@ class DictSeqAbstract(abstract):
         return self
 
     def add_map(self,key, map_fct, *arg, **kwargs):
-        # assert key in self.keys()
-        # if isinstance(self[key], DictSeqAbstract):
-        #     assert len(self._data[key].active_key)==1
-        #     self._data[key].add_map(self._data[key].active_key[0], map_fct, *arg, **kwargs)
-        # else:
-        self[key] = MapAbstract(self[key], map_fct, *arg, **kwargs)
-
-    # def add_select(self, select, *arg, **kwargs):
-    #     eval_data = copy.deepcopy(self)
-    #     for key in self.keys():
-    #         if self[key]
-    #         self[key]  = SelectAbstract(self[key], select, eval_data = eval_data, *arg, **kwargs)
+        self[key] = Map(self[key], map_fct, lazy=self._lazy[key], *arg, **kwargs)
 
     def add_alias(self,key, new_key):
         assert new_key not in self.keys(), "alias key already in existing keys."
@@ -666,7 +742,7 @@ class DictSeqAbstract(abstract):
 
     def __add__(self, other):
         assert isinstance(other, DictSeqAbstract)
-        return self.concat(other)
+        return self.concat(other, adjust_base=False)
 
     def __setitem__(self, k, v):
         self.add(k,v)
@@ -679,7 +755,10 @@ class DictSeqAbstract(abstract):
             if key is None:
                 data, info = dict(), dict()
                 for k, key in enumerate(self._active_keys):
-                    data[key], info[key] = self._data[key].get(index=index, return_info=True,**kwargs)
+                    if self._lazy[key]:
+                        data[key], info[key] = self._data[key].get(index=index, return_info=True,**kwargs)
+                    else:
+                        data = self._data[key][index]
                 if len(self._active_keys)==1:
                     data, info = data[key], info[key]
             else:
@@ -747,8 +826,8 @@ class SeqAbstract(abstract):
         # Information to propagate to transforms or use for split
         if info is not None:
             assert isinstance(info,list), "info should be a list"
-            assert isinstance(info[0],dict()), "The items in info should contain a dict()"
-            assert len(info)==self.nr_examples[-1], "info should be a list with len(info)==len(data)"
+            assert isinstance(info[0],dict), "The items in info should contain a dict()"
+            assert len(info)==len(data), "info should be a list with len(info)==len(data)"
         self._info.append(info)
         self._kwargs.append(kwargs)
         return self

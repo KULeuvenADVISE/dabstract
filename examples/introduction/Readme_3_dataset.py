@@ -64,15 +64,25 @@ db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat')
 # again you can specify multiprocessing as:
 # db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat', workers=2)
 
-# from dabstract.dataset.abstract import MapAbstract
-# from dabstract.dataprocessor.processing_chain import processor
-# class custom_processor(processor):
-#     def process(self, data, **kwargs):
-#         return (data - 5) * 100, {'time_step': kwargs['time_step']}
-#         # return data, information that can be propagated to consecutive layers
-# pc = processing_chain()
-# pc.add(custom_processor)
-# db.add_map('feat', map_fct=pc)
+# -------------------------------------------------------------------------
+### Feature extraction (Nested)
+### paths/feat is a mandatory field that should be added when doing feature extraction
+### as it determines where the features are stored
+from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
+from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor.processors import *
+
+# init db
+db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
+                         'meta': os.path.join('data','data'),
+                         'feat': os.path.join('data', 'feat')}) #mandatory
+# define processor
+processor = processing_chain().add(none())
+processor2 = processing_chain().add(Framing(windowsize=10, stepsize=10))
+# do feature extraction for the first time
+db.prepare_feat('data',fe_name='np_audio', fe_dp=processor, new_key='feat')
+# do feature extraction for the second time (e.g. if its modular, this could save computation time)
+db.prepare_feat('feat',fe_name='raw_audio', fe_dp=processor2, new_key='feat2')
 
 # -------------------------------------------------------------------------
 ### Load data from memory
@@ -149,6 +159,33 @@ db.prepare_feat('data',fe_name='Framing0101', fe_dp=processor, new_key='feat')
 # add splitting
 db.add_split(split_size=1, type='samples', reference_key='feat')
 # show summary
+db.summary()
+# both feat and data are timesplitted and read from disk
+print(db['data'][0].shape)
+print(db['feat'][0].shape)
+
+# -------------------------------------------------------------------------
+### Splitting (per frame)
+from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
+from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor.processors import *
+
+# init db
+db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
+                         'meta': os.path.join('data','data'),
+                         'feat': os.path.join('data', 'feat')}) #mandatory
+db.summary()
+# define processor
+processor = processing_chain().add(Framing(windowsize=0.1, stepsize=0.1))
+# prepare features
+db.prepare_feat('data',fe_name='Framing0101', fe_dp=processor, new_key='feat')
+# add splitting
+db.add_split(split_size=1, type='samples', reference_key='feat')
+# create bigger db
+db = db+db+db+db
+# load memory
+db.load_memory('binary_anomaly')
+# # show summary
 db.summary()
 # both feat and data are timesplitted and read from disk
 print(db['data'][0].shape)

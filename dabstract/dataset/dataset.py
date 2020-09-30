@@ -178,7 +178,7 @@ class dataset():
         """
         return self.concat(data)
 
-    def add(self, key, data, **kwargs):
+    def add(self, key, data, info=None, lazy=True, **kwargs):
         """Add key to dataset.
         Requirement: data should be as long as len(self)
         Example:
@@ -187,9 +187,9 @@ class dataset():
             key (str): key to add
             data (seq/dictseq/np/list): data to add
         """
-        self._data.add(key, data, **kwargs)
+        self._data.add(key, data, info=info, lazy=lazy, **kwargs)
 
-    def add_dict(self,data,**kwargs):
+    def add_dict(self,data, lazy=True, **kwargs):
         """Add the keys of a dictionary to the existing dataset
         Requirement: data should be as long as len(self)
         Example:
@@ -197,7 +197,7 @@ class dataset():
         Arguments:
             data (dictseq/dict): dict to add
         """
-        self._data.add_dict(data,**kwargs)
+        self._data.add_dict(data, lazy=lazy, **kwargs)
 
     def add_subdict_from_folder(self,key, path, extension='.wav', map_fct=None, file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs):
         """Add meta information of the files in a directory and add them to the dataset in a key
@@ -275,7 +275,7 @@ class dataset():
         # if isinstance(self._data[key], FolderDictSeqAbstract):
         #     self._data[key]['data'] = MapAbstract(copy.deepcopy(self._data[key]['data']),map_fct=map_fct)
         # else:
-        self._data[key] = MapAbstract(copy.deepcopy(self._data[key]), map_fct=map_fct)
+        self._data[key] = Map(copy.deepcopy(self._data[key]), lazy=self._data._lazy[key], map_fct=map_fct)
 
     def set_meta(self,param):
         return param
@@ -338,7 +338,13 @@ class dataset():
         for key in self.keys():
             if sample_len[key] is not None:
                 try:
-                    new_data[key] = SplitAbstract(self[key], split_size=split_size, sample_len=sample_len[key], sample_period=sample_period[key], type=type, constraint=constraint)
+                    new_data[key] = Split(self[key],
+                                          split_size=split_size,
+                                          sample_len=sample_len[key],
+                                          sample_period=sample_period[key],
+                                          type=type,
+                                          constraint=constraint,
+                                          lazy=self._data._lazy[key])
                 except:
                     sample_len[key] = None
         # check split lengths
@@ -349,7 +355,7 @@ class dataset():
         # do other keys (replicating)
         for key in self.keys():
             if sample_len[key] is None:
-                new_data[key] = SampleReplicateAbstract(self[key],factor=ref)
+                new_data[key] = SampleReplicate(self[key],factor=ref, lazy=self._data._lazy[key])
         # replace existing dataset
         self._data = new_data
 
@@ -404,7 +410,7 @@ class dataset():
         orig_data = copy.deepcopy(self._data)
         self._data = DictSeqAbstract()
         for key in orig_data.keys():
-            self[key] = SelectAbstract(orig_data[key], func,  *arg, eval_data=orig_data, **kwargs)
+            self[key] = Select(orig_data[key], func,  *arg, lazy=orig_data._lazy[key],  eval_data=orig_data, **kwargs)
 
     def add_alias(self,key, new_key):
         """Add an alias to a particular key. Handy if you would like to use a dataset and add e.g. data/target referring to
@@ -607,9 +613,12 @@ class dataset():
             new_key = key
             self.remove(key)
         if isinstance(key,str):
-            self.add(new_key, FolderDictSeqAbstract(featpath_base, filepath=featfilelist, extension='.npy'))
-            self[new_key]['data'] = MapAbstract(self[new_key]['data'], map_fct=processing_chain().add(NumpyDatareader()), info=infofilelist)
-            self[new_key]['info'] = infofilelist
+            self.add(new_key, FolderDictSeqAbstract(featpath_base,
+                                                    filepath=featfilelist,
+                                                    extension='.npy',
+                                                    map_fct=processing_chain().add(NumpyDatareader()),
+                                                    info=infofilelist))
+            self['feat']['data'].get(0,return_info=True)
         else:
             raise Exception("new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced.")
 
@@ -648,7 +657,7 @@ class dataset():
         sel_vect_train = np.where(test_only == 0)[0]
         sel_vect_test = np.where(test_only == 1)[0]
 
-        self_train = DataAbstract(SelectAbstract(self._data,sel_vect_train))
+        self_train = DataAbstract(Select(self._data,sel_vect_train))
 
         # checks
         get_xval = True
@@ -718,9 +727,9 @@ class dataset():
         if keys is 'all':
             if set is None:
                 def get_xval_set(set=None):
-                    return SelectAbstract(self._data,self.xval[set][fold])
+                    return Select(self._data,self.xval[set][fold])
                 return get_xval_set
             else:
-                return SelectAbstract(self._data,self.xval[set][fold])
+                return Select(self._data,self.xval[set][fold])
         else:
             raise NotImplementedError("In future release zipping will be addded")

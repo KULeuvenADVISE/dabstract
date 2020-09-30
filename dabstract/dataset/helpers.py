@@ -76,7 +76,7 @@ def dataset_from_config(config, overwrite_xval=False):
     ddataset = dataset()
     # init datasets
     for k,db in enumerate(config['datasets']):
-        ddataset += dataset_factory(name=db['name'], **db['parameters'])
+        ddataset.concat(dataset_factory(name=db['name'], **db['parameters']))
     # add other functionality
     if 'xval' in config:
         ddataset.set_xval(**config['xval'], overwrite=overwrite_xval)
@@ -227,7 +227,7 @@ class FolderDictSeqAbstract(DictSeqAbstract):
                                     'time_step' ..: # sample period
                                     }
     """
-    def __init__(self, path, extension='.wav', map_fct=None, file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs):
+    def __init__(self, path, extension='.wav', map_fct=None, file_info_save_path=None, filepath=None, overwrite_file_info=False, info=None, **kwargs):
         super().__init__()
         if 'save_path' in kwargs:
             file_info_save_path = kwargs['save_path']
@@ -236,11 +236,15 @@ class FolderDictSeqAbstract(DictSeqAbstract):
         # get info
         fileinfo = get_dir_info(path, extension=extension, file_info_save_path=file_info_save_path, filepath=filepath,
                                 overwrite_file_info=overwrite_file_info)
+        # overwrite file info
+        if info is not None:
+            fileinfo['info'] = info
         # add data
-        self.add('data', fileinfo['filepath'], active_key=True)
+        self.add('data', fileinfo['filepath'], info = fileinfo['info'])
         # add meta
-        for key in fileinfo:
-            self.add(key, fileinfo[key])
+        # for key in fileinfo:
+        #     self.add(key, fileinfo[key])
+        self.add_dict(fileinfo)
         # add map
         if map_fct is not None:
             self['data'] = MapAbstract(self['data'], map_fct=map_fct)

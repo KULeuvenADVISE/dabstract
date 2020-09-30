@@ -25,8 +25,8 @@ class EXAMPLE(dataset):
         #self.add_subdict_from_folder('data', paths['data'], map_fct=chain, save_path=paths['data'])
         self.add('data', FolderDictSeqAbstract(paths['data'], map_fct=chain, save_path=paths['data']))
         # add labels
-        self.add('binary_anomaly',self._get_binary_anomaly(paths))
-        self.add('group', self['data']['subdb'])
+        self.add('binary_anomaly',self._get_binary_anomaly(paths), lazy=False)
+        self.add('group', self['data']['subdb'],lazy=False)
         return self
 
     def prepare(self,paths):
