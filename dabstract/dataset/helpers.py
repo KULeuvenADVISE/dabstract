@@ -244,7 +244,7 @@ class FolderDictSeqAbstract(DictSeqAbstract):
         # add meta
         # for key in fileinfo:
         #     self.add(key, fileinfo[key])
-        self.add_dict(fileinfo)
+        self.add_dict(fileinfo, lazy=False)
         # add map
         if map_fct is not None:
             self['data'] = MapAbstract(self['data'], map_fct=map_fct)

@@ -639,20 +639,25 @@ class DictSeqAbstract(abstract):
         self._data = dict()
         self._active_keys = []
         self._lazy = dict()
+        self._abstract = dict()
+        self._adjust_mode = False
 
     def add(self, key, data, lazy=True, info=None, **kwargs):
         assert hasattr(data, '__getitem__'), "provided data instance must have __getitem__ method."
         assert key != 'all', "The name 'all' is reserved for referring to all keys when applying a transform."
-        if self._nr_keys>0: assert len(data)==len(self), "len(self) is not the same as len(data)"
-        if not isinstance(data,abstract) and lazy:
-            data = SeqAbstract().concat(data, info=info)
-        used_key = True if key in self.keys() or len(self) is 0 else False
+        if not self._adjust_mode:
+            if self._nr_keys>0: assert len(data)==len(self), "len(self) is not the same as len(data)"
+        new_key = False if key in self.keys() else True
+        if (not lazy) and isinstance(data,abstract):
+            data = DataAbstract(data)[:]
+        elif info is not None:
+            data = SeqAbstract().concat(data,info=info)
         self._data.update({key: data})
         self._lazy.update({key: lazy})
-        self._nr_keys += 1
-        self.__len__()
-        if not used_key:
+        self._abstract.update({key: isinstance(data, abstract)})
+        if new_key:
             self._reset_active_keys()
+            self._nr_keys += 1
         return self
 
     def add_dict(self,dct, lazy=True):
@@ -661,11 +666,13 @@ class DictSeqAbstract(abstract):
         return self
 
     def concat(self, data, intersect=False, adjust_base=True):
+        from dabstract.dataset.helpers import FolderDictSeqAbstract
         if isinstance(data,list):
             for d in data:
                 self.concat(d,intersect=intersect)
         else:
             self2 = (self if adjust_base else copy.deepcopy(self))
+            self2._adjust_mode = True
             data = copy.deepcopy(data)
             assert isinstance(data, DictSeqAbstract)
             if self2._nr_keys != 0:
@@ -677,22 +684,24 @@ class DictSeqAbstract(abstract):
                 for k, key in keys:
                     if self2._lazy[key]:
                         # make sure that data format is as desired by the base dict
-                        if (not isinstance(self2._data[key], SeqAbstract)):
-                            self2._data[key] = SeqAbstract().concat(self2._data[key])
+                        if not isinstance(self2[key], (SeqAbstract, DictSeqAbstract, FolderDictSeqAbstract)):
+                            self2[key] = SeqAbstract().concat(self2[key])
                         # concatenate SeqAbstract
                         if isinstance(data[key], SeqAbstract): # if already a SeqAbstract, concat cleaner to avoid overhead
                             for _data in data[key]._data:
-                                self2._data[key].concat(_data)
+                                self2[key].concat(_data)
                         else: # if not just concat at once
-                            self2._data[key].concat(data[key])
+                            self2[key].concat(data[key])
                     else:
-                        assert self2._data[key].__class__ == data[key].__class__, "When using lazy=False, datatypes should be same in case of concatenation."
-                        if isinstance(self2._data[key], list):
-                            self2._data[key] = self2._data[key] + data[key]
-                        elif isinstance(self2._data[key], np.ndarray):
-                            self2._data[key] = np.concatenate((self2._data[key],data[key]))
+                        assert self2[key].__class__ == data[key].__class__, "When using lazy=False, datatypes should be same in case of concatenation."
+                        if isinstance(self2[key], list):
+                            self2[key] = self2[key] + data[key]
+                        elif isinstance(self2[key], np.ndarray):
+                            self2[key] = np.concatenate((self2[key],data[key]))
+                self2._adjust_mode = False
             else:
                 self2.__dict__.update(data.__dict__)
+
             return self2
 
     def remove(self,key):
@@ -745,7 +754,10 @@ class DictSeqAbstract(abstract):
         return self.concat(other, adjust_base=False)
 
     def __setitem__(self, k, v):
-        self.add(k,v)
+        assert isinstance(k,str), "Assignment only possible by key (str)."
+        new_key = False if k in self.keys() else True
+        lazy = True if new_key else self._lazy[k] #make sure that lazy is kept
+        self.add(k,v, lazy=lazy)
 
     def get(self, index, key=None, return_info=False, verbose=False, **kwargs):
         if isinstance(index, str):
@@ -755,10 +767,10 @@ class DictSeqAbstract(abstract):
             if key is None:
                 data, info = dict(), dict()
                 for k, key in enumerate(self._active_keys):
-                    if self._lazy[key]:
+                    if self._abstract[key]:
                         data[key], info[key] = self._data[key].get(index=index, return_info=True,**kwargs)
                     else:
-                        data = self._data[key][index]
+                        data[key], info[key] = self._data[key][index], dict()
                 if len(self._active_keys)==1:
                     data, info = data[key], info[key]
             else:

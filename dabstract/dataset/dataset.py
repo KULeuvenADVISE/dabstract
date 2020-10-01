@@ -176,7 +176,7 @@ class dataset():
     def __add__(self,data):
         """ Combine datasets using the following syntax... dataset = dataset0+dataset1
         """
-        return self.concat(data)
+        return self.concat(data, adjust_base=False)
 
     def add(self, key, data, info=None, lazy=True, **kwargs):
         """Add key to dataset.
@@ -238,7 +238,7 @@ class dataset():
         warnings.warn( "This function is deprecated. Please use the self.add(key, FolderDictSeqAbstract(*arg,**kwargs)) class to add a data folder to your dataset")
         self.add(key, tmp)
 
-    def concat(self, data, intersect=False):
+    def concat(self, data, intersect=False, adjust_base=True):
         """Add the keys of a dictionary to the existing dataset
         Requirement: data should be as long as len(self)
         Example:
@@ -255,8 +255,9 @@ class dataset():
         data.add_map('dataset_id', (lambda x: x + nr_datasets))
         self._nr_datasets += data._nr_datasets
         # concat
-        self._data.concat(data._data, intersect=intersect)
-        return self
+        self2 = self if adjust_base else copy.deepcopy(self)
+        self2._data = self2._data.concat(data._data, intersect=intersect, adjust_base=adjust_base)
+        return self2
 
     def remove(self, key):
         """Remove a particular key in the dataset
@@ -303,11 +304,13 @@ class dataset():
             time_step information from.
         """
 
+        from dabstract.dataset.helpers import FolderDictSeqAbstract
+
         # get time_step in case of samples
         if type=='samples':
             assert reference_key is not None, "When choosing for samples, you should select a reference key."
             assert isinstance(reference_key,str), "reference_key should be a str"
-            assert 'info' in self[reference_key].keys(), "info should be a key in self[reference_key]. Splitting is currently only supported when that information is available"
+            assert isinstance(self[reference_key],FolderDictSeqAbstract)
             assert 'time_step' in self[reference_key]['info'][0], "time_step should be a key in self[reference_key]['info'][..]. Splitting is currently only supported when that information is available"
             assert 'output_shape' in self[reference_key]['info'][0], "output_shape should be a key in self[reference_key]['info'][..]. Splitting is currently only supported when that information is available"
             type = 'seconds'
@@ -318,15 +321,14 @@ class dataset():
         sample_len, sample_period, sample_duration = dict(), dict(), dict()
         for key in self.keys():
             # check if info available
-            if isinstance(self[key],DictSeqAbstract):
-                if 'info' in self[key].keys():
-                    if all([(('output_shape' in info) and ('time_step' in info)) for info in self[key]['info']]):
-                        sample_duration[key] = np.array([info['output_shape'][0]*info['time_step'] for info in self[key]['info']])
-                        sample_len[key] = np.array([info['output_shape'][0] for info in self[key]['info']])
-                        sample_period[key] = np.array([info['time_step'] for info in self[key]['info']])
-                        assert [sample_period[key][0]==time_step for time_step in sample_period[key]], "sample_period should be uniform"
-                        sample_period[key] = sample_period[key][0]
-                        continue
+            if isinstance(self[key],FolderDictSeqAbstract):
+                if all([(('output_shape' in info) and ('time_step' in info)) for info in self[key]['info']]):
+                    sample_duration[key] = np.array([info['output_shape'][0]*info['time_step'] for info in self[key]['info']])
+                    sample_len[key] = np.array([info['output_shape'][0] for info in self[key]['info']])
+                    sample_period[key] = np.array([info['time_step'] for info in self[key]['info']])
+                    assert [sample_period[key][0]==time_step for time_step in sample_period[key]], "sample_period should be uniform"
+                    sample_period[key] = sample_period[key][0]
+                    continue
             sample_len[key], sample_period[key], sample_duration[key] = None, None, None
         # adjust sample_len based on minimum covered duration (e.g. framing at edges vs raw audio)
         min_duration = np.min(np.array([sample_duration[key] for key in self.keys() if sample_duration[key] is not None]),axis=0)
@@ -338,13 +340,14 @@ class dataset():
         for key in self.keys():
             if sample_len[key] is not None:
                 try:
-                    new_data[key] = Split(self[key],
-                                          split_size=split_size,
-                                          sample_len=sample_len[key],
-                                          sample_period=sample_period[key],
-                                          type=type,
-                                          constraint=constraint,
-                                          lazy=self._data._lazy[key])
+                    tmp = Split(self[key],
+                          split_size=split_size,
+                          sample_len=sample_len[key],
+                          sample_period=sample_period[key],
+                          type=type,
+                          constraint=constraint,
+                          lazy=self._data._lazy[key])
+                    new_data[key] = tmp
                 except:
                     sample_len[key] = None
         # check split lengths
@@ -355,7 +358,7 @@ class dataset():
         # do other keys (replicating)
         for key in self.keys():
             if sample_len[key] is None:
-                new_data[key] = SampleReplicate(self[key],factor=ref, lazy=self._data._lazy[key])
+                new_data.add(key, SampleReplicate(self[key],factor=ref, lazy=self._data._lazy[key]), lazy=self._data._lazy[key])
         # replace existing dataset
         self._data = new_data
 

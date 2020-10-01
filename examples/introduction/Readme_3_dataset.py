@@ -165,33 +165,6 @@ print(db['data'][0].shape)
 print(db['feat'][0].shape)
 
 # -------------------------------------------------------------------------
-### Splitting (per frame)
-from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
-from dabstract.dataprocessor import processing_chain
-from dabstract.dataprocessor.processors import *
-
-# init db
-db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
-                         'meta': os.path.join('data','data'),
-                         'feat': os.path.join('data', 'feat')}) #mandatory
-db.summary()
-# define processor
-processor = processing_chain().add(Framing(windowsize=0.1, stepsize=0.1))
-# prepare features
-db.prepare_feat('data',fe_name='Framing0101', fe_dp=processor, new_key='feat')
-# add splitting
-db.add_split(split_size=1, type='samples', reference_key='feat')
-# create bigger db
-db = db+db+db+db
-# load memory
-db.load_memory('binary_anomaly')
-# # show summary
-db.summary()
-# both feat and data are timesplitted and read from disk
-print(db['data'][0].shape)
-print(db['feat'][0].shape)
-
-# -------------------------------------------------------------------------
 ### Dataset from config
 from dabstract.dataset.helpers import dataset_from_config
 from dabstract.utils import load_yaml_config

@@ -23,7 +23,8 @@ class EXAMPLE(dataset):
         chain = processing_chain().add(WavDatareader())
         from dabstract.dataset.helpers import FolderDictSeqAbstract
         #self.add_subdict_from_folder('data', paths['data'], map_fct=chain, save_path=paths['data'])
-        self.add('data', FolderDictSeqAbstract(paths['data'], map_fct=chain, save_path=paths['data']))
+        tmp = FolderDictSeqAbstract(paths['data'], map_fct=chain, save_path=paths['data'])
+        self.add('data', tmp)
         # add labels
         self.add('binary_anomaly',self._get_binary_anomaly(paths), lazy=False)
         self.add('group', self['data']['subdb'],lazy=False)
