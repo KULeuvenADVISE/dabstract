@@ -33,11 +33,11 @@ class DCASE2020Task1A(dataset):
         resort = np.array([filenames.index('audio/' + filename) for filename in self['audio']['example']])
         labels = labels.reindex(resort)
         # add labels
-        self.add('identifier', labels['identifier'].to_list())
-        self.add('source', labels['source_label'].to_list())
-        self.add('scene', labels['scene_label'].to_list())
-        self.add('scene_id', stringlist2ind(labels['scene_label'].to_list()))
-        self.add('group', stringlist2ind(labels['identifier'].to_list()))
+        self.add('identifier', labels['identifier'].to_list(), lazy=False)
+        self.add('source', labels['source_label'].to_list(), lazy=False)
+        self.add('scene', labels['scene_label'].to_list(), lazy=False)
+        self.add('scene_id', stringlist2ind(labels['scene_label'].to_list()), lazy=False)
+        self.add('group', stringlist2ind(labels['identifier'].to_list()), lazy=False)
         return self
 
     def prepare(self,paths):

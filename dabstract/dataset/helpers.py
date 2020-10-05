@@ -135,7 +135,7 @@ def dataset_factory(name=None,
         return getattr(module, name)(paths=paths,select=select, test_only=test_only, xval=xval, tmp_folder=tmp_folder, **kwargs)
     elif isinstance(name, DictSeqAbstract):
         pass
-    elif isinstance(name,(type, types.ClassType)):
+    elif isinstance(name,type):
         return name(paths=paths,select=select, test_only=test_only, xval=xval, tmp_folder=tmp_folder, **kwargs)
 
 def dictseq_from_folder(path, extension='.wav', map_fct=None, file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs):

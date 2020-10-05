@@ -405,7 +405,7 @@ class dataset():
                 assert hasattr(module,
                                selectm), "Select " + selectm + " is not supported in both dabstract and custom xvals. Please check"
             func = getattr(module, name)(**parameters)
-        elif isinstance(name, (type, types.ClassType)):
+        elif isinstance(name, type):
             func = name(**parameters)
         else: #if isinstance(name, (type, types.FunctionType)):
             func = name
@@ -678,7 +678,7 @@ class dataset():
                     module = safe_import_module(os.environ['dabstract_CUSTOM_DIR'] + '.dataset.xval')
                     assert hasattr(module,name), "Xval " + name + " is not supported in both dabstract and custom xvals. Please check"
                 func = getattr(module, name)(**parameters)
-            elif isinstance(name, (type, types.ClassType)):
+            elif isinstance(name, type):
                 func = name(**parameters)
             elif isinstance(name,(type,types.FunctionType)):
                 func = name

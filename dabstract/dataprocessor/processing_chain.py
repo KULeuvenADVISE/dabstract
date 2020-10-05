@@ -2,7 +2,6 @@ import copy
 import numpy as np
 import os
 from pprint import pprint
-from pylab import plot, show, imshow
 
 from dabstract.utils import safe_import_module
 
