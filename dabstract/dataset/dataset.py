@@ -126,7 +126,8 @@ class dataset():
         self._nr_datasets = 0
         # Add other database meta
         if len(self.keys()) != 0:
-            self.add('test_only', [test_only] * len(self))
+            if 'test_only' not in self.keys():
+                self.add('test_only', [test_only] * len(self))
             self.add('dataset_id', np.zeros(len(self),np.int))
             self._nr_datasets += 1
         # filter
@@ -264,7 +265,7 @@ class dataset():
         """
         self._data.remove(key)
 
-    def add_map(self, key, map_fct):
+    def add_map(self, key, map_fct, lazy=None):
         """Add a mapping to a key
         Example:
             $  add_map(self, key, map_fct)
@@ -276,7 +277,7 @@ class dataset():
         # if isinstance(self._data[key], FolderDictSeqAbstract):
         #     self._data[key]['data'] = MapAbstract(copy.deepcopy(self._data[key]['data']),map_fct=map_fct)
         # else:
-        self._data[key] = Map(copy.deepcopy(self._data[key]), lazy=self._data._lazy[key], map_fct=map_fct)
+        self._data[key] = Map(copy.deepcopy(self._data[key]), lazy=(self._data._lazy[key] if lazy is None else lazy), map_fct=map_fct)
 
     def set_meta(self,param):
         return param
@@ -347,6 +348,7 @@ class dataset():
                           type=type,
                           constraint=constraint,
                           lazy=self._data._lazy[key])
+                    tmp[1]
                     new_data[key] = tmp
                 except:
                     sample_len[key] = None
@@ -499,10 +501,10 @@ class dataset():
 
             self[key] = iterative_load(self[key],key_str=key)
         else:
-            self[key] = SeqAbstract().concat(DataAbstract(self[key]).get(slice(0,len(self)),
+            self[key] = DataAbstract(self[key]).get(slice(0,len(self)),
                                                   verbose=True,
                                                   workers=workers,
-                                                  buffer_len=buffer_len))
+                                                  buffer_len=buffer_len)
 
     def summary(self):
         """Print a dataset summary
@@ -621,7 +623,6 @@ class dataset():
                                                     extension='.npy',
                                                     map_fct=processing_chain().add(NumpyDatareader()),
                                                     info=infofilelist))
-            self['feat']['data'].get(0,return_info=True)
         else:
             raise Exception("new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced.")
 
@@ -698,6 +699,11 @@ class dataset():
             assert isinstance(self.xval[key], list), 'Crossvalidation indices should be formatted in a list (for each fold).'
             assert len(self.xval[keys[0]]) == len(self.xval[key]), 'Amount of folds (items in list) should be the same for each test phase (train/val/test).'
 
+        # update indices based on sel_vect_train
+        for key in self.xval:
+            for k in range(len(self.xval[key])):
+                self.xval[key][k] = sel_vect_train[self.xval[key][k]]
+
         # add other test data
         for k in range(len(self.xval['test'])):
             self.xval['test'][k] = np.append(self.xval['test'][k], sel_vect_test)
@@ -707,7 +713,7 @@ class dataset():
 
         return self.xval
 
-    def get_xval_set(self, set=None, fold=None, keys='all', **kwargs):
+    def get_xval_set(self, set=None, fold=None, keys='all', lazy=True, workers=1, buffer_len=3, **kwargs):
         """Get a crossvalidation subset of your dataset
 
         This function return a subdataset of the original one based on which set you want and which fold
@@ -729,10 +735,13 @@ class dataset():
         assert fold < self.xval['folds']
         if keys is 'all':
             if set is None:
-                def get_xval_set(set=None):
-                    return Select(self._data,self.xval[set][fold])
+                def get_xval_set(set=None, keys='all'):
+                    if keys is 'all':
+                        return Select(self._data,self.xval[set][fold])
+                    else:
+                        return Select(UnpackAbstract(self._data, keys), self.xval[set][fold], lazy=False, workers=workers, buffer_len=buffer_len)
                 return get_xval_set
             else:
-                return Select(self._data,self.xval[set][fold])
+                return Select(self._data,self.xval[set][fold], lazy=lazy, workers=workers, buffer_len=buffer_len)
         else:
-            raise NotImplementedError("In future release zipping will be addded")
+            return Select(UnpackAbstract(self._data, keys),self.xval[set][fold], lazy=lazy, workers=workers, buffer_len=buffer_len)

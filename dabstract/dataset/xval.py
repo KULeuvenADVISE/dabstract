@@ -64,3 +64,15 @@ def random_kfold(folds=4, val_frac=1 / 3, **kwargs):
         return {'train': train_index, 'val': val_index, 'test': test_index}
     return get
 
+# random split
+def random_split(val_frac=1 / 3, test_frac=1/3, **kwargs):
+    def get(data):
+        train_frac = 1-val_frac-test_frac
+        assert train_frac>0
+        rem_inds = np.arange(len(data))
+        val_inds = np.random.choice(rem_inds, int(np.ceil(len(data) * val_frac)),replace=False)
+        rem_inds = list(set(rem_inds) - set(val_inds))
+        test_inds = np.random.choice(rem_inds, int(np.ceil(len(data) * test_frac)),replace=False)
+        train_inds = list(set(rem_inds) - set(test_inds))
+        return {'train': [train_inds], 'val': [val_inds], 'test': [test_inds]}
+    return get

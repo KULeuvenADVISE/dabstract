@@ -25,16 +25,25 @@ class UnpackAbstract(abstract):
     def __init__(self, data, keys):
         self._data = data
         self._keys = keys
+        self._abstract = (True if isinstance(data, abstract) else False)
 
-    def __getitem__(self, index):
+    def get(self, index, return_info = False, **kwargs):
         if isinstance(index, numbers.Integral):
             out = list()
-            for key in self._keys:
-                out.append(self._data[key][index])
-            return out
+            if len(self._keys)==1:
+                out = self._data[self._keys[0]][index]
+            else:
+                for key in self._keys:
+                    out.append(self._data[key][index])
+            if return_info:
+                return out, dict()
+            else:
+                return out
         else:
             return self._data[index]
-        #ToDo(gert): might add support for .get() if needed to also have info in return
+
+    def __getitem__(self, index):
+        return self.get(index)
 
     def __len__(self):
         return len(self._data)
@@ -421,11 +430,8 @@ class SplitAbstract(abstract):
                     if self._abstract:
                         data,info = self._data.get(k,return_info=True,*arg,**kwargs,**self._kwargs, range=range)
                     else:
-                        data,info = self._data[k], {}
-                    # apply range if not already done using range
-                    data = data[range[0]:range[1]]
-
-            return ((data, info) if return_info else data)
+                        data,info = self._data[k][range[0]:range[1]], {}
+                    return ((data, info) if return_info else data)
         elif isinstance(index,str):
             return KeyAbstract(self,index)
         else:

@@ -375,3 +375,17 @@ def intersection(lst1, lst2):
     """List intersection
     """
     return [(k,value) for k,value in enumerate(lst1) if value in lst2]
+
+def get_class(name,module_location,*args,**kwargs):
+    """Load a class given the name, module location and it's args and kwargs
+    """
+    module = safe_import_module(module_location)
+    assert hasattr(module, name), name + " is not a part of module " + module_location
+    return getattr(module, name)(*args, **kwargs)
+
+def get_fct(name,module_location):
+    """Load a fct given the name, module location and it's args and kwargs
+    """
+    module = safe_import_module(module_location)
+    assert hasattr(module, name), name + " is not a part of module " + module_location
+    return getattr(module, name)
