@@ -65,8 +65,7 @@ class NumpyDatareader(processor):
 class Normalizer(processor):
     def __init__(self, type=None, init_subsample=None, feature_range=[0,1], **kwargs):
         if type is None:
-            print('Specify normalization type in dp.py/Normalizer')
-            sys.exit()
+            AssertionError('Specify normalization type in processors.py/Normalizer')
         self.type = type
         self.feature_range = feature_range
         self.init_subsample = init_subsample

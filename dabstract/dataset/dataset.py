@@ -348,7 +348,6 @@ class dataset():
                           type=type,
                           constraint=constraint,
                           lazy=self._data._lazy[key])
-                    tmp[1]
                     new_data[key] = tmp
                 except:
                     sample_len[key] = None

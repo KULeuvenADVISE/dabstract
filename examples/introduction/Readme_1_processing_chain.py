@@ -191,7 +191,7 @@ class custom_processor(processor):
 dp = load_yaml_config(filename='Readme_1_dp_config', dir=os.path.join('configs','dp'),post_process=processing_chain)
 dp.summary()
 # add a custom processor to the dp.chain
-dp.add(custom_processor)
+dp.add(custom_processor())
 dp.summary()
 # Fit data to chain
 dp.fit(DATA, fs=1)
@@ -220,7 +220,31 @@ class custom_processor(processor):
 dp = load_yaml_config(filename='Readme_1_dp_config', dir=os.path.join('configs','dp'),post_process=processing_chain)
 dp.summary()
 # add custom processor
-dp.add(custom_processor)
+dp.add(custom_processor())
+dp.summary()
+# fit data (it's recursive, so both the normalizer and the custom_processor are fit'ed on the data)
+dp.fit(DATA, fs=1)
+# process data
+output_data = dp(data, fs=1)
+print(output_data.shape)
+
+print('\n\n\n')
+# -------------------------------------------------------------------------
+### Example on how to use any function in a dabstract processing chain
+# -- processing chain from config BIS
+from dabstract.dataprocessor import processing_chain, processor
+from dabstract.dataprocessor.processors import *
+from dabstract.utils import load_yaml_config
+
+def custom_fct(data,**kwargs):
+    return (data - 5) * 100
+
+# get yaml configuration and process with processing_chain()
+dp = load_yaml_config(filename='Readme_1_dp_config', dir=os.path.join('configs','dp'),post_process=processing_chain)
+dp.summary()
+# add custom processors
+dp.add(custom_fct)
+dp.add(lambda x: x*100)
 dp.summary()
 # fit data (it's recursive, so both the normalizer and the custom_processor are fit'ed on the data)
 dp.fit(DATA, fs=1)
