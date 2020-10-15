@@ -63,13 +63,12 @@ class NumpyDatareader(processor):
         return data, {}
 
 class Normalizer(processor):
-    def __init__(self, type=None, init_subsample=None, **kwargs):
+    def __init__(self, type=None, init_subsample=None, feature_range=[0,1], **kwargs):
         if type is None:
             print('Specify normalization type in dp.py/Normalizer')
             sys.exit()
         self.type = type
-        if 'feature_range' in kwargs:
-            self.feature_range = kwargs['feature_range']
+        self.feature_range = feature_range
         self.init_subsample = init_subsample
 
     def fit(self, data, info):
@@ -163,7 +162,7 @@ class Framing(processor):
         # inits
         self.windowsize = windowsize
         self.stepsize = stepsize
-        self.window_func = window_func
+        self.window_func = Windowing(window_func=window_func,axis=axis)
         self.axis = axis
         if 'fs' in kwargs:
             self.fs = kwargs['fs']
@@ -191,25 +190,45 @@ class Framing(processor):
             axis = self.axis
         signal_length = data.shape[axis]
 
-        # window
+        # segment
         num_frames = int(np.floor(((signal_length - (frame_length - 1) - 1) / frame_step) + 1))
         assert num_frames>0, 'num of frames is 0 in Framing()'
         indices = np.tile(np.arange(0, frame_length), (num_frames, 1)) + np.tile(np.arange(0, num_frames * frame_step, frame_step), (frame_length, 1)).T
         frames = np.take(data, indices, axis=axis)
         data_lo = np.take(data, np.setdiff1d(np.arange(signal_length), indices), axis=axis)
 
+        # window fct
+        self.window_func.axis = axis+1
+        frames = self.window_func.process(frames)[0]
+
+        # return
+        return frames, {'time_step': self.stepsize} if axis==0 else dict()
+
+class Windowing(processor):
+    def __init__(self, axis=-1, window_func='hamming', **kwargs):
+        self.axis = axis
+        self.window_func = window_func
+
+    def process(self, data, **kwargs):
+        # init
+        if self.axis == -1:
+            axis = len(data.shape) - 1
+        else:
+            axis = self.axis
         # hamming
         if self.window_func == 'hamming':
-            hw = np.hamming(frame_length).astype(float)
-            frames *= np.reshape(hw, [(frames.shape[k] if k == (axis + 1) else 1) for k in range(len(frames.shape))])
-        elif self.window_func == 'none':
+            hw = np.hamming(np.shape(data)[axis]).astype(float)
+            data *= np.reshape(hw, [(data.shape[k] if k == axis else 1) for k in range(len(data.shape))])
+        elif self.window_func == 'none' or self.window_func == 'None':
+            pass
+        elif self.window_func is None:
             pass
         else:
             print('No other windows supported.')
             sys.exit()
 
         # return
-        return frames, {'time_step': self.stepsize} if axis==0 else dict()
+        return data, dict()
 
 class FFT(processor):
     def __init__(self, type='real', Nfft = 'nextpow2', format='magnitude', dc_reset=False, axis=-1,**kwargs):
