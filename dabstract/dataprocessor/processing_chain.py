@@ -17,6 +17,7 @@ class processing_chain():
 
     # add to chain
     def add(self, name, parameters=dict()):
+        # Add new processor
         if isinstance(name,processor):
             # if it's a dabstract processor, directly use
             self._info.append({  'name': name.__class__.__name__,
@@ -75,7 +76,7 @@ class processing_chain():
         return data
 
     # Initialize dataprocessing chain with data (including recursive data loading and processing if needed)
-    def fit(self, data, **kwargs):
+    def fit(self, data, load_memory=True, workers=1, buffer_len=2, **kwargs):
         from dabstract.dataset.abstract import abstract, SelectAbstract, MapAbstract, DataAbstract
         assert data is not None
         if len(self._chain) > 0:
@@ -84,12 +85,19 @@ class processing_chain():
             for k, chain in enumerate(self._chain):
                 # fit if needed
                 if hasattr(chain,'fit'):
+                    # subsample based on init_subsample key
+                    # ToDo: kind off hidden. Should we reallocate this or completely leave it up to the processor.fit()?
                     if 'init_subsample' in self._info[k]['parameters']:
                         if self._info[k]['parameters']['init_subsample'] is not None:
                             sel_ind = np.random.choice(np.arange(len(data)),size=int(self._info[k]['parameters']['init_subsample'] * len(data)), replace=False)
                             data = SelectAbstract(data, (lambda x,k: k in sel_ind))
-                    data_tmp, info_tmp = DataAbstract(MapAbstract(data, init_processor)).get(slice(0,len(data)),return_info=True, **kwargs)
-                    chain.fit(data_tmp, info_tmp)
+                    data_tmp = DataAbstract(MapAbstract(data, init_processor), workers=workers, buffer_len=1)
+                    # load into memory
+                    if load_memory:
+                        data_tmp, info_tmp = data_tmp.get(slice(0,len(data)), return_info=True, **kwargs)
+                        chain.fit(data_tmp,info=info_tmp)
+                    else:
+                        chain.fit(data_tmp)
                 # keep processor of previous stages (to be used for recursion if fit is needed)
                 init_processor.add(chain)
         return self

@@ -12,5 +12,8 @@ chain:
       scale: linear
       n_bands: 16
   - name: Logarithm
+  - name: !class [some.random.processor]
+    parameters:
+      ...
 
 

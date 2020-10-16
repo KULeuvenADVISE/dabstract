@@ -2,11 +2,11 @@ import dcase_util
 import pandas
 
 from dabstract.dataprocessor.processing_chain import processing_chain
-from dabstract.dataset.dataset import dataset
+from dabstract.dataset.dataset import Dataset
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import stringlist2ind
 
-class DCASE2020Task1A(dataset):
+class DCASE2020Task1A(Dataset):
     def __init__(self,
                  paths=None,
                  split=None,

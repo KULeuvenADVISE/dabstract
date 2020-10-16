@@ -230,7 +230,7 @@ print(output_data.shape)
 
 print('\n\n\n')
 # -------------------------------------------------------------------------
-### Example on how to use any function in a dabstract processing chain
+### Example on how to use any function in a dabstract processing chain and still use info propagation
 # -- processing chain from config BIS
 from dabstract.dataprocessor import processing_chain, processor
 from dabstract.dataprocessor.processors import *

@@ -72,8 +72,8 @@ def dataset_from_config(config, overwrite_xval=False):
     assert isinstance(config,dict), "config should be a dictionary"
     assert 'datasets' in config, "config should have a datasets key"
     assert isinstance(config['datasets'],list), "config['dataset'] should be represented as a list where each item is a dictionary containing kwargs of your dataset."
-    from dabstract.dataset.dataset import dataset
-    ddataset = dataset()
+    from dabstract.dataset.dataset import Dataset
+    ddataset = Dataset()
     # init datasets
     for k,db in enumerate(config['datasets']):
         ddataset.concat(dataset_factory(name=db['name'], **db['parameters']))

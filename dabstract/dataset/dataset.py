@@ -3,13 +3,16 @@ import pickle
 import types
 from pprint import pprint
 
+from typing import Union, Any, List, Optional, cast, Type, TypeVar, Callable, Dict
+tvDataset = TypeVar('Dataset')
+
 from dabstract.dataprocessor.processors import *
 from dabstract.dataset.abstract import *
 from dabstract.dataset import xval
 from dabstract.dataset import select as selectm
 from dabstract.utils import safe_import_module
 
-class dataset():
+class Dataset():
     """Dataset base class
 
     This is the dataset base class. It essentially is a DictSeqAbstract with additional functionality,
@@ -114,10 +117,10 @@ class dataset():
     """
 
     def __init__(self,
-                 paths=None,
-                 split=None,
-                 select=None,
-                 test_only=False,
+                 paths: list = None,
+                 split: Optional[Any] = None,
+                 select: Optional[Any] = None,
+                 test_only: Optional[bool] = False,
                  **kwargs):
         # Inits
         self.prepare(paths)
@@ -159,12 +162,12 @@ class dataset():
         # other
         self.data_init = {}
 
-    def __getitem__(self,index):
+    def __getitem__(self, index: numbers.Integral or str) -> Any:
         """ Allow indexing in the form of dataset[id]
         """
         return self._data[index]
 
-    def __setitem__(self, k, v):
+    def __setitem__(self, k: str, v: Any) -> None:
         """ Allow key assigment in the form of dataset[key] = Seq/DictSeq
         """
         self._data[k] = v
@@ -174,12 +177,12 @@ class dataset():
         """
         return len(self._data)
 
-    def __add__(self,data):
+    def __add__(self, data: tvDataset):
         """ Combine datasets using the following syntax... dataset = dataset0+dataset1
         """
         return self.concat(data, adjust_base=False)
 
-    def add(self, key, data, info=None, lazy=True, **kwargs):
+    def add(self, key: str, data: Any, info: List[dict] = None, lazy: bool = True, **kwargs) -> None:
         """Add key to dataset.
         Requirement: data should be as long as len(self)
         Example:
@@ -187,20 +190,23 @@ class dataset():
         Arguments:
             key (str): key to add
             data (seq/dictseq/np/list): data to add
+            info (list): additional information that can be added that will be progated along with the data
+            lazy (bool): apply lazily or not
         """
         self._data.add(key, data, info=info, lazy=lazy, **kwargs)
 
-    def add_dict(self,data, lazy=True, **kwargs):
+    def add_dict(self, data: dict or DictSeqAbstract, lazy: bool = True, **kwargs) -> None:
         """Add the keys of a dictionary to the existing dataset
         Requirement: data should be as long as len(self)
         Example:
             $  self.add_dict(data)
         Arguments:
+            lazy (bool): let this dict be lazy or not
             data (dictseq/dict): dict to add
         """
         self._data.add_dict(data, lazy=lazy, **kwargs)
 
-    def add_subdict_from_folder(self,key, path, extension='.wav', map_fct=None, file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs):
+    def add_subdict_from_folder(self, key, path, extension='.wav', map_fct=None, file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs):
         """Add meta information of the files in a directory and add them to the dataset in a key
 
         This function gets meta information (e.g. sampling frequency, length) of files in your provided directory.
@@ -239,15 +245,17 @@ class dataset():
         warnings.warn( "This function is deprecated. Please use the self.add(key, FolderDictSeqAbstract(*arg,**kwargs)) class to add a data folder to your dataset")
         self.add(key, tmp)
 
-    def concat(self, data, intersect=False, adjust_base=True):
+    def concat(self, data: tvDataset, intersect: bool = False, adjust_base: bool = True) -> tvDataset:
         """Add the keys of a dictionary to the existing dataset
         Requirement: data should be as long as len(self)
         Example:
             $  self.add_dict(data)
         Arguments:
             data (dictseq/dict): dict to add
+            intersect (bool): keep intersection of the two dicts based on the keys
+            adjust_base (bool): protect the original dataset from adjusting.
         """
-        assert isinstance(data, dataset), "You can only concatenate with a dict_dataset instance"
+        assert isinstance(data, Dataset), "You can only concatenate with a dict_dataset instance"
         # prep
         data = copy.deepcopy(data)
         for par in data._param:
@@ -260,16 +268,17 @@ class dataset():
         self2._data = self2._data.concat(data._data, intersect=intersect, adjust_base=adjust_base)
         return self2
 
-    def remove(self, key):
+    def remove(self, key: str) -> None:
         """Remove a particular key in the dataset
         """
         self._data.remove(key)
 
-    def add_map(self, key, map_fct, lazy=None):
+    def add_map(self, key: str, map_fct: Callable, lazy: bool = None) -> None:
         """Add a mapping to a key
         Example:
             $  add_map(self, key, map_fct)
         Arguments:
+            lazy (bool): apply lazily or not
             key (str): key to apply the mapping to
             map_fct (fct): fct which performs y = f(x)
         """
@@ -279,10 +288,16 @@ class dataset():
         # else:
         self._data[key] = Map(copy.deepcopy(self._data[key]), lazy=(self._data._lazy[key] if lazy is None else lazy), map_fct=map_fct)
 
-    def set_meta(self,param):
+    def set_meta(self, param: dict) -> dict:
+        """ToDo: add set meta function instead of intro
+        """
         return param
 
-    def add_split(self, split_size=None, constraint=None, type='seconds', reference_key=None, **kwargs):
+    def add_split(self,
+                  split_size: Union[float,int] = None,
+                  constraint: Optional[str] = None,
+                  type: str = 'seconds',
+                  reference_key: str = None, **kwargs) -> None:
         """Add a splitting operation to the dataset
 
         This is a functionality handy if you for example have a dataset with chunks of 60s while you
@@ -363,7 +378,7 @@ class dataset():
         # replace existing dataset
         self._data = new_data
 
-    def add_select(self, name, parameters=dict(), *arg, **kwargs):
+    def add_select(self, selector: Any, parameters = Optional[dict], *arg, **kwargs) -> None:
         """Add a selection to the dataset
 
         This function add a selector to the dataset. The input to this function can either be a function that does the
@@ -388,41 +403,41 @@ class dataset():
             $  self.add_select(indices)
 
         Arguments:
-            name (function/str/indices): selector defined as a str (translated to fct internally) or function or indices
+            selector (function/str/indices): selector defined as a str (translated to fct internally) or function or indices
             parameters: additional parameters in case name is a str to init the function/class
             arg/kwargs: additional param to provide to the function if needed
         """
 
         # get fct
-        if isinstance(name,dict):
-            if 'parameters' in name:
-                parameters = name['parameters']
-            if 'name' in name:
-                name = name['name']
-        if isinstance(name, str):
+        if isinstance(selector,dict):
+            if 'parameters' in selector:
+                parameters = selector['parameters']
+            if 'name' in selector:
+                selector = selector['name']
+        if isinstance(selector, str):
             module = selectm
-            if not hasattr(module, name):
+            if not hasattr(module, selector):
                 module = safe_import_module(os.environ['dabstract_CUSTOM_DIR'] + '.dataset.select')
                 assert hasattr(module,
                                selectm), "Select " + selectm + " is not supported in both dabstract and custom xvals. Please check"
-            func = getattr(module, name)(**parameters)
-        elif isinstance(name, type):
-            func = name(**parameters)
-        else: #if isinstance(name, (type, types.FunctionType)):
-            func = name
+            func = getattr(module, selector)(**parameters)
+        elif isinstance(selector, type):
+            func = selector(**parameters)
+        else:
+            func = selector
         # apply selection
         orig_data = copy.deepcopy(self._data)
         self._data = DictSeqAbstract()
         for key in orig_data.keys():
             self[key] = Select(orig_data[key], func,  *arg, lazy=orig_data._lazy[key],  eval_data=orig_data, **kwargs)
 
-    def add_alias(self,key, new_key):
+    def add_alias(self, key: str, new_key: str) -> None:
         """Add an alias to a particular key. Handy if you would like to use a dataset and add e.g. data/target referring to
         something.
         """
         self._data.add_alias(key, new_key)
 
-    def keys(self):
+    def keys(self) -> None:
         """Show the keys in the dataset
         """
         if hasattr(self._data,'keys'):
@@ -430,37 +445,44 @@ class dataset():
         else:
             return self._data._data.keys()
 
-    def set_active_keys(self,keys):
+    def set_active_keys(self, keys: Union[List[str],str]) -> None:
         """Set an active key.
         An active key simply lets a DictSeq mimic a Seq. When integer indexing a dataset it return a dictionary.
         In some cases it is desired that it only return the data from one particular key OR a set of keys.
         """
         self._data.set_active_keys(keys)
 
-    def reset_active_key(self):
+    def reset_active_key(self) -> None:
         """Reset active keys (DEPRECATED)
         """
         warnings.warn('reset_active_key() in dataset is deprecated. Please use reset_active_keys()')
         self._data.reset_active_key()
 
-    def reset_active_keys(self):
+    def reset_active_keys(self) -> None:
         """Reset active keys
         """
         self._data.reset_active_keys()
 
-    def unpack(self, keys):
+    def unpack(self, keys: List[str]) -> UnpackAbstract:
         """Unpack the dictionary into a sequence
         This function return a dataset that, when indexed, return a list containing the items of 'keys' in that order.
         """
         return self._data.unpack(keys)
 
-    def set_data(self,paths):
+    def set_data(self, paths: Dict[str,str]) -> None:
         """Placeholder that should be used to set your data in your own database class
         E.g. self.add(..) and so on
         """
         pass
 
-    def load_memory(self, key, workers=2,buffer_len=2, keep_structure=False, verbose=True):
+    def load_memory(self,
+                    key: str,
+                    workers:
+                    int = 2,
+                    buffer_len:
+                    int = 2,
+                    keep_structure: bool = False,
+                    verbose: bool = True) -> None:
         """Load data of a particular key from memory
 
         If you want to already load some data in memory as this might be the faster option you can use function.
@@ -472,6 +494,7 @@ class dataset():
             workers (int): amount of workers used for loading the data
             buffer_len (int): buffer_len of the pool
             keep_structure (bool): keep structure up another class than DictSeqAbstract
+            verbose (bool): provide print feedback
         """
         if verbose:
             print('Loading data in memory of key ' + key + ' containing ' + str(len(self)) + ' examples.')
@@ -505,7 +528,7 @@ class dataset():
                                                   workers=workers,
                                                   buffer_len=buffer_len)
 
-    def summary(self):
+    def summary(self) -> None:
         """Print a dataset summary
         """
         summary = {'keys': self._data.keys(),
@@ -514,18 +537,25 @@ class dataset():
                 'len': [np.sum([dataset_id==id for dataset_id in self._data['dataset_id']]) for id in range(self._nr_datasets)]}
         pprint(summary)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """String representation of the class
         """
         return 'dataset containing: ' + str(self.keys())
 
-    def prepare(self,paths):
+    def prepare(self, paths: Dict[str,str]) -> None:
         """Placeholder for the dataset. You can add dataset download ops here.
         """
         pass
 
-    def prepare_feat(self,key,fe_name,fe_dp, new_key=None, overwrite=False, verbose=True,
-                     workers=2, buffer_len=2):
+    def prepare_feat(self,
+                     key: str,
+                     fe_name: str,
+                     fe_dp: processing_chain,
+                     new_key: str = None,
+                     overwrite: bool = False,
+                     verbose: bool = True,
+                     workers: int = 2,
+                     buffer_len: int = 2) -> None:
         """Utility function to manage feature saving and loading.
 
         This function manages the feature extraction and loading for you. What it basically does it when you provide a
@@ -625,7 +655,11 @@ class dataset():
         else:
             raise Exception("new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced.")
 
-    def set_xval(self, name, parameters = dict(), save_dir=None, overwrite=True):
+    def set_xval(self,
+                 name: Union[str,types.FunctionType,List[int],np.ndarray],
+                 parameters: Dict = dict(),
+                 save_dir: str = None,
+                 overwrite: bool = True) -> None:
         """Set the cross-validation folds
 
         This function sets the crossvalidation folds. This works similar as with self.add_select().
@@ -712,7 +746,7 @@ class dataset():
 
         return self.xval
 
-    def get_xval_set(self, set=None, fold=None, keys='all', lazy=True, workers=1, buffer_len=3, **kwargs):
+    def get_xval_set(self, set: str = None, fold: int = None, keys: str = 'all', lazy: bool = True, workers: int = 1, buffer_len: int = 3) -> Select:
         """Get a crossvalidation subset of your dataset
 
         This function return a subdataset of the original one based on which set you want and which fold
@@ -721,8 +755,11 @@ class dataset():
             $  subdataset = get_xval_set(set='train', fold=0, keys='all', **kwargs)
         Arguments:
             set (str): set should be in ('train','test','val') depending on what the crossvalidation fct returned
-            fold: get a particular fold
-            keys: get a subset of the keys, e.g. only input and target
+            fold (int): get a particular fold
+            keys (str): get a subset of the keys, e.g. only input and target
+            lazy (bool): apply lazily
+            workers (int): amount of workers in case lazy is false
+            buffer_len (int): used buffer length for multiprocessing in case lazy is false
         """
 
         # checks

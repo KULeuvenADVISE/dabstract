@@ -70,7 +70,7 @@ class Normalizer(processor):
         self.feature_range = feature_range
         self.init_subsample = init_subsample
 
-    def fit(self, data, info):
+    def fit(self, data, **kwargs):
         if self.type == 'minmax':
             self.scaler = pp.MinMaxScaler(feature_range=self.feature_range)
             if len(data.shape) == 1:
@@ -415,32 +415,6 @@ class FIR_filter(processor):
                 raise Exception("Sampling frequency should be provided to FIR_filter as init or passed on the process()")
         return signal.lfilter(self.filter, 1.0, data, axis=self.axis), {}
 
-class AD_std(processor):
-    def __init__(self, windowsize=0.0025, stepsize=0.0025, threshold=4,forgetting_factor=0.9, init_subsample=0.01):
-        self.windowsize = windowsize
-        self.stepsize = stepsize
-        self.threshold = threshold
-        self.forgetting_factor = forgetting_factor
-        self.init_subsample = init_subsample
-        self.framer = Framing(windowsize=self.windowsize, stepsize=self.stepsize)
-    def process(self, data, **kwargs):
-        data_fr = self.framer.process(data,**kwargs)[0]
-        max_val = np.max(np.abs(data_fr), axis=1)
-        det = max_val > self.max_mean + (self.threshold * self.max_std)
-        output = np.stack((np.where(det)[0], max_val[det == True]), axis=1)
-        if len(np.where(det)[0])==0:
-            output = np.expand_dims(np.array([np.nan, np.nan]),0)
-        return np.expand_dims(output,0), {}
-
-    def fit(self, data, info, **kwargs):
-        max_mean, max_std = np.zeros(len(data)),  np.zeros(len(data))
-        for k in range(len(data)):
-            data_fr = self.framer.process(data[k],**info[k])[0]
-            tmp = np.max(np.abs(data_fr), axis=1)
-            max_mean[k], max_std[k] = np.mean(tmp), np.std(tmp)
-        self.max_mean, self.max_std = np.mean(max_mean), np.mean(max_std)
-
-
 class expand_dims(processor):
     def __init__(self, axis = -1):
         self.axis = axis
@@ -448,10 +422,6 @@ class expand_dims(processor):
     def process(self, data, **kwargs):
         data = np.expand_dims(data, axis=self.axis)
         return data, {}
-
-class MeanEnergy(processor):
-    def process(self, data, **kwargs):
-        return np.reshape(np.nanmean(data**2,axis=tuple(np.arange(0,len(data.shape)))),[1,1]), {}
 
 class none(processor):
     pass
