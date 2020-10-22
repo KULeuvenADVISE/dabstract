@@ -1,7 +1,0 @@
-datasets:
-  - name: ISAAC_July2020_week1_Steel_ch0
-    parameters:
-      paths:
-        data: !kwarg [base_datasets,ISAAC_July2020_week1_Steel,data]
-        meta: !kwarg [base_datasets,ISAAC_July2020_week1_Steel,meta]
-        feat: !kwarg [base_datasets,ISAAC_July2020_week1_Steel,feat]
