@@ -1,7 +1,7 @@
 import dcase_util
 import pandas
 
-from dabstract.dataprocessor.processing_chain import processing_chain
+from dabstract.dataprocessor.processing_chain import ProcessingChain
 from dabstract.dataset.dataset import Dataset
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import stringlist2ind
@@ -23,7 +23,7 @@ class DCASE2020Task1A(Dataset):
     # Data: get data
     def set_data(self, paths):
         # audio
-        chain = processing_chain().add(WavDatareader(select_channel=0))
+        chain = ProcessingChain().add(WavDatareader(select_channel=0))
         from dabstract.dataset.helpers import FolderDictSeqAbstract
         self.add('audio', FolderDictSeqAbstract(paths['data'],map_fct=chain,save_path=os.path.join(paths['feat'],self.__class__.__name__, 'audio', 'raw')))
         # get meta

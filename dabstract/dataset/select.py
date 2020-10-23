@@ -1,6 +1,14 @@
 import numpy as np
+from typing import Union, Any, List, Optional, cast, Type, TypeVar, Callable, Dict, Iterable, Generator, Tuple
 
-def random_subsample(ratio=1, **kwargs):
+tvSubsampleFunc = TypeVar('subsample_fct')
+
+
+def random_subsample(ratio: int = 1,
+                     **kwargs) -> tvSubsampleFunc:
+    """ Subsampling fct: random
+    """
+
     def func(data):
         indexes = np.arange(len(data))
         if ratio < 1:
@@ -10,17 +18,21 @@ def random_subsample(ratio=1, **kwargs):
                 for k in range(len(indexes)):
                     indexes[k] = np.random.choice(indexes[k], int(np.ceil(len(indexes[k]) * ratio)), replace=False)
         return indexes
+
     return func
 
-def subsample_by_str(key=None, keep=None, **kwargs):
+
+def subsample_by_str(key: str = None, keep: str = None, **kwargs) -> tvSubsampleFunc:
+    """ Subsampling fct: by string
+    """
+
     def func(data):
-        if isinstance(key,list):
+        if isinstance(key, list):
             for tmp in key:
                 data = data[tmp]
-        elif isinstance(key,str):
+        elif isinstance(key, str):
             data = data[key]
         assert keep is not None
-        return [k for k in np.arange(len(data)) if data[k]==keep]
+        return [k for k in np.arange(len(data)) if data[k] == keep]
+
     return func
-
-

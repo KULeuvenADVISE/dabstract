@@ -131,12 +131,12 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Again an example of MapAbstract, but this time with the processing_chain
 from dabstract.dataset.abstract import SeqAbstract, MapAbstract
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # define chains
-processor = processing_chain().add(Framing(windowsize=10, stepsize=10))
-processor2 = processing_chain().add(WavDatareader).add(Framing(windowsize=10, stepsize=10))
+processor = ProcessingChain().add(Framing(windowsize=10, stepsize=10))
+processor2 = ProcessingChain().add(WavDatareader).add(Framing(windowsize=10, stepsize=10))
 
 # Create a sequential abstract with two concatenated datasources that have different
 # processing steps. Difference is that the first one is avauilable in memory while for the second
@@ -151,12 +151,12 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Again an example of MapAbstract, but this time with the processing_chain and DICTSEQ
 from dabstract.dataset.abstract import SeqAbstract, MapAbstract
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # define chains
-processor = processing_chain().add(Framing(windowsize=10, stepsize=10))
-processor2 = processing_chain().add(WavDatareader).add(Framing(windowsize=10, stepsize=10))
+processor = ProcessingChain().add(Framing(windowsize=10, stepsize=10))
+processor2 = ProcessingChain().add(WavDatareader).add(Framing(windowsize=10, stepsize=10))
 
 # same example as previously, but now added to a dictseq instead of Seq
 DSA = DictSeqAbstract()
@@ -181,8 +181,8 @@ print('\n\n\n')
 from dabstract.dataset.abstract import SeqAbstract, SelectAbstract, DataAbstract
 
 # chain
-processor = processing_chain().add(Framing(windowsize=10, stepsize=10))
-processor2 = processing_chain().add(WavDatareader).add(Framing(windowsize=10, stepsize=10))
+processor = ProcessingChain().add(Framing(windowsize=10, stepsize=10))
+processor2 = ProcessingChain().add(WavDatareader).add(Framing(windowsize=10, stepsize=10))
 # dataset 1
 DSA = DictSeqAbstract()
 DSA.add('data',MapAbstract(DATA,processor,fs=1))
@@ -280,13 +280,13 @@ print('\n\n\n')
 ### note that you always need to know apriori what the size is of the loaded data
 from dabstract.dataset.abstract import SplitAbstract
 from dabstract.dataset.helpers import get_dir_info
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # get information about the data
 fileinfodict = get_dir_info(datafolder, extension='.wav')
 # apply read wav operation to the filelist
-SA = MapAbstract(fileinfodict['filepath'],map_fct=processing_chain().add(WavDatareader()))
+SA = MapAbstract(fileinfodict['filepath'],map_fct=ProcessingChain().add(WavDatareader()))
 # add a splitabstract, given that you know the expected sample_len (for each example) and the sample_period (single fs for all examples))
 SA_split = SplitAbstract(SA,
                          split_size=1000,

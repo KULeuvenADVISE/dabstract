@@ -41,7 +41,7 @@ from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
 from dabstract.dataset.xval import random_kfold
 db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
                          'meta': os.path.join('data','data')})
-db.set_xval(random_kfold(folds=4,val_frac=1/3), save_dir='xval')
+db.set_xval(random_kfold(folds=4,val_frac=1/3), save_path='xval')
 xval = db.get_xval_set(fold=0,set='train')
 
 # -------------------------------------------------------------------------
@@ -49,7 +49,7 @@ xval = db.get_xval_set(fold=0,set='train')
 ### paths/feat is a mandatory field that should be added when doing feature extraction
 ### as it determines where the features are stored
 from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # init db
@@ -57,7 +57,7 @@ db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
                          'meta': os.path.join('data','data'),
                          'feat': os.path.join('data', 'feat')}) #mandatory
 # define processor
-processor = processing_chain().add(Framing(windowsize=10, stepsize=10))
+processor = ProcessingChain().add(Framing(windowsize=10, stepsize=10))
 # do feature extraction on 'data'  if not already performed and add it to the dataset as a 'feat' key
 # if new_key is not specified, the item of 'data' is replaced by the feature extracted version
 db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat')
@@ -69,7 +69,7 @@ db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat')
 ### paths/feat is a mandatory field that should be added when doing feature extraction
 ### as it determines where the features are stored
 from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # init db
@@ -77,8 +77,8 @@ db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
                          'meta': os.path.join('data','data'),
                          'feat': os.path.join('data', 'feat')}) #mandatory
 # define processor
-processor = processing_chain().add(none())
-processor2 = processing_chain().add(Framing(windowsize=10, stepsize=10))
+processor = ProcessingChain()
+processor2 = ProcessingChain().add(Framing(windowsize=10, stepsize=10))
 # do feature extraction for the first time
 db.prepare_feat('data',fe_name='np_audio', fe_dp=processor, new_key='feat')
 # do feature extraction for the second time (e.g. if its modular, this could save computation time)
@@ -87,7 +87,7 @@ db.prepare_feat('feat',fe_name='raw_audio', fe_dp=processor2, new_key='feat2')
 # -------------------------------------------------------------------------
 ### Load data from memory
 from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # init db
@@ -95,7 +95,7 @@ db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
                          'meta': os.path.join('data','data'),
                          'feat': os.path.join('data', 'feat')}) #mandatory
 # define processor
-processor = processing_chain().add(Framing(windowsize=10, stepsize=10))
+processor = ProcessingChain().add(Framing(windowsize=10, stepsize=10))
 # do feature extraction on 'data'
 db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat')
 # load features into memory
@@ -104,7 +104,7 @@ db.load_memory('feat')
 # -------------------------------------------------------------------------
 ### Load data from memory and keep internal structure
 from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # init db
@@ -112,7 +112,7 @@ db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
                          'meta': os.path.join('data','data'),
                          'feat': os.path.join('data', 'feat')}) #mandatory
 # define processor
-processor = processing_chain().add(Framing(windowsize=10, stepsize=10))
+processor = ProcessingChain().add(Framing(windowsize=10, stepsize=10))
 # do feature extraction on 'data'
 db.prepare_feat('data',fe_name='Framing1010', fe_dp=processor, new_key='feat')
 # load features into memory
@@ -121,7 +121,7 @@ db.load_memory('feat', keep_structure=True)
 # -------------------------------------------------------------------------
 ### Splitting
 from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # init db
@@ -130,7 +130,7 @@ db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
                          'feat': os.path.join('data', 'feat')}) #mandatory
 db.summary()
 # define processor
-processor = processing_chain().add(Framing(windowsize=0.1, stepsize=0.1))
+processor = ProcessingChain().add(Framing(windowsize=0.1, stepsize=0.1))
 # prepare features
 db.prepare_feat('data',fe_name='Framing0101', fe_dp=processor, new_key='feat')
 # add splitting
@@ -144,7 +144,7 @@ print(db['feat'][0].shape)
 # -------------------------------------------------------------------------
 ### Splitting (per frame)
 from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # init db
@@ -153,7 +153,7 @@ db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
                          'feat': os.path.join('data', 'feat')}) #mandatory
 db.summary()
 # define processor
-processor = processing_chain().add(Framing(windowsize=0.1, stepsize=0.1))
+processor = ProcessingChain().add(Framing(windowsize=0.1, stepsize=0.1))
 # prepare features
 db.prepare_feat('data',fe_name='Framing0101', fe_dp=processor, new_key='feat')
 # add splitting
@@ -178,7 +178,7 @@ from dabstract.utils import load_yaml_config
 #         meta: !pathjoin [data,data]
 #         tmp: !pathjoin [data,tmp]
 # !class is a custom constructor that load_yaml_config uses to replace that item by that class
-data = load_yaml_config(filename='EXAMPLE_anomaly2', dir=os.path.join('configs', 'dbs'), walk=True,
+data = load_yaml_config(filename='EXAMPLE_anomaly2', path=os.path.join('configs', 'dbs'), walk=True,
                         post_process=dataset_from_config)
 data.summary()
 
@@ -194,7 +194,7 @@ from dabstract.utils import load_yaml_config
 # /dp/.. for processing layers
 os.environ["dabstract_CUSTOM_DIR"] = "custom"
 # load dataset
-data = load_yaml_config(filename='EXAMPLE_anomaly', dir=os.path.join('configs', 'dbs'), walk=True,
+data = load_yaml_config(filename='EXAMPLE_anomaly', path=os.path.join('configs', 'dbs'), walk=True,
                         post_process=dataset_from_config)
 data.summary()
 
@@ -206,7 +206,7 @@ from dabstract.utils import load_yaml_config
 # define custom variable
 os.environ["dabstract_CUSTOM_DIR"] = "custom"
 # load dataset
-data = load_yaml_config(filename='EXAMPLE_anomaly_xval', dir=os.path.join('configs', 'dbs'), walk=True,
+data = load_yaml_config(filename='EXAMPLE_anomaly_xval', path=os.path.join('configs', 'dbs'), walk=True,
                         post_process=dataset_from_config)
 data.summary()
 print(data.get_xval_set(set='train',fold=0))
@@ -219,7 +219,7 @@ from dabstract.utils import load_yaml_config
 # define custom variable
 os.environ["dabstract_CUSTOM_DIR"] = "custom"
 # load dataset
-data = load_yaml_config(filename='EXAMPLE_anomaly', dir=os.path.join('configs', 'dbs'), walk=True,
+data = load_yaml_config(filename='EXAMPLE_anomaly', path=os.path.join('configs', 'dbs'), walk=True,
                         post_process=dataset_from_config)
 data.add_split(0.5)
 data.summary()
@@ -232,7 +232,7 @@ from dabstract.utils import load_yaml_config
 # define custom variable
 os.environ["dabstract_CUSTOM_DIR"] = "custom"
 # load dataset
-data = load_yaml_config(filename='EXAMPLE_anomaly_split', dir=os.path.join('configs', 'dbs'), walk=True,
+data = load_yaml_config(filename='EXAMPLE_anomaly_split', path=os.path.join('configs', 'dbs'), walk=True,
                         post_process=dataset_from_config)
 data.summary()
 
@@ -244,7 +244,7 @@ from dabstract.utils import load_yaml_config
 # define custom variable
 os.environ["dabstract_CUSTOM_DIR"] = "custom"
 # load dataset
-data = load_yaml_config(filename='EXAMPLE_anomaly', dir=os.path.join('configs', 'dbs'), walk=True,
+data = load_yaml_config(filename='EXAMPLE_anomaly', path=os.path.join('configs', 'dbs'), walk=True,
                         post_process=dataset_from_config)
 data.summary()
 print([subdb for subdb in data['data']['subdb']])
@@ -261,7 +261,7 @@ from dabstract.dataset.select import random_subsample
 # define custom variable
 os.environ["dabstract_CUSTOM_DIR"] = "custom"
 # load dataset
-data = load_yaml_config(filename='EXAMPLE_anomaly', dir=os.path.join('configs', 'dbs'), walk=True,
+data = load_yaml_config(filename='EXAMPLE_anomaly', path=os.path.join('configs', 'dbs'), walk=True,
                         post_process=dataset_from_config)
 data.summary()
 print([subdb for subdb in data['data']['subdb']])
@@ -277,7 +277,7 @@ from dabstract.utils import load_yaml_config
 # define custom variable
 os.environ["dabstract_CUSTOM_DIR"] = "custom"
 # load dataset
-data = load_yaml_config(filename='EXAMPLE_anomaly_subsample', dir=os.path.join('configs', 'dbs'), walk=True,
+data = load_yaml_config(filename='EXAMPLE_anomaly_subsample', path=os.path.join('configs', 'dbs'), walk=True,
                         post_process=dataset_from_config)
 data.summary()
 
@@ -290,11 +290,11 @@ from dabstract.dataset.select import random_subsample
 # define custom variable
 os.environ["dabstract_CUSTOM_DIR"] = "custom"
 # load dataset
-data0 = load_yaml_config(filename='EXAMPLE_anomaly', dir=os.path.join('configs', 'dbs'), walk=True,
+data0 = load_yaml_config(filename='EXAMPLE_anomaly', path=os.path.join('configs', 'dbs'), walk=True,
                         post_process=dataset_from_config)
 data0.summary()
 # load dataset
-data1 = load_yaml_config(filename='EXAMPLE_anomaly2', dir=os.path.join('configs', 'dbs'), walk=True,
+data1 = load_yaml_config(filename='EXAMPLE_anomaly2', path=os.path.join('configs', 'dbs'), walk=True,
                         post_process=dataset_from_config)
 data1.summary()
 # merge

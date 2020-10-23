@@ -1,4 +1,4 @@
-from dabstract.dataprocessor.processing_chain import processing_chain
+from dabstract.dataprocessor.processing_chain import ProcessingChain
 from dabstract.dataset.dataset import Dataset
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import listnp_combine
@@ -20,7 +20,7 @@ class EXAMPLE(Dataset):
     # Data: get data
     def set_data(self, paths):
         # audio
-        chain = processing_chain().add(WavDatareader())
+        chain = ProcessingChain().add(WavDatareader())
         from dabstract.dataset.helpers import FolderDictSeqAbstract
         #self.add_subdict_from_folder('data', paths['data'], map_fct=chain, save_path=paths['data'])
         tmp = FolderDictSeqAbstract(paths['data'], map_fct=chain, save_path=paths['data'])

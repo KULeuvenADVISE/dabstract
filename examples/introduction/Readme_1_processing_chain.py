@@ -17,11 +17,11 @@ for k,D in enumerate(DATA):
 
 # -------------------------------------------------------------------------
 ### Create an STFT, get mean and std over time
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # create processing chain
-dp = processing_chain()
+dp = ProcessingChain()
 dp.add(Framing(windowsize=10,stepsize=10,axis=0))
 dp.add(FFT(axis=1))
 dp.add(Aggregation(methods=['mean', 'std'], axis=0, combine='concatenate'))
@@ -35,12 +35,12 @@ print(output_data.shape)
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Create an STFT, get mean and std over time (alternative)
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # create processing chain
 # in this example, fs is already set in the processing chain
-dp = processing_chain()
+dp = ProcessingChain()
 dp.add(Framing(windowsize=10,stepsize=10,axis=0,fs=1))
 dp.add(FFT(axis=1))
 dp.add(Aggregation(methods=['mean', 'std'], axis=0, combine='concatenate'))
@@ -52,11 +52,11 @@ print(output_data.shape)
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Create an STFT, get mean and std over time and fit this to normalization
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # create processing chain
-dp = processing_chain()
+dp = ProcessingChain()
 dp.add(Framing(windowsize=10,stepsize=10,axis=0))
 dp.add(FFT(axis=1))
 dp.add(Aggregation(methods=['mean', 'std'], axis=0, combine='concatenate'))
@@ -72,11 +72,11 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Same as before but the data is loaded from wav file
 ### As a consequence no extra fs information needs to be provided for processing. This read from the wav.
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # define processing chain
-dp = processing_chain()
+dp = ProcessingChain()
 dp.add(WavDatareader())
 dp.add(Framing(windowsize=10,stepsize=10,axis=0))
 dp.add(FFT(axis=1))
@@ -94,11 +94,11 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Same as before but the data is loaded from numpy file \
 ### As a consequence extra fs information needs to be provided for processing.
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 # define processing chain
-dp = processing_chain()
+dp = ProcessingChain()
 dp.add(NumpyDatareader())
 dp.add(Framing(windowsize=10,stepsize=10,axis=0))
 dp.add(FFT(axis=1))
@@ -114,7 +114,7 @@ print(output_data.shape)
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Create an STFT, get mean and std over time and fit this to normalization (created from hardcoded configuration)
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
 config = {'chain': [{'name': 'NumpyDatareader'},
@@ -129,10 +129,10 @@ config = {'chain': [{'name': 'NumpyDatareader'},
                                     'methods': ['mean', 'std']}},
                     {'name': 'Normalizer',
                      'parameters': {'type': 'standard'}}]}
-dp = processing_chain(config)
+dp = ProcessingChain(config)
 dp.summary()
 # OR
-# dp = processing_chain()
+# dp = ProcessingChain()
 # dp.add(config)
 dp.fit(numpyfiles, fs=1) #fit from npy files
 #dp.fit(['data_intro/data_numpy/0.npy', 'data_intro/data_numpy/1.npy', 'data_intro/data_numpy/3.npy', ...], fs=1)
@@ -143,14 +143,14 @@ print(output_data.shape)
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Create an STFT, get mean and std over time and fit this to normalization (created from yaml config)
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
 
 # get yaml configuration
-config = load_yaml_config(filename='Readme_1_dp_config', dir=os.path.join('configs','dp'))
+config = load_yaml_config(filename='Readme_1_dp_config', path=os.path.join('configs','dp'))
 # create processing chain from the yaml config
-dp = processing_chain(config)
+dp = ProcessingChain(config)
 # fit data
 dp.fit(DATA, fs=1)
 # process
@@ -159,13 +159,13 @@ print(output_data.shape)
 
 print('\n\n\n')
 # -------------------------------------------------------------------------
-### Same as before, but now the yaml loading fct and feed to processing_chain() is available in a one-liner.
-from dabstract.dataprocessor import processing_chain
+### Same as before, but now the yaml loading fct and feed to ProcessingChain() is available in a one-liner.
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
 
-# get yaml configuration and process with processing_chain()
-dp = load_yaml_config(filename='Readme_1_dp_config', dir=os.path.join('configs','dp'),post_process=processing_chain)
+# get yaml configuration and process with ProcessingChain()
+dp = load_yaml_config(filename='Readme_1_dp_config', path=os.path.join('configs','dp'),post_process=ProcessingChain)
 # fit data
 dp.fit(DATA, fs=1)
 # process
@@ -176,19 +176,19 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Example on how to add a custom processing layer
 # -- processing chain from config BIS
-from dabstract.dataprocessor import processing_chain, processor
+from dabstract.dataprocessor import ProcessingChain, Processor
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
 
 # custom processor.
 # This is a minimal example of what a processor can do.
-class custom_processor(processor):
+class custom_processor(Processor):
     def process(self, data, **kwargs):
         return data * 100, {}
         # return data, information that can be propagated to consecutive layers
 
-# get yaml configuration and process with processing_chain()
-dp = load_yaml_config(filename='Readme_1_dp_config', dir=os.path.join('configs','dp'),post_process=processing_chain)
+# get yaml configuration and process with ProcessingChain()
+dp = load_yaml_config(filename='Readme_1_dp_config', path=os.path.join('configs','dp'),post_process=ProcessingChain)
 dp.summary()
 # add a custom processor to the dp.chain
 dp.add(custom_processor())
@@ -203,21 +203,21 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Example on how to add a custom processing with fit option
 # -- processing chain from config BIS
-from dabstract.dataprocessor import processing_chain, processor
+from dabstract.dataprocessor import ProcessingChain, Processor
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
 
 # custom processor.
 # This is a minimal example of what a processor can do.
-class custom_processor(processor):
+class custom_processor(Processor):
     def process(self, data, **kwargs):
         return (data - self.mean) * 100, {}
         # return data, information that can be propagated to consecutive layers
     def fit(self, data, info, **kwargs):
         self.mean = np.mean(data)
 
-# get yaml configuration and process with processing_chain()
-dp = load_yaml_config(filename='Readme_1_dp_config', dir=os.path.join('configs','dp'),post_process=processing_chain)
+# get yaml configuration and process with ProcessingChain()
+dp = load_yaml_config(filename='Readme_1_dp_config', path=os.path.join('configs','dp'),post_process=ProcessingChain)
 dp.summary()
 # add custom processor
 dp.add(custom_processor())
@@ -232,15 +232,15 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Example on how to use any function in a dabstract processing chain and still use info propagation
 # -- processing chain from config BIS
-from dabstract.dataprocessor import processing_chain, processor
+from dabstract.dataprocessor import ProcessingChain, Processor
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
 
 def custom_fct(data,**kwargs):
     return (data - 5) * 100
 
-# get yaml configuration and process with processing_chain()
-dp = load_yaml_config(filename='Readme_1_dp_config', dir=os.path.join('configs','dp'),post_process=processing_chain)
+# get yaml configuration and process with ProcessingChain()
+dp = load_yaml_config(filename='Readme_1_dp_config', path=os.path.join('configs','dp'),post_process=ProcessingChain)
 dp.summary()
 # add custom processors
 dp.add(custom_fct)
@@ -255,12 +255,12 @@ print(output_data.shape)
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Example on how to add a custom processing layer within configuration using !class
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
 
-# get yaml configuration and process with processing_chain()
-dp = load_yaml_config(filename='Readme_1_dp_config_custom', dir=os.path.join('configs','dp'),post_process=processing_chain)
+# get yaml configuration and process with ProcessingChain()
+dp = load_yaml_config(filename='Readme_1_dp_config_custom', path=os.path.join('configs','dp'),post_process=ProcessingChain)
 # fit data (it's recursive, so both the normalizer and the custom_processor are fit'ed on the data)
 dp.fit(DATA, fs=1)
 # process data
@@ -272,13 +272,13 @@ print('\n\n\n')
 ### Create a lazy data source from disk with additional processing
 ### Adds a lazy mapping function to DATA and allow multi-example indexing
 # -- processing chain for multiple examples
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
 from dabstract.dataset.abstract import MapAbstract, DataAbstract
 
-# get yaml configuration and process with processing_chain()
-dp = load_yaml_config(filename='Readme_1_dp_config', dir=os.path.join('configs','dp'),post_process=processing_chain)
+# get yaml configuration and process with ProcessingChain()
+dp = load_yaml_config(filename='Readme_1_dp_config', path=os.path.join('configs','dp'),post_process=ProcessingChain)
 # Fit data
 dp.fit(DATA, fs=1)
 # Make and abstract data source
@@ -294,12 +294,12 @@ print(datab)
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Add multi-processing to lazy data source
-from dabstract.dataprocessor import processing_chain
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
 
-# get yaml configuration and process with processing_chain()
-dp = load_yaml_config(filename='Readme_1_dp_config', dir=os.path.join('configs','dp'),post_process=processing_chain)
+# get yaml configuration and process with ProcessingChain()
+dp = load_yaml_config(filename='Readme_1_dp_config', path=os.path.join('configs','dp'),post_process=ProcessingChain)
 # Fit data
 dp.fit(DATA, fs=1)
 # Make and abstract data source
