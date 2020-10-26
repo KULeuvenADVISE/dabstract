@@ -1,6 +1,9 @@
 d.abstract: dataset and pre-processing abstraction
 ==================================================
 
+[![Build Status](https://travis-ci.org/KULeuvenADVISE/dabstract.svg?branch=master)](https://travis-ci.org/KULeuvenADVISE/dabstract)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/KULeuvenADVISE/dabstract/blob/master/LICENSE)
+
 This is a -lightweight- library for defining and processing data(sets). The goals of the library are to a) uniformize dataset classes, b) speed up experiments where the data does not fit into memory, c) offer a general way of processing data independent of the data source, d) seamlessly combine different datasets.
  
 The reader is advised to first go through EXAMPLES/introduction_notebook/Readme1/2/3_* and then check the EXAMPLE implementation.
