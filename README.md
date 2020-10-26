@@ -1,5 +1,5 @@
-# dabstract
-DAtaset and preprocessing ABSTRACTion library
+d.abstract: dataset and pre-processing abstraction
+==================================================
 
 This is a -lightweight- library for defining and processing data(sets). The goals of the library are to a) uniformize dataset classes, b) speed up experiments where the data does not fit into memory, c) offer a general way of processing data independent of the data source, d) seamlessly combine different datasets.
  

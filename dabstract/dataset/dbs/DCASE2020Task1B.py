@@ -9,15 +9,11 @@ from dabstract.utils import stringlist2ind
 class DCASE2020Task1B(Dataset):
     def __init__(self,
                  paths=None,
-                 split=None,
-                 filter=None,
                  test_only=0,
                  **kwargs):
         # init dict abstract
         super().__init__(name=self.__class__.__name__,
                          paths=paths,
-                         split=split,
-                         filter=filter,
                          test_only=test_only)
 
     # Data: get data

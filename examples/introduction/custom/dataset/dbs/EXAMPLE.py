@@ -6,15 +6,11 @@ from dabstract.utils import listnp_combine
 class EXAMPLE(Dataset):
     def __init__(self,
                  paths=None,
-                 split=None,
-                 select=None,
                  test_only=0,
                  **kwargs):
         # init dict abstract
         super().__init__(name=self.__class__.__name__,
                          paths=paths,
-                         split=split,
-                         select=select,
                          test_only=test_only)
 
     # Data: get data

@@ -1,0 +1,6 @@
+Map
+===============
+.. automodule:: dabstract.dataset.abstract
+   :members: Map, MapAbstract
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,6 @@
+Split
+===============
+.. automodule:: dabstract.dataset.abstract
+   :members: Split, SplitAbstract
+   :undoc-members:
+   :show-inheritance:

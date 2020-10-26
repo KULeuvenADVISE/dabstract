@@ -26,33 +26,33 @@ class Dataset():
     for your own dataset, one should use the following structure:
 
     Example:
-        $   class EXAMPLE(dataset):
-        $       def __init__(self,
-        $                    paths=None,
-        $                    split=None,
-        $                    filter=None,
-        $                    test_only=0,
-        $                    other=...
-        $                    **kwargs):
-        $           # init dict abstract
-        $           super().__init__(name=self.__class__.__name__,
-        $                            paths=paths,
-        $                            split=split,
-        $                            filter=filter,
-        $                            test_only=test_only)
-        $           #init other variables
-        $
-        $       # Data: get data
-        $       def set_data(self, paths):
-        $           # set up dataset containing the data and optional lazy mapping and so on
-        $           # the dataset is essentially a wrapped DictSeqAbstract. All your data is
-        $           # is accessible through self.. e.g. len(self), self.add, self.concat, ...
-        $           self.add('data', ... )
-        $           self.add('label', ... )
-        $           return self
-        $
-        $       def prepare(self,paths):
-        $           # prepare data here, i.e. download
+       class EXAMPLE(dataset):
+           def __init__(self,
+                        paths=None,
+                        split=None,
+                        filter=None,
+                        test_only=0,
+                        other=...
+                        **kwargs):
+               # init dict abstract
+               super().__init__(name=self.__class__.__name__,
+                                paths=paths,
+                                split=split,
+                                filter=filter,
+                                test_only=test_only)
+               #init other variables
+
+           # Data: get data
+           def set_data(self, paths):
+               # set up dataset containing the data and optional lazy mapping and so on
+               # the dataset is essentially a wrapped DictSeqAbstract. All your data is
+               # is accessible through self.. e.g. len(self), self.add, self.concat, ...
+               self.add('data', ... )
+               self.add('label', ... )
+               return self
+
+           def prepare(self,paths):
+               # prepare data here, i.e. download
 
         One is advised to check the examples in dabstract/examples/introduction on how to work with datasets before reading
         the rest of this help.
@@ -119,8 +119,6 @@ class Dataset():
 
     def __init__(self,
                  paths: list = None,
-                 split: Optional[Any] = None,
-                 select: Optional[Any] = None,
                  test_only: Optional[bool] = False,
                  **kwargs):
         # Inits
@@ -134,27 +132,12 @@ class Dataset():
                 self.add('test_only', [test_only] * len(self))
             self.add('dataset_id', np.zeros(len(self), np.int))
             self._nr_datasets += 1
-        # filter
-        if select is not None:
-            if not isinstance(select, list): select = [select]
-            for f in select:
-                self.add_select(f)
-        # split
-        if split is not None:
-            if isinstance(split, dict):
-                self.add_split(**split)
-            elif isinstance(split, numbers.Integral):
-                self.add_split(split_size=split)
-            else:
-                raise NotImplementedError
         # dataset meta
         if len(self.keys()) != 0:
             # get default param
             self._param = [{'name': self.__class__.__name__,
                             'test_only': test_only,
                             'paths': paths,
-                            'filter': filter,
-                            'split': split,
                             **kwargs}]
             # add other meta
             self._param[0] = self.set_meta(self._param[0])
@@ -602,11 +585,6 @@ class Dataset():
         # checks
         from dabstract.dataset.helpers import FolderDictSeqAbstract
         assert isinstance(self[key], FolderDictSeqAbstract), key + " should be of type FolderDictSeqAbstract"
-        # old definitio
-        # assert [file is not None for file in self[key]['filepath']], "not all entries contain filepath"
-        # assert [item is not None for item in self[key]['example']], "not all entries contain filename"
-        # assert [file is not None for file in self[key]['subdb']], "not all entries contain subdb"
-        # assert [file is not None for file in self[key]['info']], "not all entries contain info"
         # inits
         data = copy.deepcopy(self)
         data.add_map(key, fe_dp)

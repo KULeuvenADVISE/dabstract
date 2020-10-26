@@ -102,6 +102,38 @@ def load_yaml_config(filename: str,
 
     return cfg
 
+def reformat_yaml(cfg: List[Any]) -> List[Union[np.ndarray, Any]]:
+    """Reformat yaml list to numpy if possible
+    """
+    if isinstance(cfg, list):
+        tmp_cfg = cfg
+        if any(isinstance(i, list) for i in tmp_cfg):  # nested
+            tmp_cfg = [val for i in tmp_cfg for val in i]
+        if np.all([(isinstance(i, int) | isinstance(i, float)) for i in tmp_cfg]):
+            cfg = np.array(cfg)
+    return cfg
+
+
+def reformat_yaml_iter(cfg: List[Any]) -> List[Union[np.ndarray, Any]]:
+    """Reformat yaml list to numpy if possible in iterative fashion
+    """
+    for k, v in cfg.items():
+        if isinstance(v, dict):
+            reformat_yaml_iter(v)
+        else:
+            cfg[k] = reformat_yaml(v)
+    return cfg
+
+
+def load_yaml(filepath: str) -> Dict:
+    """Load yaml file
+    """
+    # load file
+    with open(filepath, 'r') as ymlfile:
+        cfg = yaml.load(ymlfile, Loader=yaml.Loader)
+
+    return cfg
+
 
 def str_in_list(lst: List, string: str) -> List[int]:
     """Get indices of a string in a list
@@ -340,43 +372,10 @@ def combs_list(delays: Union[List,np.ndarray]) -> List:
     return list(itertools.product(*delays))
 
 
-def combs_size_numpy(values, size):
+def combs_size_numpy(values: Union[List,np.ndarray], size: int) -> np.ndarray:
     """Size of all possible combinations of numpy entries
     """
     return np.array([comb for comb in itertools.combinations(values, size)])
-
-
-def reformat_yaml(cfg: List[Any]) -> List[Union[np.ndarray, Any]]:
-    """Reformat yaml list to numpy if possible
-    """
-    if isinstance(cfg, list):
-        tmp_cfg = cfg
-        if any(isinstance(i, list) for i in tmp_cfg):  # nested
-            tmp_cfg = [val for i in tmp_cfg for val in i]
-        if np.all([(isinstance(i, int) | isinstance(i, float)) for i in tmp_cfg]):
-            cfg = np.array(cfg)
-    return cfg
-
-
-def reformat_yaml_iter(cfg: List[Any]) -> List[Union[np.ndarray, Any]]:
-    """Reformat yaml list to numpy if possible in iterative fashion
-    """
-    for k, v in cfg.items():
-        if isinstance(v, dict):
-            reformat_yaml_iter(v)
-        else:
-            cfg[k] = reformat_yaml(v)
-    return cfg
-
-
-def load_yaml(filepath: str) -> Dict:
-    """Load yaml file
-    """
-    # load file
-    with open(filepath, 'r') as ymlfile:
-        cfg = yaml.load(ymlfile, Loader=yaml.Loader)
-
-    return cfg
 
 
 def pprint_ext(str: str,

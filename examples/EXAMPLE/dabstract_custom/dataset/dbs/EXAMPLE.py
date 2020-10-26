@@ -9,15 +9,11 @@ from dabstract.utils import listnp_combine
 class EXAMPLE(dataset):
     def __init__(self,
                  paths=None,
-                 split=None,
-                 select=None,
                  test_only=0,
                  **kwargs):
         # init dict abstract
         super().__init__(name=self.__class__.__name__,
                          paths=paths,
-                         split=split,
-                         select=select,
                          test_only=test_only)
 
     # Data: get data
@@ -38,7 +34,7 @@ class EXAMPLE(dataset):
             duration = 60
             sampling_rate = 16000
             subdb = 'abnormal'
-            filt = FIR_filter(type='highpass', f=4000, taps=100, fs=sampling_rate, axis=0)
+            filt = FIRFilter(type='highpass', f=4000, taps=100, fs=sampling_rate, axis=0)
             for k in range(files):
                 os.makedirs(os.path.join(paths['data'],subdb), exist_ok=True)
                 data = filt.process(np.random.normal(size=duration * 16000))[0]
@@ -51,7 +47,7 @@ class EXAMPLE(dataset):
             duration = 60
             sampling_rate = 16000
             subdb = 'normal'
-            filt = FIR_filter(type='lowpass', f=4000, taps=100, fs=sampling_rate, axis=0)
+            filt = FIRFilter(type='lowpass', f=4000, taps=100, fs=sampling_rate, axis=0)
             for k in range(files):
                 os.makedirs(os.path.join(paths['data'],subdb), exist_ok=True)
                 data = filt.process(np.random.normal(size=duration * 16000))[0]

@@ -86,23 +86,20 @@ def dataset_from_config(config: Dict,
         ddataset.concat(dataset_factory(name=db['name'], **db['parameters']))
     # add other functionality
     if 'xval' in config:
-        ddataset.set_xval(**config['xval'], overwrite=overwrite_xval)
+        ddataset.set_xval(config['xval'], overwrite=overwrite_xval)
     if 'split' in config:
-        ddataset.add_split(config['split'])
+        ddataset.add_split(**config['split'])
     if 'select' in config:
         ddataset.add_select(config['select'])
-    # if 'unpack' in config:
-    #     ddataset = ddataset.unpack(config['unpack'])
-    # if 'alias' in config:
-    #     ddataset.add_alias(key,new_key)
     return ddataset
 
 
 def dataset_factory(name: (str, tvDataset, type) = None,
                     paths: Dict[str, str] = None,
-                    xval: str = None,
-                    select: str = None,
-                    test_only: bool = 0,
+                    xval: Optional[str] = None,
+                    split: Optional[int] = None,
+                    select: Optional[str] = None,
+                    test_only: Optional[bool] = 0,
                     **kwargs) -> tvDataset:
     """Dataset factory
 
@@ -126,6 +123,10 @@ def dataset_factory(name: (str, tvDataset, type) = None,
         how to work with datasets
 
     Arguments:
+        select:
+        split:
+        xval:
+        test_only:
         name (str/class): name of the class (or the class directly)
         paths (dict[str]): dictionary containing paths to the data
         kwargs: ToDo, not defined as this should be used only by load_from_config()
@@ -142,16 +143,24 @@ def dataset_factory(name: (str, tvDataset, type) = None,
             module = safe_import_module(os.environ['dabstract_CUSTOM_DIR'] + '.dataset.dbs')
             assert hasattr(module, name), 'Database class is not supported in both dabstract.dataset.dbs ' + os.environ[
                 'dabstract_CUSTOM_DIR'] + '.dataset.dbs. Please check'
-        return getattr(module, name)(paths=paths, select=select, test_only=test_only, xval=xval, **kwargs)
+        db = getattr(module, name)(paths=paths, test_only=test_only, **kwargs)
     elif isinstance(name, Dataset):
-        pass
+        db = name
     elif isinstance(name, type):
         try:
-            db = name(paths=paths, select=select, test_only=test_only, xval=xval, **kwargs)
-            assert isinstance(db, Dataset)
-            return db
+            db = name(paths=paths, test_only=test_only, **kwargs)
         except:
             raise ValueError("Class is not a Dataset.")
+
+    # add other functionality
+    if xval is not None:
+        db.set_xval(xval)
+    if split is not None:
+        db.add_split(**split)
+    if select is not None:
+        db.add_select(select)
+
+    return db
 
 
 class FolderDictSeqAbstract(DictSeqAbstract):
@@ -211,9 +220,6 @@ class FolderDictSeqAbstract(DictSeqAbstract):
             fileinfo['info'] = info
         # add data
         self.add('data', fileinfo['filepath'], info=fileinfo['info'])
-        # add meta
-        # for key in fileinfo:
-        #     self.add(key, fileinfo[key])
         self.add_dict(fileinfo, lazy=False)
         # add map
         if map_fct is not None:
