@@ -10,11 +10,25 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
+
 import os
 import sys
+from unittest.mock import MagicMock
+
+# include package
 sys.path.insert(0, os.path.abspath('../dabstract'))
-sys.path.insert(0, os.path.abspath('../dabstract/dataprocessor'))
-sys.path.insert(0, os.path.abspath('../dabstract/dataset'))
+
+# Mock module to bypass pip install
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+MOCK_MODULES = [
+    'numpy', 'matplotlib', 'matplotlib.pyplot',
+    'setuptools', 'python-dotenv', 'torch', 'dcase_util', 'soundfile']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
 
 # -- Project information -----------------------------------------------------
 

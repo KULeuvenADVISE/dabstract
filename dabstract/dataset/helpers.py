@@ -86,7 +86,7 @@ def dataset_from_config(config: Dict,
         ddataset.concat(dataset_factory(name=db['name'], **db['parameters']))
     # add other functionality
     if 'xval' in config:
-        ddataset.set_xval(config['xval'], overwrite=overwrite_xval)
+        ddataset.set_xval(**config['xval'], overwrite=overwrite_xval)
     if 'split' in config:
         ddataset.add_split(**config['split'])
     if 'select' in config:
@@ -154,9 +154,14 @@ def dataset_factory(name: (str, tvDataset, type) = None,
 
     # add other functionality
     if xval is not None:
-        db.set_xval(xval)
+        db.set_xval(**xval)
     if split is not None:
-        db.add_split(**split)
+        if isinstance(split, int):
+            db.add_split(split)
+        elif isinstance(split, dict):
+            db.add_split(**split)
+        else:
+            raise NotImplementedError
     if select is not None:
         db.add_select(select)
 

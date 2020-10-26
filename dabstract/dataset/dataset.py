@@ -718,8 +718,10 @@ class Dataset():
                 func = name(**parameters)
             elif isinstance(name, (type, types.FunctionType)):
                 func = name
-
-            self.xval = func(self_train)
+            try:
+                self.xval = func(self_train)
+            except:
+                lol = 0
             assert 'test' in self.xval, "please return a dict with minimally a test key"
 
             if save_path is not None:
