@@ -9,11 +9,12 @@ import pickle
 import types
 from pprint import pprint
 
-from typing import Union, Any, List, Optional, cast, Type, TypeVar, Callable, Dict
+from typing import Union, Any, List, Optional, TypeVar, Callable, Dict
 
-tvDataset = TypeVar('Dataset')
+tvDataset = TypeVar("Dataset")
 
-class Dataset():
+
+class Dataset:
     """Dataset base class
 
     This is the dataset base class. It essentially is a DictSeqAbstract with additional functionality,
@@ -117,10 +118,7 @@ class Dataset():
         dataset class
     """
 
-    def __init__(self,
-                 paths: list = None,
-                 test_only: Optional[bool] = False,
-                 **kwargs):
+    def __init__(self, paths: list = None, test_only: Optional[bool] = False, **kwargs):
         # Inits
         self.prepare(paths)
         self._data = DictSeqAbstract()
@@ -128,17 +126,21 @@ class Dataset():
         self._nr_datasets = 0
         # Add other database meta
         if len(self.keys()) != 0:
-            if 'test_only' not in self.keys():
-                self.add('test_only', [test_only] * len(self))
-            self.add('dataset_id', np.zeros(len(self), np.int))
+            if "test_only" not in self.keys():
+                self.add("test_only", [test_only] * len(self))
+            self.add("dataset_id", np.zeros(len(self), np.int))
             self._nr_datasets += 1
         # dataset meta
         if len(self.keys()) != 0:
             # get default param
-            self._param = [{'name': self.__class__.__name__,
-                            'test_only': test_only,
-                            'paths': paths,
-                            **kwargs}]
+            self._param = [
+                {
+                    "name": self.__class__.__name__,
+                    "test_only": test_only,
+                    "paths": paths,
+                    **kwargs,
+                }
+            ]
             # add other meta
             self._param[0] = self.set_meta(self._param[0])
         else:
@@ -147,26 +149,24 @@ class Dataset():
         self.data_init = {}
 
     def __getitem__(self, index: numbers.Integral or str) -> Any:
-        """ Allow indexing in the form of dataset[id]
-        """
+        """Allow indexing in the form of dataset[id]"""
         return self._data[index]
 
     def __setitem__(self, k: str, v: Any) -> None:
-        """ Allow key assigment in the form of dataset[key] = Seq/DictSeq
-        """
+        """Allow key assigment in the form of dataset[key] = Seq/DictSeq"""
         self._data[k] = v
 
     def __len__(self):
-        """ get length of dataset using len(dataset)
-        """
+        """get length of dataset using len(dataset)"""
         return len(self._data)
 
     def __add__(self, data: tvDataset):
-        """ Combine datasets using the following syntax... dataset = dataset0+dataset1
-        """
+        """Combine datasets using the following syntax... dataset = dataset0+dataset1"""
         return self.concat(data, adjust_base=False)
 
-    def add(self, key: str, data: Any, info: List[dict] = None, lazy: bool = True, **kwargs) -> None:
+    def add(
+        self, key: str, data: Any, info: List[dict] = None, lazy: bool = True, **kwargs
+    ) -> None:
         """Add key to dataset.
         Requirement: data should be as long as len(self)
         Example:
@@ -179,7 +179,9 @@ class Dataset():
         """
         self._data.add(key, data, info=info, lazy=lazy, **kwargs)
 
-    def add_dict(self, data: dict or DictSeqAbstract, lazy: bool = True, **kwargs) -> None:
+    def add_dict(
+        self, data: dict or DictSeqAbstract, lazy: bool = True, **kwargs
+    ) -> None:
         """Add the keys of a dictionary to the existing dataset
         Requirement: data should be as long as len(self)
         Example:
@@ -190,8 +192,17 @@ class Dataset():
         """
         self._data.add_dict(data, lazy=lazy, **kwargs)
 
-    def add_subdict_from_folder(self, key, path, extension='.wav', map_fct=None, file_info_save_path=None,
-                                filepath=None, overwrite_file_info=False, **kwargs):
+    def add_subdict_from_folder(
+        self,
+        key,
+        path,
+        extension=".wav",
+        map_fct=None,
+        file_info_save_path=None,
+        filepath=None,
+        overwrite_file_info=False,
+        **kwargs
+    ):
         """Add meta information of the files in a directory and add them to the dataset in a key
 
         This function gets meta information (e.g. sampling frequency, length) of files in your provided directory.
@@ -225,13 +236,24 @@ class Dataset():
                                         }
         """
         from dabstract.dataset.helpers import dictseq_from_folder
-        tmp = dictseq_from_folder(path, extension=extension, map_fct=map_fct, file_info_save_path=file_info_save_path, \
-                                  filepath=filepath, overwrite_file_info=overwrite_file_info, **kwargs)
+
+        tmp = dictseq_from_folder(
+            path,
+            extension=extension,
+            map_fct=map_fct,
+            file_info_save_path=file_info_save_path,
+            filepath=filepath,
+            overwrite_file_info=overwrite_file_info,
+            **kwargs
+        )
         warnings.warn(
-            "This function is deprecated. Please use the self.add(key, FolderDictSeqAbstract(*arg,**kwargs)) class to add a data folder to your dataset")
+            "This function is deprecated. Please use the self.add(key, FolderDictSeqAbstract(*arg,**kwargs)) class to add a data folder to your dataset"
+        )
         self.add(key, tmp)
 
-    def concat(self, data: tvDataset, intersect: bool = False, adjust_base: bool = True) -> tvDataset:
+    def concat(
+        self, data: tvDataset, intersect: bool = False, adjust_base: bool = True
+    ) -> tvDataset:
         """Add the keys of a dictionary to the existing dataset
         Requirement: data should be as long as len(self)
         Example:
@@ -241,22 +263,25 @@ class Dataset():
             intersect (bool): keep intersection of the two dicts based on the keys
             adjust_base (bool): protect the original dataset from adjusting.
         """
-        assert isinstance(data, Dataset), "You can only concatenate with a dict_dataset instance"
+        assert isinstance(
+            data, Dataset
+        ), "You can only concatenate with a dict_dataset instance"
         # prep
         data = copy.deepcopy(data)
         for par in data._param:
             self._param.append(par)
         nr_datasets = self._nr_datasets
-        data.add_map('dataset_id', (lambda x: x + nr_datasets))
+        data.add_map("dataset_id", (lambda x: x + nr_datasets))
         self._nr_datasets += data._nr_datasets
         # concat
         self2 = self if adjust_base else copy.deepcopy(self)
-        self2._data = self2._data.concat(data._data, intersect=intersect, adjust_base=adjust_base)
+        self2._data = self2._data.concat(
+            data._data, intersect=intersect, adjust_base=adjust_base
+        )
         return self2
 
     def remove(self, key: str) -> None:
-        """Remove a particular key in the dataset
-        """
+        """Remove a particular key in the dataset"""
         self._data.remove(key)
 
     def add_map(self, key: str, map_fct: Callable, lazy: bool = None) -> None:
@@ -272,19 +297,24 @@ class Dataset():
         # if isinstance(self._data[key], FolderDictSeqAbstract):
         #     self._data[key]['data'] = MapAbstract(copy.deepcopy(self._data[key]['data']),map_fct=map_fct)
         # else:
-        self._data[key] = Map(copy.deepcopy(self._data[key]), lazy=(self._data._lazy[key] if lazy is None else lazy),
-                              map_fct=map_fct)
+        self._data[key] = Map(
+            copy.deepcopy(self._data[key]),
+            lazy=(self._data._lazy[key] if lazy is None else lazy),
+            map_fct=map_fct,
+        )
 
     def set_meta(self, param: dict) -> dict:
-        """ToDo: add set meta function instead of intro
-        """
+        """ToDo: add set meta function instead of intro"""
         return param
 
-    def add_split(self,
-                  split_size: Union[float, int] = None,
-                  constraint: Optional[str] = None,
-                  type: str = 'seconds',
-                  reference_key: str = None, **kwargs) -> None:
+    def add_split(
+        self,
+        split_size: Union[float, int] = None,
+        constraint: Optional[str] = None,
+        type: str = "seconds",
+        reference_key: str = None,
+        **kwargs
+    ) -> None:
         """Add a splitting operation to the dataset
 
         This is a functionality handy if you for example have a dataset with chunks of 60s while you
@@ -310,52 +340,91 @@ class Dataset():
         from dabstract.dataset.helpers import FolderDictSeqAbstract
 
         # get time_step in case of samples
-        if type == 'samples':
-            assert reference_key is not None, "When choosing for samples, you should select a reference key."
+        if type == "samples":
+            assert (
+                reference_key is not None
+            ), "When choosing for samples, you should select a reference key."
             assert isinstance(reference_key, str), "reference_key should be a str"
             assert isinstance(self[reference_key], FolderDictSeqAbstract)
-            assert 'time_step' in self[reference_key]['info'][
-                0], "time_step should be a key in self[reference_key]['info'][..]. Splitting is currently only supported when that information is available"
-            assert 'output_shape' in self[reference_key]['info'][
-                0], "output_shape should be a key in self[reference_key]['info'][..]. Splitting is currently only supported when that information is available"
-            type = 'seconds'
-            split_size = np.unique(np.array([info['time_step'] for info in self[reference_key]['info']])) * split_size
-            assert len(
-                split_size) == 1, "can only do splittig when the time_steps in each example of your dataset/key are uniform."
+            assert (
+                "time_step" in self[reference_key]["info"][0]
+            ), "time_step should be a key in self[reference_key]['info'][..]. Splitting is currently only supported when that information is available"
+            assert (
+                "output_shape" in self[reference_key]["info"][0]
+            ), "output_shape should be a key in self[reference_key]['info'][..]. Splitting is currently only supported when that information is available"
+            type = "seconds"
+            split_size = (
+                np.unique(
+                    np.array(
+                        [info["time_step"] for info in self[reference_key]["info"]]
+                    )
+                )
+                * split_size
+            )
+            assert (
+                len(split_size) == 1
+            ), "can only do splittig when the time_steps in each example of your dataset/key are uniform."
 
         # prep sample lengths
         sample_len, sample_period, sample_duration = dict(), dict(), dict()
         for key in self.keys():
             # check if info available
             if isinstance(self[key], FolderDictSeqAbstract):
-                if all([(('output_shape' in info) and ('time_step' in info)) for info in self[key]['info']]):
+                if all(
+                    [
+                        (("output_shape" in info) and ("time_step" in info))
+                        for info in self[key]["info"]
+                    ]
+                ):
                     sample_duration[key] = np.array(
-                        [info['output_shape'][0] * info['time_step'] for info in self[key]['info']])
-                    sample_len[key] = np.array([info['output_shape'][0] for info in self[key]['info']])
-                    sample_period[key] = np.array([info['time_step'] for info in self[key]['info']])
-                    assert [sample_period[key][0] == time_step for time_step in
-                            sample_period[key]], "sample_period should be uniform"
+                        [
+                            info["output_shape"][0] * info["time_step"]
+                            for info in self[key]["info"]
+                        ]
+                    )
+                    sample_len[key] = np.array(
+                        [info["output_shape"][0] for info in self[key]["info"]]
+                    )
+                    sample_period[key] = np.array(
+                        [info["time_step"] for info in self[key]["info"]]
+                    )
+                    assert [
+                        sample_period[key][0] == time_step
+                        for time_step in sample_period[key]
+                    ], "sample_period should be uniform"
                     sample_period[key] = sample_period[key][0]
                     continue
             sample_len[key], sample_period[key], sample_duration[key] = None, None, None
         # adjust sample_len based on minimum covered duration (e.g. framing at edges vs raw audio)
         min_duration = np.min(
-            np.array([sample_duration[key] for key in self.keys() if sample_duration[key] is not None]), axis=0)
+            np.array(
+                [
+                    sample_duration[key]
+                    for key in self.keys()
+                    if sample_duration[key] is not None
+                ]
+            ),
+            axis=0,
+        )
         for key in sample_len:
             if sample_len[key] is not None:
-                sample_len[key] = (sample_len[key] * min_duration / sample_duration[key]).astype(int)
+                sample_len[key] = (
+                    sample_len[key] * min_duration / sample_duration[key]
+                ).astype(int)
         # Apply split for the ones with sample_len information
         new_data = DictSeqAbstract()
         for key in self.keys():
             if sample_len[key] is not None:
                 try:
-                    tmp = Split(self[key],
-                                split_size=split_size,
-                                sample_len=sample_len[key],
-                                sample_period=sample_period[key],
-                                type=type,
-                                constraint=constraint,
-                                lazy=self._data._lazy[key])
+                    tmp = Split(
+                        self[key],
+                        split_size=split_size,
+                        sample_len=sample_len[key],
+                        sample_period=sample_period[key],
+                        type=type,
+                        constraint=constraint,
+                        lazy=self._data._lazy[key],
+                    )
                     new_data[key] = tmp
                 except:
                     sample_len[key] = None
@@ -363,16 +432,23 @@ class Dataset():
         for k, key in enumerate(new_data.keys()):
             if k == 0:
                 ref = new_data[key]._split_len
-            assert np.all(ref == new_data[key]._split_len), "split length are not equal. Please check why!"
+            assert np.all(
+                ref == new_data[key]._split_len
+            ), "split length are not equal. Please check why!"
         # do other keys (replicating)
         for key in self.keys():
             if sample_len[key] is None:
-                new_data.add(key, SampleReplicate(self[key], factor=ref, lazy=self._data._lazy[key]),
-                             lazy=self._data._lazy[key])
+                new_data.add(
+                    key,
+                    SampleReplicate(self[key], factor=ref, lazy=self._data._lazy[key]),
+                    lazy=self._data._lazy[key],
+                )
         # replace existing dataset
         self._data = new_data
 
-    def add_select(self, selector: Any, parameters=Optional[dict], *arg, **kwargs) -> None:
+    def add_select(
+        self, selector: Any, parameters=Optional[dict], *arg, **kwargs
+    ) -> None:
         """Add a selection to the dataset
 
         This function add a selector to the dataset. The input to this function can either be a function that does the
@@ -404,16 +480,21 @@ class Dataset():
 
         # get fct
         if isinstance(selector, dict):
-            if 'parameters' in selector:
-                parameters = selector['parameters']
-            if 'name' in selector:
-                selector = selector['name']
+            if "parameters" in selector:
+                parameters = selector["parameters"]
+            if "name" in selector:
+                selector = selector["name"]
         if isinstance(selector, str):
             module = selectm
             if not hasattr(module, selector):
-                module = safe_import_module(os.environ['dabstract_CUSTOM_DIR'] + '.dataset.select')
-                assert hasattr(module,
-                               selectm), "Select " + selectm + " is not supported in both dabstract and custom xvals. Please check"
+                module = safe_import_module(
+                    os.environ["dabstract_CUSTOM_DIR"] + ".dataset.select"
+                )
+                assert hasattr(module, selectm), (
+                    "Select "
+                    + selectm
+                    + " is not supported in both dabstract and custom xvals. Please check"
+                )
             func = getattr(module, selector)(**parameters)
         elif isinstance(selector, type):
             func = selector(**parameters)
@@ -423,7 +504,14 @@ class Dataset():
         orig_data = copy.deepcopy(self._data)
         self._data = DictSeqAbstract()
         for key in orig_data.keys():
-            self[key] = Select(orig_data[key], func, *arg, lazy=orig_data._lazy[key], eval_data=orig_data, **kwargs)
+            self[key] = Select(
+                orig_data[key],
+                func,
+                *arg,
+                lazy=orig_data._lazy[key],
+                eval_data=orig_data,
+                **kwargs
+            )
 
     def add_alias(self, key: str, new_key: str) -> None:
         """Add an alias to a particular key. Handy if you would like to use a dataset and add e.g. data/target referring to
@@ -432,9 +520,8 @@ class Dataset():
         self._data.add_alias(key, new_key)
 
     def keys(self) -> None:
-        """Show the keys in the dataset
-        """
-        if hasattr(self._data, 'keys'):
+        """Show the keys in the dataset"""
+        if hasattr(self._data, "keys"):
             return self._data.keys()
         else:
             return self._data._data.keys()
@@ -447,14 +534,14 @@ class Dataset():
         self._data.set_active_keys(keys)
 
     def reset_active_key(self) -> None:
-        """Reset active keys (DEPRECATED)
-        """
-        warnings.warn('reset_active_key() in dataset is deprecated. Please use reset_active_keys()')
+        """Reset active keys (DEPRECATED)"""
+        warnings.warn(
+            "reset_active_key() in dataset is deprecated. Please use reset_active_keys()"
+        )
         self._data.reset_active_key()
 
     def reset_active_keys(self) -> None:
-        """Reset active keys
-        """
+        """Reset active keys"""
         self._data.reset_active_keys()
 
     def unpack(self, keys: List[str]) -> UnpackAbstract:
@@ -469,14 +556,14 @@ class Dataset():
         """
         pass
 
-    def load_memory(self,
-                    key: str,
-                    workers:
-                    int = 2,
-                    buffer_len:
-                    int = 2,
-                    keep_structure: bool = False,
-                    verbose: bool = True) -> None:
+    def load_memory(
+        self,
+        key: str,
+        workers: int = 2,
+        buffer_len: int = 2,
+        keep_structure: bool = False,
+        verbose: bool = True,
+    ) -> None:
         """Load data of a particular key from memory
 
         If you want to already load some data in memory as this might be the faster option you can use function.
@@ -491,14 +578,25 @@ class Dataset():
             verbose (bool): provide print feedback
         """
         if verbose:
-            print('Loading data in memory of key ' + key + ' containing ' + str(len(self)) + ' examples.')
+            print(
+                "Loading data in memory of key "
+                + key
+                + " containing "
+                + str(len(self))
+                + " examples."
+            )
 
         if keep_structure:
+
             def load_data(data):
-                return SeqAbstract().concat(DataAbstract(data).get(slice(0, len(self)),
-                                                                   verbose=True,
-                                                                   workers=workers,
-                                                                   buffer_len=buffer_len))
+                return SeqAbstract().concat(
+                    DataAbstract(data).get(
+                        slice(0, len(self)),
+                        verbose=True,
+                        workers=workers,
+                        buffer_len=buffer_len,
+                    )
+                )
 
             def iterative_load(data, key_str):
                 if isinstance(data, DictSeqAbstract):
@@ -508,50 +606,55 @@ class Dataset():
                         if isinstance(data[key], DictSeqAbstract):
                             data[key] = iterative_load(data[key], key_str2)
                         else:
-                            print('Loading key ' + key_str2)
+                            print("Loading key " + key_str2)
                             data[key] = load_data(data[key])
                     data._set_active_keys(active_keys)
                 else:
-                    print('Loading key ' + key_str)
+                    print("Loading key " + key_str)
                     data = load_data(data)
                 return data
 
             self[key] = iterative_load(self[key], key_str=key)
         else:
-            self[key] = DataAbstract(self[key]).get(slice(0, len(self)),
-                                                    verbose=True,
-                                                    workers=workers,
-                                                    buffer_len=buffer_len)
+            self[key] = DataAbstract(self[key]).get(
+                slice(0, len(self)),
+                verbose=True,
+                workers=workers,
+                buffer_len=buffer_len,
+            )
 
     def summary(self) -> None:
-        """Print a dataset summary
-        """
-        summary = {'keys': self._data.keys(),
-                   'database': [par['name'] for par in self._param],
-                   'test_only': [par['test_only'] for par in self._param],
-                   'len': [np.sum([dataset_id == id for dataset_id in self._data['dataset_id']]) for id in
-                           range(self._nr_datasets)]}
+        """Print a dataset summary"""
+        summary = {
+            "keys": self._data.keys(),
+            "database": [par["name"] for par in self._param],
+            "test_only": [par["test_only"] for par in self._param],
+            "len": [
+                np.sum([dataset_id == id for dataset_id in self._data["dataset_id"]])
+                for id in range(self._nr_datasets)
+            ],
+        }
         pprint(summary)
 
     def __repr__(self) -> str:
-        """String representation of the class
-        """
-        return 'dataset containing: ' + str(self.keys())
+        """String representation of the class"""
+        return "dataset containing: " + str(self.keys())
 
     def prepare(self, paths: Dict[str, str]) -> None:
-        """Placeholder for the dataset. You can add dataset download ops here.
-        """
+        """Placeholder for the dataset. You can add dataset download ops here."""
         pass
 
-    def prepare_feat(self,
-                     key: str,
-                     fe_name: str,
-                     fe_dp: ProcessingChain,
-                     new_key: str = None,
-                     overwrite: bool = False,
-                     verbose: bool = True,
-                     workers: int = 2,
-                     buffer_len: int = 2) -> None:
+    def prepare_feat(
+        self,
+        key: str,
+        fe_name: str,
+        fe_dp: ProcessingChain,
+        new_key: str = None,
+        overwrite: bool = False,
+        verbose: bool = True,
+        workers: int = 2,
+        buffer_len: int = 2,
+    ) -> None:
         """Utility function to manage feature saving and loading.
 
         This function manages the feature extraction and loading for you. What it basically does it when you provide a
@@ -584,55 +687,105 @@ class Dataset():
         """
         # checks
         from dabstract.dataset.helpers import FolderDictSeqAbstract
-        assert isinstance(self[key], FolderDictSeqAbstract), key + " should be of type FolderDictSeqAbstract"
+
+        assert isinstance(self[key], FolderDictSeqAbstract), (
+            key + " should be of type FolderDictSeqAbstract"
+        )
         # inits
         data = copy.deepcopy(self)
         data.add_map(key, fe_dp)
-        subdb = [subdb for subdb in data[key]['subdb']]
-        example = [os.path.splitext(example)[0] + '.npy' for example in data[key]['example']]
+        subdb = [subdb for subdb in data[key]["subdb"]]
+        example = [
+            os.path.splitext(example)[0] + ".npy" for example in data[key]["example"]
+        ]
         subdbs = list(np.unique(subdb))
 
         # extract
         featfilelist, infofilelist = [], []
         for dataset_id in range(self._nr_datasets):
-            print('Dataset ' + self._param[dataset_id]['name'])
-            featpath_base = os.path.join(self._param[dataset_id]['paths']['feat'], self._param[dataset_id]['name'], key,
-                                         fe_name)
+            print("Dataset " + self._param[dataset_id]["name"])
+            featpath_base = os.path.join(
+                self._param[dataset_id]["paths"]["feat"],
+                self._param[dataset_id]["name"],
+                key,
+                fe_name,
+            )
             for subdb in subdbs:  # for every subdb
                 os.makedirs(os.path.join(featpath_base, subdb), exist_ok=True)
-                sel_ind = \
-                    np.where([i == subdb and j == dataset_id for i, j in zip(data[key]['subdb'], data['dataset_id'])])[
-                        0]  # get indices
-                if verbose: print('Preparing ' + str(len(sel_ind)) + ' examples in ' + self._param[dataset_id][
-                    'name'] + ' - ' + subdb)
+                sel_ind = np.where(
+                    [
+                        i == subdb and j == dataset_id
+                        for i, j in zip(data[key]["subdb"], data["dataset_id"])
+                    ]
+                )[
+                    0
+                ]  # get indices
+                if verbose:
+                    print(
+                        "Preparing "
+                        + str(len(sel_ind))
+                        + " examples in "
+                        + self._param[dataset_id]["name"]
+                        + " - "
+                        + subdb
+                    )
 
-                tmp_featfilelist = [os.path.join(featpath_base, example[k]) for k in sel_ind]
+                tmp_featfilelist = [
+                    os.path.join(featpath_base, example[k]) for k in sel_ind
+                ]
                 tmp_example = [example[k] for k in sel_ind]
-                if np.any([not pathlib.Path(tmp_featfile).is_file() for tmp_featfile in
-                           tmp_featfilelist]) or overwrite:  # if all does not exist
+                if (
+                    np.any(
+                        [
+                            not pathlib.Path(tmp_featfile).is_file()
+                            for tmp_featfile in tmp_featfilelist
+                        ]
+                    )
+                    or overwrite
+                ):  # if all does not exist
                     output_info = [None] * len(sel_ind)
                     # extract for every example
                     for k, data_tmp in enumerate(
-                            tqdm(DataAbstract(data[key]).get(sel_ind, return_generator=True, return_info=True, \
-                                                             workers=workers, buffer_len=buffer_len), \
-                                 disable=(not verbose))):  # for every sample
+                        tqdm(
+                            DataAbstract(data[key]).get(
+                                sel_ind,
+                                return_generator=True,
+                                return_info=True,
+                                workers=workers,
+                                buffer_len=buffer_len,
+                            ),
+                            disable=(not verbose),
+                        )
+                    ):  # for every sample
                         data_tmp, info_tmp = data_tmp
                         # save data
                         np.save(tmp_featfilelist[k], data_tmp)
                         # keep info
                         output_info[k] = info_tmp
                     # save info
-                    if (not pathlib.Path(featpath_base, subdb, 'file_info.pickle').is_file()) or overwrite:
-                        with open(os.path.join(featpath_base, subdb, 'file_info.pickle'), "wb") as fp: pickle.dump(
-                            (output_info, tmp_example), fp)
+                    if (
+                        not pathlib.Path(
+                            featpath_base, subdb, "file_info.pickle"
+                        ).is_file()
+                    ) or overwrite:
+                        with open(
+                            os.path.join(featpath_base, subdb, "file_info.pickle"), "wb"
+                        ) as fp:
+                            pickle.dump((output_info, tmp_example), fp)
 
-                with open(os.path.join(featpath_base, subdb, 'file_info.pickle'), "rb") as fp:
+                with open(
+                    os.path.join(featpath_base, subdb, "file_info.pickle"), "rb"
+                ) as fp:
                     info_in, example_in = pickle.load(fp)
-                infofilelist += [info_in[k] for k in range(len(tmp_example)) if tmp_example[k] in example_in]
+                infofilelist += [
+                    info_in[k]
+                    for k in range(len(tmp_example))
+                    if tmp_example[k] in example_in
+                ]
                 featfilelist += tmp_featfilelist
 
         # save chain config
-        feconfdir = pathlib.Path(featpath_base, 'config.pickle')
+        feconfdir = pathlib.Path(featpath_base, "config.pickle")
         if (not feconfdir.is_file()) or overwrite:
             with open(feconfdir, "wb") as fp:
                 pickle.dump(fe_dp._info, fp)
@@ -647,20 +800,28 @@ class Dataset():
             new_key = key
             self.remove(key)
         if isinstance(key, str):
-            self.add(new_key, FolderDictSeqAbstract(featpath_base,
-                                                    filepath=featfilelist,
-                                                    extension='.npy',
-                                                    map_fct=ProcessingChain().add(NumpyDatareader()),
-                                                    info=infofilelist))
+            self.add(
+                new_key,
+                FolderDictSeqAbstract(
+                    featpath_base,
+                    filepath=featfilelist,
+                    extension=".npy",
+                    map_fct=ProcessingChain().add(NumpyDatareader()),
+                    info=infofilelist,
+                ),
+            )
         else:
             raise Exception(
-                "new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced.")
+                "new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced."
+            )
 
-    def set_xval(self,
-                 name: Union[str, types.FunctionType, List[int], np.ndarray],
-                 parameters: Dict = dict(),
-                 save_path: str = None,
-                 overwrite: bool = True) -> None:
+    def set_xval(
+        self,
+        name: Union[str, types.FunctionType, List[int], np.ndarray],
+        parameters: Dict = dict(),
+        save_path: str = None,
+        overwrite: bool = True,
+    ) -> None:
         """Set the cross-validation folds
 
         This function sets the crossvalidation folds. This works similar as with self.add_select().
@@ -691,7 +852,7 @@ class Dataset():
         """
 
         assert name is not None
-        test_only = np.array([k for k in self['test_only']])
+        test_only = np.array([k for k in self["test_only"]])
         sel_vect_train = np.where(test_only == 0)[0]
         sel_vect_test = np.where(test_only == 1)[0]
 
@@ -700,7 +861,7 @@ class Dataset():
         # checks
         get_xval = True
         if save_path is not None:
-            savefile_xval = os.path.join(save_path, 'xval.pickle')
+            savefile_xval = os.path.join(save_path, "xval.pickle")
             if os.path.isfile(savefile_xval):
                 get_xval = False
 
@@ -710,9 +871,14 @@ class Dataset():
             if isinstance(name, str):
                 module = xval
                 if not hasattr(module, name):
-                    module = safe_import_module(os.environ['dabstract_CUSTOM_DIR'] + '.dataset.xval')
-                    assert hasattr(module,
-                                   name), "Xval " + name + " is not supported in both dabstract and custom xvals. Please check"
+                    module = safe_import_module(
+                        os.environ["dabstract_CUSTOM_DIR"] + ".dataset.xval"
+                    )
+                    assert hasattr(module, name), (
+                        "Xval "
+                        + name
+                        + " is not supported in both dabstract and custom xvals. Please check"
+                    )
                 func = getattr(module, name)(**parameters)
             elif isinstance(name, type):
                 func = name(**parameters)
@@ -722,11 +888,12 @@ class Dataset():
                 self.xval = func(self_train)
             except:
                 lol = 0
-            assert 'test' in self.xval, "please return a dict with minimally a test key"
+            assert "test" in self.xval, "please return a dict with minimally a test key"
 
             if save_path is not None:
                 os.makedirs(os.path.split(savefile_xval)[0], exist_ok=True)
-                with open(savefile_xval, 'wb') as f: pickle.dump(self.xval, f)
+                with open(savefile_xval, "wb") as f:
+                    pickle.dump(self.xval, f)
         elif save_path is not None:
             with open(savefile_xval, "rb") as f:
                 self.xval = pickle.load(f)  # load
@@ -734,10 +901,12 @@ class Dataset():
         # sanity check
         keys = list(self.xval.keys())
         for key in keys:
-            assert isinstance(self.xval[key],
-                              list), 'Crossvalidation indices should be formatted in a list (for each fold).'
-            assert len(self.xval[keys[0]]) == len(self.xval[
-                                                      key]), 'Amount of folds (items in list) should be the same for each test phase (train/val/test).'
+            assert isinstance(
+                self.xval[key], list
+            ), "Crossvalidation indices should be formatted in a list (for each fold)."
+            assert len(self.xval[keys[0]]) == len(
+                self.xval[key]
+            ), "Amount of folds (items in list) should be the same for each test phase (train/val/test)."
 
         # update indices based on sel_vect_train
         for key in self.xval:
@@ -745,16 +914,23 @@ class Dataset():
                 self.xval[key][k] = sel_vect_train[self.xval[key][k]]
 
         # add other test data
-        for k in range(len(self.xval['test'])):
-            self.xval['test'][k] = np.append(self.xval['test'][k], sel_vect_test)
+        for k in range(len(self.xval["test"])):
+            self.xval["test"][k] = np.append(self.xval["test"][k], sel_vect_test)
 
         # add info
-        self.xval['folds'] = len(self.xval['train'])
+        self.xval["folds"] = len(self.xval["train"])
 
         return self.xval
 
-    def get_xval_set(self, set: str = None, fold: int = None, keys: str = 'all', lazy: bool = True, workers: int = 1,
-                     buffer_len: int = 3) -> Select:
+    def get_xval_set(
+        self,
+        set: str = None,
+        fold: int = None,
+        keys: str = "all",
+        lazy: bool = True,
+        workers: int = 1,
+        buffer_len: int = 3,
+    ) -> Select:
         """Get a crossvalidation subset of your dataset
 
         This function return a subdataset of the original one based on which set you want and which fold
@@ -772,24 +948,44 @@ class Dataset():
 
         # checks
         if set is not None:
-            assert hasattr(self, 'xval'), "xval is not set. Please exec self.set_xval()"
-            assert set in list(self.xval.keys()), "xval_set not in xval sets. Available sets are: " + str(
-                list(self.xval_dict.keys()))
-            assert fold < self.xval['folds']
+            assert hasattr(self, "xval"), "xval is not set. Please exec self.set_xval()"
+            assert set in list(
+                self.xval.keys()
+            ), "xval_set not in xval sets. Available sets are: " + str(
+                list(self.xval_dict.keys())
+            )
+            assert fold < self.xval["folds"]
         assert fold is not None
-        assert fold < self.xval['folds']
-        if keys is 'all':
+        assert fold < self.xval["folds"]
+        if keys is "all":
             if set is None:
-                def get_xval_set(set=None, keys='all'):
-                    if keys is 'all':
+
+                def get_xval_set(set=None, keys="all"):
+                    if keys is "all":
                         return Select(self._data, self.xval[set][fold])
                     else:
-                        return Select(UnpackAbstract(self._data, keys), self.xval[set][fold], lazy=False,
-                                      workers=workers, buffer_len=buffer_len)
+                        return Select(
+                            UnpackAbstract(self._data, keys),
+                            self.xval[set][fold],
+                            lazy=False,
+                            workers=workers,
+                            buffer_len=buffer_len,
+                        )
 
                 return get_xval_set
             else:
-                return Select(self._data, self.xval[set][fold], lazy=lazy, workers=workers, buffer_len=buffer_len)
+                return Select(
+                    self._data,
+                    self.xval[set][fold],
+                    lazy=lazy,
+                    workers=workers,
+                    buffer_len=buffer_len,
+                )
         else:
-            return Select(UnpackAbstract(self._data, keys), self.xval[set][fold], lazy=lazy, workers=workers,
-                          buffer_len=buffer_len)
+            return Select(
+                UnpackAbstract(self._data, keys),
+                self.xval[set][fold],
+                lazy=lazy,
+                workers=workers,
+                buffer_len=buffer_len,
+            )

@@ -7,13 +7,12 @@ from dabstract.utils import safe_import_module
 from dabstract.dataset.abstract import *
 from dabstract.dataset import dbs
 
-from typing import Union, Any, List, Optional, cast, Type, TypeVar, Callable, Dict, Iterable, Generator, Tuple
+from typing import Any, List, Optional, TypeVar, Callable, Dict
 
-tvDataset = TypeVar('Dataset')
+tvDataset = TypeVar("Dataset")
 
 
-def dataset_from_config(config: Dict,
-                        overwrite_xval: bool = False) -> tvDataset:
+def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset:
     """Create a dataset from configuration
 
     This function creates a dataset class from a dictionary definition.
@@ -76,31 +75,35 @@ def dataset_from_config(config: Dict,
     """
 
     assert isinstance(config, dict), "config should be a dictionary"
-    assert 'datasets' in config, "config should have a datasets key"
-    assert isinstance(config['datasets'],
-                      list), "config['dataset'] should be represented as a list where each item is a dictionary containing kwargs of your dataset."
+    assert "datasets" in config, "config should have a datasets key"
+    assert isinstance(
+        config["datasets"], list
+    ), "config['dataset'] should be represented as a list where each item is a dictionary containing kwargs of your dataset."
     from dabstract.dataset.dataset import Dataset
+
     ddataset = Dataset()
     # init datasets
-    for k, db in enumerate(config['datasets']):
-        ddataset.concat(dataset_factory(name=db['name'], **db['parameters']))
+    for k, db in enumerate(config["datasets"]):
+        ddataset.concat(dataset_factory(name=db["name"], **db["parameters"]))
     # add other functionality
-    if 'xval' in config:
-        ddataset.set_xval(**config['xval'], overwrite=overwrite_xval)
-    if 'split' in config:
-        ddataset.add_split(**config['split'])
-    if 'select' in config:
-        ddataset.add_select(config['select'])
+    if "xval" in config:
+        ddataset.set_xval(**config["xval"], overwrite=overwrite_xval)
+    if "split" in config:
+        ddataset.add_split(**config["split"])
+    if "select" in config:
+        ddataset.add_select(config["select"])
     return ddataset
 
 
-def dataset_factory(name: (str, tvDataset, type) = None,
-                    paths: Dict[str, str] = None,
-                    xval: Optional[str] = None,
-                    split: Optional[int] = None,
-                    select: Optional[str] = None,
-                    test_only: Optional[bool] = 0,
-                    **kwargs) -> tvDataset:
+def dataset_factory(
+    name: (str, tvDataset, type) = None,
+    paths: Dict[str, str] = None,
+    xval: Optional[str] = None,
+    split: Optional[int] = None,
+    select: Optional[str] = None,
+    test_only: Optional[bool] = 0,
+    **kwargs
+) -> tvDataset:
     """Dataset factory
 
     This function creates a dataset class from name and parameters.
@@ -140,9 +143,14 @@ def dataset_factory(name: (str, tvDataset, type) = None,
         # get db class
         module = dbs
         if not hasattr(module, name):  # check customs
-            module = safe_import_module(os.environ['dabstract_CUSTOM_DIR'] + '.dataset.dbs')
-            assert hasattr(module, name), 'Database class is not supported in both dabstract.dataset.dbs ' + os.environ[
-                'dabstract_CUSTOM_DIR'] + '.dataset.dbs. Please check'
+            module = safe_import_module(
+                os.environ["dabstract_CUSTOM_DIR"] + ".dataset.dbs"
+            )
+            assert hasattr(module, name), (
+                "Database class is not supported in both dabstract.dataset.dbs "
+                + os.environ["dabstract_CUSTOM_DIR"]
+                + ".dataset.dbs. Please check"
+            )
         db = getattr(module, name)(paths=paths, test_only=test_only, **kwargs)
     elif isinstance(name, Dataset):
         db = name
@@ -204,57 +212,69 @@ class FolderDictSeqAbstract(DictSeqAbstract):
                                     }
     """
 
-    def __init__(self,
-                 path: str,
-                 extension: str = '.wav',
-                 map_fct: Callable = None,
-                 file_info_save_path: bool = None,
-                 filepath: str = None,
-                 overwrite_file_info: bool = False,
-                 info: List[Dict] = None, **kwargs):
+    def __init__(
+        self,
+        path: str,
+        extension: str = ".wav",
+        map_fct: Callable = None,
+        file_info_save_path: bool = None,
+        filepath: str = None,
+        overwrite_file_info: bool = False,
+        info: List[Dict] = None,
+        **kwargs
+    ):
         super().__init__()
-        if 'save_path' in kwargs:
-            file_info_save_path = kwargs['save_path']
-            warnings.warn("save_path is deprecated in dataset.py/dict_from_folder(). Change to 'file_info_save_path'",
-                          DeprecationWarning)
+        if "save_path" in kwargs:
+            file_info_save_path = kwargs["save_path"]
+            warnings.warn(
+                "save_path is deprecated in dataset.py/dict_from_folder(). Change to 'file_info_save_path'",
+                DeprecationWarning,
+            )
         # get info
-        fileinfo = get_dir_info(path, extension=extension, file_info_save_path=file_info_save_path, filepath=filepath,
-                                overwrite_file_info=overwrite_file_info)
+        fileinfo = get_dir_info(
+            path,
+            extension=extension,
+            file_info_save_path=file_info_save_path,
+            filepath=filepath,
+            overwrite_file_info=overwrite_file_info,
+        )
         # overwrite file info
         if info is not None:
-            fileinfo['info'] = info
+            fileinfo["info"] = info
         # add data
-        self.add('data', fileinfo['filepath'], info=fileinfo['info'])
+        self.add("data", fileinfo["filepath"], info=fileinfo["info"])
         self.add_dict(fileinfo, lazy=False)
         # add map
         if map_fct is not None:
-            self['data'] = MapAbstract(self['data'], map_fct=map_fct)
+            self["data"] = MapAbstract(self["data"], map_fct=map_fct)
         # set active key
-        self._set_active_keys('data')
+        self._set_active_keys("data")
 
     def set_active_keys(self, keys: List[str]) -> None:
-        """ Disables set of active keys
-        """
+        """Disables set of active keys"""
         raise Exception(
-            "A FolderDictSeqAbstract should always have data as the only active key. Setting not possible. Please use DictSeqAbstract if other functionality is needed.")
+            "A FolderDictSeqAbstract should always have data as the only active key. Setting not possible. Please use DictSeqAbstract if other functionality is needed."
+        )
 
     def reset_active_keys(self) -> None:
-        """ Disables reset of active keys
-        """
+        """Disables reset of active keys"""
         raise Exception(
-            "A FolderDictSeqAbstract should always have data as the only active key. Resetting not possible. Please use DictSeqAbstract if other functionality is needed.")
+            "A FolderDictSeqAbstract should always have data as the only active key. Resetting not possible. Please use DictSeqAbstract if other functionality is needed."
+        )
 
     def __repr__(self) -> str:
-        """ string print representation of function
-        """
-        return 'folder_dict_seq containing: ' + str(self.keys())
+        """string print representation of function"""
+        return "folder_dict_seq containing: " + str(self.keys())
 
 
-def get_dir_info(path: str,
-                 extension: str = '.wav',
-                 file_info_save_path: bool = None,
-                 filepath: str = None,
-                 overwrite_file_info: bool =False, **kwargs) -> Dict[str, List[Any]]:
+def get_dir_info(
+    path: str,
+    extension: str = ".wav",
+    file_info_save_path: bool = None,
+    filepath: str = None,
+    overwrite_file_info: bool = False,
+    **kwargs
+) -> Dict[str, List[Any]]:
     """Get meta information of the files in a directory.
 
     This function gets meta information (e.g. sampling frequency, length) of files in your provided directory.
@@ -287,19 +307,21 @@ def get_dir_info(path: str,
 
     def _get_dir_info(filepath: str, extension: str) -> List[Dict]:
         info = [dict()] * len(filepath)
-        if extension == '.wav':
+        if extension == ".wav":
             # import soundfile as sf
             for k in range(len(filepath)):
                 f = sf.SoundFile(filepath[k])
-                info[k]['output_shape'] = np.array([len(f), f.channels])
-                info[k]['fs'] = f.samplerate
-                info[k]['time_step'] = 1 / f.samplerate
+                info[k]["output_shape"] = np.array([len(f), f.channels])
+                info[k]["fs"] = f.samplerate
+                info[k]["time_step"] = 1 / f.samplerate
         return info
 
-    if 'save_path' in kwargs:
-        file_info_save_path = kwargs['save_path']
-        warnings.warn("'save_path' is deprecated in dataset.get_dir_info(). Change to 'file_info_save_path'",
-                      DeprecationWarning)
+    if "save_path" in kwargs:
+        file_info_save_path = kwargs["save_path"]
+        warnings.warn(
+            "'save_path' is deprecated in dataset.get_dir_info(). Change to 'file_info_save_path'",
+            DeprecationWarning,
+        )
 
     # get dirs
     if not isinstance(filepath, list):
@@ -319,14 +341,26 @@ def get_dir_info(path: str,
         path = file_info_save_path
 
     # get additional info
-    if not os.path.isfile(os.path.join(path, 'file_info.pickle')) or overwrite_file_info:
+    if (
+        not os.path.isfile(os.path.join(path, "file_info.pickle"))
+        or overwrite_file_info
+    ):
         info = _get_dir_info(filepath, extension)
         if (file_info_save_path is not None) and (info is not None):
             os.makedirs(path, exist_ok=True)
-            with open(pathlib.Path(path, 'file_info.pickle'), "wb") as fp: pickle.dump((info, example), fp)
+            with open(pathlib.Path(path, "file_info.pickle"), "wb") as fp:
+                pickle.dump((info, example), fp)
     else:
-        with open(os.path.join(path, 'file_info.pickle'), "rb") as fp:
+        with open(os.path.join(path, "file_info.pickle"), "rb") as fp:
             info, example_in = pickle.load(fp)
         info = [info[k] for k in range(len(example)) if example[k] in example_in]
-        assert len(example_in) == len(filepath), "info file not of same size as directory"
-    return {'filepath': filepath, 'example': example, 'filename': filename, 'subdb': subdb, 'info': info}
+        assert len(example_in) == len(
+            filepath
+        ), "info file not of same size as directory"
+    return {
+        "filepath": filepath,
+        "example": example,
+        "filename": filename,
+        "subdb": subdb,
+        "info": info,
+    }

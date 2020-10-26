@@ -9,19 +9,20 @@ import scipy.signal as signal
 from dabstract.utils import listnp_combine, flatten_nested_lst
 from dabstract.dataprocessor import Processor
 
-from typing import Union, Any, List, Optional, cast, Type, TypeVar, Callable, Dict, Iterable, Generator, Tuple
+from typing import Dict
 
 
 class WavDatareader(Processor):
-    """Processor to read wav data
-    """
+    """Processor to read wav data"""
 
-    def __init__(self,
-                 select_channel: int = None,
-                 fs: int = None,
-                 read_range: (int,int) = None,
-                 dtype=None,
-                 **kwargs):
+    def __init__(
+        self,
+        select_channel: int = None,
+        fs: int = None,
+        read_range: (int, int) = None,
+        dtype=None,
+        **kwargs
+    ):
         self.select_channel = select_channel
         self.fs = fs
         self.read_range = read_range
@@ -31,77 +32,80 @@ class WavDatareader(Processor):
         # get read params
         args = dict()
         if self.read_range is not None:
-            args.update({'start': self.read_range[0],
-                         'stop': self.read_range[1]})
-        if 'range' in kwargs:
-            args.update({'start': kwargs['read_range'][0],
-                         'stop': kwargs['read_range'][1]})
-        if hasattr(self, 'dtype'):
-            args.update({'dtype': self.dtype})
+            args.update({"start": self.read_range[0], "stop": self.read_range[1]})
+        if "range" in kwargs:
+            args.update(
+                {"start": kwargs["read_range"][0], "stop": kwargs["read_range"][1]}
+            )
+        if hasattr(self, "dtype"):
+            args.update({"dtype": self.dtype})
 
         # read
         data, fs = read_wav(file, **args)
         if self.fs is not None:
-            assert fs == self.fs, 'Input fs and provided fs different. Downsampling not supported currently.'
+            assert (
+                fs == self.fs
+            ), "Input fs and provided fs different. Downsampling not supported currently."
 
         # data selection
         if self.select_channel is not None:
             data = data[:, self.select_channel]
 
         # updata self info
-        return data, {'fs': fs}
+        return data, {"fs": fs}
 
 
 class NumpyDatareader(Processor):
-    """Processor to read numpy data
-    """
-    def __init__(self, read_range: (int,int) = None, **kwargs):
+    """Processor to read numpy data"""
+
+    def __init__(self, read_range: (int, int) = None, **kwargs):
         self.read_range = read_range
 
     def process(self, file: str, **kwargs) -> (np.ndarray, Dict):
         # get read params
         args = dict()
         if self.read_range is not None:
-            args.update({'read_range': self.read_range})
-        if 'range' in kwargs:
-            args.update({'read_range': kwargs['read_range']})
+            args.update({"read_range": self.read_range})
+        if "range" in kwargs:
+            args.update({"read_range": kwargs["read_range"]})
 
-        if 'range' in args:
-            data = np.load(file, mmap_mode='r')
-            data = data[args['read_range'][0]:args['read_range'][1], :]
+        if "range" in args:
+            data = np.load(file, mmap_mode="r")
+            data = data[args["read_range"][0] : args["read_range"][1], :]
         else:
             data = np.load(file)
         return data, {}
 
 
 class Normalizer(Processor):
-    """Processor to normalize data based on fitted parameters
-    """
+    """Processor to normalize data based on fitted parameters"""
 
-    def __init__(self,
-                 type: str = None,
-                 feature_range: (int,int) = [0, 1], **kwargs):
+    def __init__(self, type: str = None, feature_range: (int, int) = [0, 1], **kwargs):
         if type is None:
-            AssertionError('Specify normalization type in processors.py/Normalizer')
+            AssertionError("Specify normalization type in processors.py/Normalizer")
         self.type = type
         self.feature_range = feature_range
 
     def fit(self, data: np.ndarray, **kwargs) -> None:
-        if self.type == 'minmax':
+        if self.type == "minmax":
             self.scaler = pp.MinMaxScaler(feature_range=self.feature_range)
             if len(data.shape) == 1:
                 data = data.reshape(-1, 1)
-            elif len(data.shape) == 3:  # based on the assumption that we will at most read 3D data
+            elif (
+                len(data.shape) == 3
+            ):  # based on the assumption that we will at most read 3D data
                 data = flatten_nested_lst(data)
             self.scaler.fit(data)
-        elif self.type == 'standard':
+        elif self.type == "standard":
             self.scaler = pp.StandardScaler()
-            if len(data.shape) >= 3:  # based on the assumption that we will at most read 3D data
+            if (
+                len(data.shape) >= 3
+            ):  # based on the assumption that we will at most read 3D data
                 data = data.reshape(np.prod(data.shape[:-1]), data.shape[-1])
             self.scaler.fit(data)
 
     def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
-        if (self.type == 'minmax') | (self.type == 'standard'):
+        if (self.type == "minmax") | (self.type == "standard"):
             if len(data.shape) <= 1:
                 data = data.reshape(1, -1)
                 data = self.scaler.transform(data)
@@ -118,11 +122,11 @@ class Normalizer(Processor):
                         data[k, :, :, i] = self.scaler.transform(data[k, :, :, i])
                 return data, {}
         else:
-            print('Not supported.')
+            print("Not supported.")
             sys.exit()
 
     def inv_process(self, data: np.ndarray, **kwargs):
-        if (self.type == 'minmax') | (self.type == 'standard'):
+        if (self.type == "minmax") | (self.type == "standard"):
             if len(data.shape) <= 1:
                 data = data.reshape(1, -1)
                 data = self.scaler.inverse_transform(data)
@@ -135,73 +139,76 @@ class Normalizer(Processor):
             elif len(data.shape) == 4:
                 for k in range(data.shape[0]):
                     for i in range(data[k].shape[2]):
-                        data[k, :, :, i] = self.scaler.inverse_transform(data[k, :, :, i])
+                        data[k, :, :, i] = self.scaler.inverse_transform(
+                            data[k, :, :, i]
+                        )
             else:
-                print('Not supported.')
+                print("Not supported.")
                 sys.exit()
         else:
-            print('Not supported.')
+            print("Not supported.")
             sys.exit()
 
         return data
 
 
 class Scaler(Processor):
-    """Processor to scale data
-    """
+    """Processor to scale data"""
 
     def __init__(self, **kwargs):
-        self.type = kwargs['type']
+        self.type = kwargs["type"]
 
     def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
-        if self.type == 'uint16':
+        if self.type == "uint16":
             data = data / 2 ** 16
-        elif self.type == 'int16':
+        elif self.type == "int16":
             data = data / (pow(2, 15) - 1)
-        elif self.type == 'wav_2_01':
+        elif self.type == "wav_2_01":
             data = (data + 1) / 2
         else:
-            print('Not supported.')
+            print("Not supported.")
             sys.exit()
 
         return data, {}
 
     def inv_process(self, data: np.ndarray) -> np.ndarray:
-        if self.type == 'uint16_scaler':
+        if self.type == "uint16_scaler":
             data = data * 2 ** 16
-        elif self.type == 'int16':
+        elif self.type == "int16":
             data = data * (pow(2, 15) - 1)
         else:
-            print('Not supported.')
+            print("Not supported.")
             sys.exit()
         return data
 
 
 class Framing(Processor):
-    """Processor to frame data
-    """
+    """Processor to frame data"""
 
-    def __init__(self,
-                 windowsize: float = None,
-                 stepsize: float = None,
-                 window_func: str = 'hamming',
-                 axis: int = -1, **kwargs):
+    def __init__(
+        self,
+        windowsize: float = None,
+        stepsize: float = None,
+        window_func: str = "hamming",
+        axis: int = -1,
+        **kwargs
+    ):
         # inits
         self.windowsize = windowsize
         self.stepsize = stepsize
         self.window_func = Windowing(window_func=window_func, axis=axis)
         self.axis = axis
-        if 'fs' in kwargs:
-            self.fs = kwargs['fs']
+        if "fs" in kwargs:
+            self.fs = kwargs["fs"]
 
     def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
         # inits
-        if 'time_step' in kwargs:
-            if kwargs['time_step'] is not None:
-                fs = 1 / kwargs['time_step']
-        elif 'fs' in kwargs:
-            fs = kwargs['fs']
-        elif hasattr(self, 'fs'):
+        if "time_step" in kwargs:
+            if kwargs["time_step"] is not None:
+                fs = 1 / kwargs["time_step"]
+        elif "fs" in kwargs:
+            fs = kwargs["fs"]
+        elif hasattr(self, "fs"):
             fs = self.fs
         else:
             assert 0, "fs not provided in Framing"
@@ -218,28 +225,33 @@ class Framing(Processor):
         signal_length = data.shape[axis]
 
         # segment
-        num_frames = int(np.floor(((signal_length - (frame_length - 1) - 1) / frame_step) + 1))
-        assert num_frames > 0, 'num of frames is 0 in Framing()'
-        indices = np.tile(np.arange(0, frame_length), (num_frames, 1)) + np.tile(
-            np.arange(0, num_frames * frame_step, frame_step), (frame_length, 1)).T
+        num_frames = int(
+            np.floor(((signal_length - (frame_length - 1) - 1) / frame_step) + 1)
+        )
+        assert num_frames > 0, "num of frames is 0 in Framing()"
+        indices = (
+            np.tile(np.arange(0, frame_length), (num_frames, 1))
+            + np.tile(
+                np.arange(0, num_frames * frame_step, frame_step), (frame_length, 1)
+            ).T
+        )
         frames = np.take(data, indices, axis=axis)
-        data_lo = np.take(data, np.setdiff1d(np.arange(signal_length), indices), axis=axis)
+        data_lo = np.take(
+            data, np.setdiff1d(np.arange(signal_length), indices), axis=axis
+        )
 
         # window fct
         self.window_func.axis = axis + 1
         frames = self.window_func.process(frames)[0]
 
         # return
-        return frames, {'time_step': self.stepsize} if axis == 0 else dict()
+        return frames, {"time_step": self.stepsize} if axis == 0 else dict()
 
 
 class Windowing(Processor):
-    """Processor to apply a window
-    """
+    """Processor to apply a window"""
 
-    def __init__(self,
-                 axis: int = -1,
-                 window_func: str = 'hamming', **kwargs):
+    def __init__(self, axis: int = -1, window_func: str = "hamming", **kwargs):
         self.axis = axis
         self.window_func = window_func
 
@@ -251,36 +263,40 @@ class Windowing(Processor):
             axis = self.axis
 
         # get window
-        if self.window_func == 'hamming':
+        if self.window_func == "hamming":
             hw = np.hamming(np.shape(data)[axis]).astype(float)
-        elif (self.window_func == 'hanning') or (self.window_func == 'hann'):
+        elif (self.window_func == "hanning") or (self.window_func == "hann"):
             hw = np.hanning(np.shape(data)[axis]).astype(float)
-        elif self.window_func == 'none' or self.window_func == 'None':
+        elif self.window_func == "none" or self.window_func == "None":
             return data, {}
         elif self.window_func is None:
             return data, {}
         else:
-            print('No other windows supported.')
+            print("No other windows supported.")
             sys.exit()
 
         # window
-        data *= np.reshape(hw, [(data.shape[k] if k == axis else 1) for k in range(len(data.shape))])
+        data *= np.reshape(
+            hw, [(data.shape[k] if k == axis else 1) for k in range(len(data.shape))]
+        )
 
         # return
         return data, dict()
 
 
 class FFT(Processor):
-    """Processor to apply a FFT
-    """
+    """Processor to apply a FFT"""
 
-    def __init__(self,
-                 type: str = 'real',
-                 nfft: str = 'nextpow2',
-                 format: str = 'magnitude',
-                 dc_reset: bool = False,
-                 norm: str = None,
-                 axis: int = -1, **kwargs):
+    def __init__(
+        self,
+        type: str = "real",
+        nfft: str = "nextpow2",
+        format: str = "magnitude",
+        dc_reset: bool = False,
+        norm: str = None,
+        axis: int = -1,
+        **kwargs
+    ):
         self.format = format
         self.dc_reset = dc_reset
         self.axis = axis
@@ -290,22 +306,22 @@ class FFT(Processor):
 
     def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
         # do fft
-        if self.nfft == 'nextpow2':
+        if self.nfft == "nextpow2":
             NFFT = 2 ** np.ceil(np.log2(np.shape(data)[self.axis]))
-        elif self.nfft == 'original':
+        elif self.nfft == "original":
             NFFT = np.shape(data)[self.axis]
 
-        if self.type == 'real':
+        if self.type == "real":
             data = np.fft.rfft(data, n=int(NFFT), axis=self.axis, norm=self.norm)
-        elif self.type == 'full':
+        elif self.type == "full":
             data = np.fft.fft(data, n=int(NFFT), axis=self.axis, norm=self.norm)
 
         # agg complex
-        if self.format == 'magnitude':
+        if self.format == "magnitude":
             data = np.absolute(data)
-        elif self.format == 'power':
+        elif self.format == "power":
             data = np.absolute(data) ** 2
-        elif self.format == 'split':
+        elif self.format == "split":
             data = np.concatenate((np.real(data), np.imag(data)), axis=self.axis)
 
         # remove dc
@@ -315,69 +331,78 @@ class FFT(Processor):
                 axis = len(np.shape(data)) - 1
             else:
                 axis = self.axis
-            sel_tuple = tuple([(slice(0, data.shape[k]) if k != axis else 0) for k in range(len(data.shape))])
+            sel_tuple = tuple(
+                [
+                    (slice(0, data.shape[k]) if k != axis else 0)
+                    for k in range(len(data.shape))
+                ]
+            )
             data[sel_tuple] = 0
 
-        return data, {'nfft': NFFT}
+        return data, {"nfft": NFFT}
 
 
 class Filterbank(Processor):
-    """Processor to apply a filterbank
-    """
+    """Processor to apply a filterbank"""
 
-    def __init__(self,
-                 n_bands: int = 40,
-                 scale: str = 'linear',
-                 nfft: str = 'nextpow2',
-                 fmin: int = 0,
-                 fmax: int = np.Inf,
-                 norm: str = None,
-                 axis: int = -1, **kwargs):
+    def __init__(
+        self,
+        n_bands: int = 40,
+        scale: str = "linear",
+        nfft: str = "nextpow2",
+        fmin: int = 0,
+        fmax: int = np.Inf,
+        norm: str = None,
+        axis: int = -1,
+        **kwargs
+    ):
         self.n_bands = n_bands
         self.scale = scale
         self.axis = axis
         self.fmin = fmin
         self.fmax = fmax
         self.norm = norm
-        if 'fs' in kwargs:
-            self.fs = kwargs['fs']
+        if "fs" in kwargs:
+            self.fs = kwargs["fs"]
         self.nfft = nfft
 
-    def process(self, data: np.ndarray, **kwargs) -> (np.ndarray,Dict):
+    def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
         # inits
-        if 'fs' in kwargs:
-            fs = kwargs['fs']
-            if self.fmax == 'half_fs':
+        if "fs" in kwargs:
+            fs = kwargs["fs"]
+            if self.fmax == "half_fs":
                 self.fmax = fs / 2
-        elif hasattr(self, 'fs'):
+        elif hasattr(self, "fs"):
             fs = self.fs
         else:
-            print('No fs given in Filterbank()')
+            print("No fs given in Filterbank()")
             sys.exit()
 
-        if self.nfft == 'nextpow2':
+        if self.nfft == "nextpow2":
             NFFT = np.shape(data)[self.axis] * 2 - 2
-        elif self.nfft == 'original':
+        elif self.nfft == "original":
             NFFT = np.shape(data)[self.axis]
 
         low_freq = self.fmin
         high_freq = np.min((fs / 2, self.fmax))
 
         # create filterbank
-        if not (hasattr(self, 'fbank')):
-            if self.scale == 'mel':
+        if not (hasattr(self, "fbank")):
+            if self.scale == "mel":
                 # Define the Mel frequency of high_freq and low_freq
-                low_freq_mel = (2595 * np.log10(1 + low_freq / 700))
-                high_freq_mel = (2595 * np.log10(1 + high_freq / 700))
+                low_freq_mel = 2595 * np.log10(1 + low_freq / 700)
+                high_freq_mel = 2595 * np.log10(1 + high_freq / 700)
                 # Define the start Mel frequencies, start frequencies and start bins
-                start_freq_mel = low_freq_mel + np.arange(0, self.n_bands, 1) / (self.n_bands + 1) * (
-                            high_freq_mel - low_freq_mel)
+                start_freq_mel = low_freq_mel + np.arange(0, self.n_bands, 1) / (
+                    self.n_bands + 1
+                ) * (high_freq_mel - low_freq_mel)
                 start_freq_hz = 700 * (10 ** (start_freq_mel / 2595) - 1)
                 # Define the stop Mel frequencies, start frequencies and start bins
-                stop_freq_mel = low_freq_mel + np.arange(2, self.n_bands + 2, 1) / (self.n_bands + 1) * (
-                            high_freq_mel - low_freq_mel)
+                stop_freq_mel = low_freq_mel + np.arange(2, self.n_bands + 2, 1) / (
+                    self.n_bands + 1
+                ) * (high_freq_mel - low_freq_mel)
                 stop_freq_hz = 700 * (10 ** (stop_freq_mel / 2595) - 1)
-            elif self.scale == 'linear':
+            elif self.scale == "linear":
                 # linear spacing
                 hz_points = np.linspace(low_freq, high_freq, self.n_bands + 2)
                 start_freq_hz = hz_points[0:-2]
@@ -404,46 +429,48 @@ class Filterbank(Processor):
                     self.fbank[m - 1, int(middle_bin[m - 1] + k)] = weights_high[k]
 
             # apply norm
-            if self.norm == 'slaney':
+            if self.norm == "slaney":
                 enorm = 2.0 / (stop_freq_hz - start_freq_hz)
                 self.fbank *= enorm[:, np.newaxis]
 
         # Apply the mel/linear warping
         filter_banks = np.dot(data, self.fbank.T)
-        filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
+        filter_banks = np.where(
+            filter_banks == 0, np.finfo(float).eps, filter_banks
+        )  # Numerical Stability
 
         return filter_banks, {}
 
 
 class Logarithm(Processor):
-    """Processor to apply a logarithm
-    """
+    """Processor to apply a logarithm"""
 
-    def __init__(self, type: str = 'base10', **kwargs):
+    def __init__(self, type: str = "base10", **kwargs):
         self.type = type
 
-    def process(self, data: np.ndarray, **kwargs) -> (np.ndarray,Dict):
-        if self.type == 'base10':
+    def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
+        if self.type == "base10":
             return 20 * np.log10(data), {}
-        elif self.type == 'natural':
+        elif self.type == "natural":
             return np.log(data), {}
 
-    def inv_process(self, data: np.ndarray, **kwargs) -> (np.ndarray,Dict):
-        if self.type == 'base10':
+    def inv_process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
+        if self.type == "base10":
             return (10 ** data) / 20, {}
-        elif self.type == 'natural':
+        elif self.type == "natural":
             return np.exp(data), {}
 
 
 class Aggregation(Processor):
-    """Processor to aggregate data
-    """
+    """Processor to aggregate data"""
 
-    def __init__(self,
-                 methods: (str,str) = ['mean', 'std'],
-                 axis: int = 0,
-                 combine: str = None,
-                 combine_axis: int = None):
+    def __init__(
+        self,
+        methods: (str, str) = ["mean", "std"],
+        axis: int = 0,
+        combine: str = None,
+        combine_axis: int = None,
+    ):
         self.methods = methods
         self.axis = axis
         self.combine = combine
@@ -452,35 +479,40 @@ class Aggregation(Processor):
         else:
             self.combine_axis = combine_axis
 
-    def process(self, data: np.ndarray, **kwargs) -> (np.ndarray,Dict):
+    def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
         # aggregate data
         tmp = [None] * len(self.methods)
         for k in range(len(self.methods)):
-            if self.methods[k] == 'mean':
+            if self.methods[k] == "mean":
                 tmp[k] = np.mean(data, axis=self.axis)
-            elif self.methods[k] == 'std':
+            elif self.methods[k] == "std":
                 tmp[k] = np.std(data, axis=self.axis)
-            elif self.methods[k] == 'kurtosis':
+            elif self.methods[k] == "kurtosis":
                 tmp[k] = scipy.stats.kurtosis(data, axis=self.axis)
             else:
-                print('Aggregation method not supported')
+                print("Aggregation method not supported")
                 sys.exit()
-        output = (listnp_combine(tmp, method=self.combine, axis=self.combine_axis) if self.combine is not None else tmp)
+        output = (
+            listnp_combine(tmp, method=self.combine, axis=self.combine_axis)
+            if self.combine is not None
+            else tmp
+        )
 
-        return output, {'time_step': 0} if self.axis == 0 else dict()
+        return output, {"time_step": 0} if self.axis == 0 else dict()
 
 
 class FIRFilter(Processor):
-    """Processor to apply a FIR filter
-    """
+    """Processor to apply a FIR filter"""
 
-    def __init__(self,
-                 type: str = type,
-                 f: int = None,
-                 taps: int = None,
-                 axis: int = 1,
-                 fs: int = None,
-                 window='hamming'):
+    def __init__(
+        self,
+        type: str = type,
+        f: int = None,
+        taps: int = None,
+        axis: int = 1,
+        fs: int = None,
+        window="hamming",
+    ):
         self.type = type
         self.f = f
         self.taps = taps
@@ -490,30 +522,34 @@ class FIRFilter(Processor):
         self.fs = fs
 
     def get_filter(self, fs: int):
-        if self.type == 'bandstop':
+        if self.type == "bandstop":
             self.filter = signal.firwin(self.taps, self.f, window=self.window, fs=fs)
-        elif self.type == 'bandpass':
-            self.filter = signal.firwin(self.taps, self.f, window=self.window, fs=fs, pass_zero=False)
-        elif self.type == 'highpass':
-            self.filter = signal.firwin(self.taps, self.f, window=self.window, fs=fs, pass_zero=False)
-        elif self.type == 'lowpass':
+        elif self.type == "bandpass":
+            self.filter = signal.firwin(
+                self.taps, self.f, window=self.window, fs=fs, pass_zero=False
+            )
+        elif self.type == "highpass":
+            self.filter = signal.firwin(
+                self.taps, self.f, window=self.window, fs=fs, pass_zero=False
+            )
+        elif self.type == "lowpass":
             self.filter = signal.firwin(self.taps, self.f, window=self.window, fs=fs)
 
     def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
-        if not hasattr(self, 'filter'):
-            if 'fs' in kwargs:
-                self.get_filter(kwargs['fs'])
-            elif hasattr(self, 'fs'):
+        if not hasattr(self, "filter"):
+            if "fs" in kwargs:
+                self.get_filter(kwargs["fs"])
+            elif hasattr(self, "fs"):
                 self.get_filter(self.fs)
             else:
                 raise Exception(
-                    "Sampling frequency should be provided to FIR_filter as init or passed on the process()")
+                    "Sampling frequency should be provided to FIR_filter as init or passed on the process()"
+                )
         return signal.lfilter(self.filter, 1.0, data, axis=self.axis), {}
 
 
 class ExpandDims(Processor):
-    """Processor to expand the dimensions
-    """
+    """Processor to expand the dimensions"""
 
     def __init__(self, axis: int = -1):
         self.axis = axis
