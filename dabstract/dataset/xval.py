@@ -1,17 +1,30 @@
 import numpy as np
 import sklearn.model_selection as modsel
 
-from dabstract.utils import listnp_combine, stringlist2ind
+from dabstract.utils import listnp_combine, stringlist2ind, unique_list
+from dabstract.dataset.select import subsample_by_str
 
 from typing import TypeVar
 
 tvXvalFunction = TypeVar("cross_val_fct")
 
+def xval_from_item(key: str) -> tvXvalFunction:
+    """Crossvalidation fct: start from split defined by item in dataset"""
+
+    def get(data):
+        # inits
+        xval_folds = dict()
+        ulist = unique_list(data[key])
+        for item in ulist:
+            xval_folds[item] = np.where([_key==item for _key in ulist])
+        return xval_folds
+    return get
+
 
 def group_random_kfold(
     folds: int = 4, val_frac: float = 1 / 3, group_key: str = "group", **kwargs
 ) -> tvXvalFunction:
-    """Crossvalidation fct: group randomk fold"""
+    """Crossvalidation fct: group random k-fold"""
 
     def get(data):
         # inits
