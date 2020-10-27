@@ -1,5 +1,10 @@
 Unit tests
 ==========
+### Install
+
+    pip install -r requirements.txt
+
+### Execute
 
 Run ``pytest -q --cov=dabstract tests/`` to execute all the tests and get coverage statistics.
 
