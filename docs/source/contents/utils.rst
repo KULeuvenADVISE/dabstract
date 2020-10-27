@@ -77,13 +77,6 @@ combs_list
    :undoc-members:
    :show-inheritance:
 
-combs_size_numpy
--------------
-.. automodule:: dabstract.utils
-   :members: combs_size_numpy
-   :undoc-members:
-   :show-inheritance:
-
 pprint_ext
 -------------
 .. automodule:: dabstract.utils
