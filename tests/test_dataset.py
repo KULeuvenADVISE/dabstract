@@ -238,8 +238,9 @@ def test_remove():
     data.add_dict(data_dict)
     # checks
     data.remove('test1')
-    assert all([key in ('test2','test3','test_only','dataset_id') for key in data[0].keys()])
-    assert all([key in ('test2','test3','test_only','dataset_id') for key in data.keys()])
+    assert all([key in ('test2', 'test3', 'test_only', 'dataset_id') for key in data[0].keys()])
+    assert all([key in ('test2', 'test3', 'test_only', 'dataset_id') for key in data.keys()])
+
 
 def test_add_map():
     """Test add_map"""
@@ -249,37 +250,189 @@ def test_add_map():
                  'test2': np.zeros(3),
                  'test3': ['1', '2', '3']}
     data.add_dict(data_dict)
+
     # define processing chain
     class custom_processor(Processor):
         def process(self, data, **kwargs):
-            return data+1, {'multiplier': 3}
+            return data + 1, {'multiplier': 3}
+
     class custom_processor2(Processor):
         def process(self, data, **kwargs):
-            return data*kwargs['multiplier'], {}
+            return data * kwargs['multiplier'], {}
+
     dp = ProcessingChain()
     dp.add(custom_processor)
     dp.add(custom_processor2)
     # checks
-    data.add_map('test1',lambda x: x+1)
+    data.add_map('test1', lambda x: x + 1)
     assert data[0] == {'test1': 2.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
-    data.add_map('test1',dp)
+    data.add_map('test1', dp)
     assert data[0] == {'test1': 9.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
 
+
 def test_add_split():
-    """Test dataset loading"""
+    """Test add_split"""
     # db init
     EXAMPLE = get_dataset()
     db = EXAMPLE(paths={'data': os.path.join('data', 'data'),
                         'meta': os.path.join('data', 'data')})
-
+    db.add('example_id', np.arange(len(db)), lazy=False)
     # checks
-    assert len(db) == 40
-    assert isinstance(db['data'], FolderDictSeqAbstract)
-    assert isinstance(db['binary_anomaly'], np.ndarray)
-    assert isinstance(db['group'], List)
-    assert isinstance(db['group'][0], str)
-    assert isinstance(db['test_only'], np.ndarray)
-    assert isinstance(db['dataset_id'], np.ndarray)
+    db_split = copy.deepcopy(db)
+    db_split.add_split(5)
+    assert len(db) * 60 / 5 == len(db_split)
+    assert all(db_split['data'][0] == db['data'][0][0:16000 * 5])
+    db_split['example_id'][0] == db_split['example_id'][int(60 / 5 - 1)]
+
+    db_split = copy.deepcopy(db)
+    db_split.add_split(reference_key='data', split_size=16000, type='samples')
+    assert len(db) * 60 == len(db_split)
+    assert all(db_split['data'][0] == db['data'][0][0:16000])
+    db_split['example_id'][0] == db_split['example_id'][59]
+
+    db_split = copy.deepcopy(db)
+    db_split.add_split(reference_key='data', split_size=16000, type='samples', constraint='power2')
+    assert all(db_split['data'][0] == db['data'][0][0:2 ** 14])
+
+
+def test_add_select():
+    """Test add_select"""
+    # db init
+    data = Dataset()
+    data_dict = {'test1': np.ones(3),
+                 'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data.add_dict(data_dict)
+    # checks
+    data2 = copy.deepcopy(data)
+    data2.add_select([1, 2])
+    assert data2[0] == data[1]
+
+    from dabstract.dataset.select import subsample_by_str
+    data2 = copy.deepcopy(data)
+    data2.add_select(subsample_by_str('test3', ['2', '3']))
+    assert data2[0] == data[1]
+
+    data2 = copy.deepcopy(data)
+    data2.add_select((lambda x, k: x['test3'][k] in ('2', '3')))
+    assert data2[0] == data[1]
+
+
+def test_add_alias():
+    """Test add_alias"""
+    # db init
+    data = Dataset()
+    data_dict = {'test1': np.ones(3),
+                 'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data.add_dict(data_dict)
+    # checks
+    data.add_alias('test1', 'test1_alias')
+    assert data['test1'][0] == data['test1_alias'][0]
+
+
+def test_keys():
+    """Test add_alias"""
+    # db init
+    data = Dataset()
+    data_dict = {'test1': np.ones(3),
+                 'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data.add_dict(data_dict)
+    # checks
+    assert data.keys() == ['test1', 'test2', 'test3', 'test_only', 'dataset_id']
+
+
+def test_active_keys():
+    """Test active_keys"""
+    # db init
+    data = Dataset()
+    data_dict = {'test1': np.ones(3),
+                 'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data.add_dict(data_dict)
+    # checks
+    data.set_active_keys(['test1', 'test3'])
+    assert data[0] == {'test1': 1.0, 'test3': '1'}
+
+    data.set_active_keys(['test1'])
+    assert data[0] == 1.0
+
+    data.reset_active_keys()
+    assert data[0] == {'test1': 1.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
+
+
+def test_unpack():
+    """Test unpack"""
+    # db init
+    data = Dataset()
+    data_dict = {'test1': np.ones(3),
+                 'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data.add_dict(data_dict)
+    # checks
+    data_unpack = data.unpack(['test1', 'test2', 'test3'])
+    assert data_unpack[0] == [1.0, 0.0, '1']
+
+
+def test_load_memory():
+    """Test load_memory"""
+    # db init
+    EXAMPLE = get_dataset()
+    db = EXAMPLE(paths={'data': os.path.join('data', 'data'),
+                        'meta': os.path.join('data', 'data')})
+    # check
+    db2 = copy.deepcopy(db)
+    db2.load_memory('data', verbose=False)
+    assert all([np.all(db[0][key] == db2[0][key]) for key in db.keys()])
+
+    db2 = copy.deepcopy(db)
+    db2.load_memory('data', keep_structure=True, verbose=False)
+    assert all([np.all(db[0][key] == db2[0][key]) for key in db.keys()])
+
+
+def test_prepare_feat():
+    """Test prepare_feat"""
+    # db init
+    EXAMPLE = get_dataset()
+    db = EXAMPLE(paths={'data': os.path.join('data', 'data'),
+                        'meta': os.path.join('data', 'data'),
+                        'feat': os.path.join('data', 'feat')})
+    # define chain
+    dp = ProcessingChain()
+    dp.add(Framing(windowsize=10, stepsize=10, axis=0))
+    dp.add(FFT(axis=1))
+    dp.add(Aggregation(methods=['mean', 'std'], axis=0, combine='concatenate'))
+    # check
+    db.prepare_feat('data', 'avgFFT', dp, 'feat', verbose=False)
+    assert np.all(db['feat'][0] == dp(db['data'][0], fs=16000))
+
+
+def test_xval():
+    """Test prepare_feat"""
+    # db init
+    EXAMPLE = get_dataset()
+    db = EXAMPLE(paths={'data': os.path.join('data', 'data'),
+                        'meta': os.path.join('data', 'data'),
+                        'feat': os.path.join('data', 'feat')})
+    db.add('set', ['test'] * len(db))
+    # add xval
+    from dabstract.dataset.xval import xval_from_item
+    db2 = copy.deepcopy(db)
+    db2.add('set', ['test'] * len(db))
+    db3 = copy.deepcopy(db)
+    db3.add('set', ['train'] * len(db))
+    db4 = db2 + db3
+    db4.set_xval(xval_from_item(key='set'))
+    # check
+    test_set = db4.get_xval_set(fold=0, set='test')
+    assert len(test_set) == len(db2)
+
+    train_set = db4.get_xval_set(fold=0, set='train')
+    assert len(train_set) == len(db3)
+
+    assert all([np.all(test_set[0][key] == db2[0][key]) for key in ['data', 'test_only', 'binary_anomaly', 'group', 'set']])
+    assert all([np.all(train_set[0][key] == db3[0][key]) for key in ['data', 'test_only', 'binary_anomaly', 'group', 'set']])
 
 
 if __name__ == "__main__":
@@ -293,3 +446,11 @@ if __name__ == "__main__":
     test_remove()
     test_add_map()
     test_add_split()
+    test_add_select()
+    test_add_alias()
+    test_keys()
+    test_active_keys()
+    test_unpack()
+    test_load_memory()
+    test_prepare_feat()
+    test_xval()

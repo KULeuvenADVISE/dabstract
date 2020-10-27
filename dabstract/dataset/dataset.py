@@ -547,7 +547,7 @@ class Dataset:
                 return SeqAbstract().concat(
                     DataAbstract(data).get(
                         slice(0, len(self)),
-                        verbose=True,
+                        verbose=verbose,
                         workers=workers,
                         buffer_len=buffer_len,
                     )
@@ -561,11 +561,13 @@ class Dataset:
                         if isinstance(data[key], DictSeqAbstract):
                             data[key] = iterative_load(data[key], key_str2)
                         else:
-                            print("Loading key " + key_str2)
+                            if verbose:
+                                print("Loading key " + key_str2)
                             data[key] = load_data(data[key])
                     data._set_active_keys(active_keys)
                 else:
-                    print("Loading key " + key_str)
+                    if verbose:
+                        print("Loading key " + key_str)
                     data = load_data(data)
                 return data
 
@@ -573,7 +575,7 @@ class Dataset:
         else:
             self[key] = DataAbstract(self[key]).get(
                 slice(0, len(self)),
-                verbose=True,
+                verbose=verbose,
                 workers=workers,
                 buffer_len=buffer_len,
             )
@@ -661,7 +663,8 @@ class Dataset:
         # extract
         featfilelist, infofilelist = [], []
         for dataset_id in range(self._nr_datasets):
-            print("Dataset " + self._param[dataset_id]["name"])
+            if verbose:
+                print("Dataset " + self._param[dataset_id]["name"])
             featpath_base = os.path.join(
                 self._param[dataset_id]["paths"]["feat"],
                 self._param[dataset_id]["name"],

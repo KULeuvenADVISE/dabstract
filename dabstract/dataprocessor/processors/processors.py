@@ -33,7 +33,7 @@ class WavDatareader(Processor):
         args = dict()
         if self.read_range is not None:
             args.update({"start": self.read_range[0], "stop": self.read_range[1]})
-        if "range" in kwargs:
+        if "read_range" in kwargs:
             args.update(
                 {"start": kwargs["read_range"][0], "stop": kwargs["read_range"][1]}
             )
