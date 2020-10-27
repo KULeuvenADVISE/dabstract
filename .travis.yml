@@ -9,7 +9,8 @@ install:
   - pip install python-coveralls
   - pip install pytest-cov
   - pip install coveralls
-  - pip install --editable .[all]
+  - python setup.py develop
+#  - pip install --editable .[all]
 script:
   - pytest --cov=dabstract tests/
 
