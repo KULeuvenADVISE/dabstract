@@ -45,6 +45,16 @@ db.set_xval(random_kfold(folds=4,val_frac=1/3), save_path='xval')
 xval = db.get_xval_set(fold=0,set='train')
 
 # -------------------------------------------------------------------------
+### class example and xval from the dataset class based on an item
+from examples.introduction.custom.dataset.dbs.EXAMPLE import EXAMPLE
+from dabstract.dataset.xval import xval_from_item
+db = EXAMPLE(paths = {   'data': os.path.join('data','data'),
+                         'meta': os.path.join('data','data')})
+db.add('set', ['test'] * len(db))
+db.set_xval(xval_from_item(key='set'))
+xval = db.get_xval_set(fold=0,set='test')
+
+# -------------------------------------------------------------------------
 ### Feature extraction
 ### paths/feat is a mandatory field that should be added when doing feature extraction
 ### as it determines where the features are stored

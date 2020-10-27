@@ -111,30 +111,8 @@ class Dataset:
         self.prepare(paths)
         self._data = DictSeqAbstract()
         self.set_data(paths)
-        self._nr_datasets = 0
-        # Add other database meta
-        if len(self.keys()) != 0:
-            if "test_only" not in self.keys():
-                self.add("test_only", [test_only] * len(self))
-            self.add("dataset_id", np.zeros(len(self), np.int))
-            self._nr_datasets += 1
-        # dataset meta
-        if len(self.keys()) != 0:
-            # get default param
-            self._param = [
-                {
-                    "name": self.__class__.__name__,
-                    "test_only": test_only,
-                    "paths": paths,
-                    **kwargs,
-                }
-            ]
-            # add other meta
-            self._param[0] = self.set_meta(self._param[0])
-        else:
-            self._param = []
-        # other
-        self.data_init = {}
+        self._nr_datasets = 1
+        self._set_summary(paths=paths, test_only=test_only)
 
     def __getitem__(self, index: numbers.Integral or str) -> Any:
         """Allow indexing in the form of dataset[id]"""
@@ -170,6 +148,7 @@ class Dataset:
             apply lazily or not
         """
         self._data.add(key, data, info=info, lazy=lazy, **kwargs)
+        self._update_internal_meta()
 
     def add_dict(
         self, data: dict or DictSeqAbstract, lazy: bool = True, **kwargs
@@ -185,6 +164,7 @@ class Dataset:
             dict to add
         """
         self._data.add_dict(data, lazy=lazy, **kwargs)
+        self._update_internal_meta()
 
 
     def concat(
@@ -213,8 +193,7 @@ class Dataset:
         data = copy.deepcopy(data)
         for par in data._param:
             self._param.append(par)
-        nr_datasets = self._nr_datasets
-        data.add_map("dataset_id", (lambda x: x + nr_datasets))
+        data['dataset_id'] = MapAbstract(data['dataset_id'],lambda x: x+1)
         self._nr_datasets += data._nr_datasets
         # concat
         self2 = self if adjust_base else copy.deepcopy(self)
@@ -246,9 +225,28 @@ class Dataset:
             map_fct=map_fct,
         )
 
-    def set_meta(self, param: dict) -> dict:
-        """ToDo(gert): add set meta function instead of intro"""
-        return param
+    def _set_summary(self, paths: dict = dict(), test_only: bool = False, **kwargs) -> None:
+        """Internal function to set the summary
+        """
+        # set summary parameters
+        self._param = [
+            {
+                "name": self.__class__.__name__,
+                "test_only": test_only,
+                "paths": paths,
+                **kwargs,
+            }
+        ]
+
+    def _update_internal_meta(self, test_only: bool = False):
+        """Internal function to set some internal meta
+        """
+        # Set other database meta
+        if "test_only" not in self.keys():
+            self.add("test_only", test_only * np.ones(len(self)))
+        if "dataset_id" not in self.keys():
+            self.add("dataset_id", np.zeros(len(self), np.int))
+
 
     def add_split(
         self,
@@ -827,7 +825,7 @@ class Dataset:
         sel_vect_train = np.where(test_only == 0)[0]
         sel_vect_test = np.where(test_only == 1)[0]
 
-        self_train = DataAbstract(Select(self._data, sel_vect_train))
+        self_train = Select(self._data, sel_vect_train)
 
         # checks
         get_xval = True
@@ -851,14 +849,14 @@ class Dataset:
                         + " is not supported in both dabstract and custom xvals. Please check"
                     )
                 func = getattr(module, name)(**parameters)
+
             elif isinstance(name, type):
                 func = name(**parameters)
-            elif isinstance(name, (type, types.FunctionType)):
+
+            elif isinstance(name, types.FunctionType):
                 func = name
-            try:
-                self.xval = func(self_train)
-            except:
-                lol = 0
+
+            self.xval = func(self_train)
             assert "test" in self.xval, "please return a dict with minimally a test key"
 
             if save_path is not None:
@@ -889,7 +887,7 @@ class Dataset:
             self.xval["test"][k] = np.append(self.xval["test"][k], sel_vect_test)
 
         # add info
-        self.xval["folds"] = len(self.xval["train"])
+        self.xval["folds"] = len(self.xval["test"])
 
         return self.xval
 
@@ -928,7 +926,7 @@ class Dataset:
             assert set in list(
                 self.xval.keys()
             ), "xval_set not in xval sets. Available sets are: " + str(
-                list(self.xval_dict.keys())
+                list(self.xval.keys())
             )
             assert fold < self.xval["folds"]
         assert fold is not None

@@ -14,9 +14,10 @@ def xval_from_item(key: str) -> tvXvalFunction:
     def get(data):
         # inits
         xval_folds = dict()
-        ulist = unique_list(data[key])
-        for item in ulist:
-            xval_folds[item] = np.where([_key==item for _key in ulist])
+        lst = [sample for sample in data[key]]
+        ulst = unique_list([sample for sample in data[key]])
+        for item in ulst:
+            xval_folds[item] = [np.where([_key==item for _key in lst])[0]]
         return xval_folds
     return get
 

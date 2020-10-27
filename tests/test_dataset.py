@@ -6,8 +6,10 @@ from dabstract.dataset.helpers import *
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import *
 
+
 def get_dataset():
     """Get dataset class"""
+
     class EXAMPLE(Dataset):
         def __init__(self,
                      paths=None,
@@ -79,9 +81,9 @@ def test_EXAMPLE_dataset():
                         'meta': os.path.join('data', 'data')})
 
     # checks
-    assert len(db)==40
-    assert isinstance(db['data'],FolderDictSeqAbstract)
-    assert isinstance(db['binary_anomaly'],np.ndarray)
+    assert len(db) == 40
+    assert isinstance(db['data'], FolderDictSeqAbstract)
+    assert isinstance(db['binary_anomaly'], np.ndarray)
     assert isinstance(db['group'], List)
     assert isinstance(db['group'][0], str)
     assert isinstance(db['test_only'], List)
@@ -113,7 +115,7 @@ def test__setitem__():
                         'meta': os.path.join('data', 'data')})
     EXAMPLE = get_dataset()
     db2 = EXAMPLE(paths={'data': os.path.join('data', 'data'),
-                        'meta': os.path.join('data', 'data')})
+                         'meta': os.path.join('data', 'data')})
 
     # checks
     db['data'] = db2['data']
@@ -131,6 +133,7 @@ def test__setitem__():
     db['dataset_id'][0] = 1
     assert db[0]['dataset_id'] == 1
 
+
 def test__add__():
     """Test __get_item__"""
     # db init
@@ -139,14 +142,15 @@ def test__add__():
                         'meta': os.path.join('data', 'data')})
     EXAMPLE = get_dataset()
     db2 = EXAMPLE(paths={'data': os.path.join('data', 'data'),
-                        'meta': os.path.join('data', 'data')})
+                         'meta': os.path.join('data', 'data')})
 
     # checks
-    db3 = db+db2
+    db3 = db + db2
     assert [db3[key][0] == db[key][0] for key in db.keys()]
     assert [db3[key][-1] == db2[key][-1] for key in db.keys()]
-    db4 = db+db+db+db+db
-    assert len(db4)==5*len(db)
+    db4 = db + db + db + db + db
+    assert len(db4) == 5 * len(db)
+
 
 def test_add():
     """Test __get_item__"""
@@ -166,9 +170,58 @@ def test_add():
     assert len(db4) == 5 * len(db)
 
 
+def test_add():
+    """Test add"""
+    data = Dataset()
+    data.add('test1', np.ones(3))
+    data.add('test2', np.zeros(3))
+    data.add('test3', ['1', '2', '3'])
+    # checks
+    assert data[0] == {'test1': 1.0, 'test2': 0.0, 'test3': '1'}
+
+
+def test_add_dict():
+    """Test add_dict"""
+    data = Dataset()
+    data_dict = {'test1': np.ones(3),
+                 'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data.add_dict(data_dict)
+    # checks
+    assert data[0] == {'test1': 1.0, 'test2': 0.0, 'test3': '1'}
+
+
+def test_concat():
+    """Test concat"""
+    # set dataset 1
+    data = Dataset()
+    data_dict = {'test1': np.ones(3),
+                 'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data.add_dict(data_dict)
+    # set dataset 2
+    data1 = Dataset()
+    data_dict = {'test1': np.ones(3),
+                 'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data1.add_dict(data_dict)
+    # set dataset 2
+    data2 = Dataset()
+    data_dict = {'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data2.add_dict(data_dict)
+    # checks
+    data3 = data+data
+    assert len(data3)==6
+    assert data[0] == {'test1': 1.0, 'test2': 0.0, 'test3': '1'}
+    assert data[-1] == {'test1': 1.0, 'test2': 0.0, 'test3': '3'}
+
+
 if __name__ == "__main__":
     test_EXAMPLE_dataset()
     test__getitem__()
     test__setitem__()
     test__add__()
     test_add()
+    test_add_dict()
+    test_concat()
