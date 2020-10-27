@@ -8,12 +8,38 @@ from dabstract.utils import stringlist2ind
 
 
 class DCASE2020Task1B(Dataset):
+    """DCASE2020Task1B dataset
+
+    This class downloads the datasets and prepares it in the dabstract format.
+
+    Parameters
+    ----------
+    paths : dict or str:
+        Path configuration in the form of a dictionary.
+        For example::
+            $   paths={ 'data': path_to_data,
+            $           'meta': path_to_meta,
+            $           'feat': path_to_feat}
+    test_only : bool
+        To specify if this dataset should be used for testing or both testing and train.
+        This is only relevant if multiple datasets are combined and set_xval() is used.
+        For example::
+            test_only = 0 -> use for both train and test
+            test_only = 1 -> use only for test
+
+    check dabstract.dataset.dataset.Dataset for more info
+
+    Returns
+    -------
+        DCASE2020Task1B dataset class
+    """
     def __init__(self, paths=None, test_only=0, **kwargs):
-        # init dict abstract
         super().__init__(name=self.__class__.__name__, paths=paths, test_only=test_only)
 
     # Data: get data
     def set_data(self, paths):
+        """Set the data"""
+
         # audio
         chain = ProcessingChain().add(WavDatareader(select_channel=0))
         from dabstract.dataset.helpers import FolderDictSeqAbstract
@@ -52,6 +78,7 @@ class DCASE2020Task1B(Dataset):
         return self
 
     def prepare(self, paths):
+        """Prepare the data"""
         dcase_util.datasets.dataset_factory(
             dataset_class_name="TAUUrbanAcousticScenes_2020_3Class_DevelopmentSet",
             data_path=os.path.split(os.path.split(paths["data"])[0])[0],

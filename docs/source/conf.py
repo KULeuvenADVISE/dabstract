@@ -23,10 +23,6 @@ class Mock(MagicMock):
     @classmethod
     def __getattr__(cls, name):
         return MagicMock()
-
-# MOCK_MODULES = [
-#     'numpy', 'numpy.random', 'matplotlib', 'matplotlib.pyplot',
-#     'setuptools', 'python-dotenv', 'torch', 'dcase_util', 'soundfile']
 MOCK_MODULES = ['soundfile']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
@@ -46,7 +42,7 @@ release = '0.0.1'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', 'numpydoc']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

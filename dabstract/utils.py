@@ -8,20 +8,7 @@ from pprint import pprint
 import copy
 import importlib
 
-from typing import (
-    Union,
-    Any,
-    List,
-    Optional,
-    cast,
-    Type,
-    TypeVar,
-    Callable,
-    Dict,
-    Iterable,
-    Generator,
-    Tuple,
-)
+from typing import Union, Any, List, Callable, Dict, Iterable
 
 
 def load_yaml_config(
@@ -34,20 +21,58 @@ def load_yaml_config(
     **kwargs
 ) -> Union[str, Union[Dict, Any]]:
     """Load a yaml configuration file with some additional functionality
-
-    ...
-
-    Example:
+    For example do::
         $  data = load_yaml_config(filename=path_to_dir, path=path_to_yaml, walk=True/False,
         $  post_process=dataset_from_config, **kwargs)
 
-    ...
+    This loader adds additional constructors which can be used in your yaml file.
+    These include the joining of strings witj !join:
+    ::
+        For example;     !join [str1, str2] -> 'str1tr2'
 
-    Arguments:
-        ...
+    Or the joining with underscores with !usjoin:
+    ::
+        !usjoin[str1, str2] -> 'str1_str2'
 
-    Returns:
-        ...
+    Or the joining of paths with !pathjoin:
+    ::
+        !pathjoin[str1, str2] -> 'str1/str2'
+
+    Similarly one can inject string or int into the configuration from an external source using !kwargs:
+    ::
+        In python:
+        load_yaml_config(..., **{'item1': {'item12': 2)
+        In yaml file
+        !kwargs [item1,item12]
+
+    Finally, one can initialise classes using the !class constructor:
+    ::
+        !class [path.to.module]
+
+
+    Parameters
+    ----------
+    filename : str
+        filename of the .yaml file
+    path : str
+        path to a folder containg the .yaml file.
+        If walk==True, one can place .yaml in a nested folder
+    walk : bool
+        Walk through the nested folder
+    verbose : bool
+        Allow print statements
+    post_process : Callable
+        Place here a factory function that accepts the yaml input configuration.
+        Identical as post_process(load_yaml_config).
+    unpack : bool
+        Whether or not to unpack to yaml configuration dict before applying it to post_process()
+    kwargs : dict
+        kwargs will be used by the !kwargs constructor to inject parameters from your code flow
+        into the configuration.
+
+    Returns
+    -------
+    Any
     """
 
     # search directory
@@ -119,8 +144,18 @@ def load_yaml_config(
     return cfg
 
 
-def reformat_yaml(cfg: List[Any]) -> List[Union[np.ndarray, Any]]:
-    """Reformat yaml list to numpy if possible"""
+def reformat_yaml(cfg: Union[List[Any], Dict[str,Any]]) -> List[Union[np.ndarray, Any]]:
+    """Reformat yaml list to numpy if possible
+
+    Parameters
+    ----------
+        cfg : List[Any]
+            loaded yaml configuration
+
+    Returns
+    ----------
+        Reformatted yaml
+    """
     if isinstance(cfg, list):
         tmp_cfg = cfg
         if any(isinstance(i, list) for i in tmp_cfg):  # nested
@@ -130,7 +165,18 @@ def reformat_yaml(cfg: List[Any]) -> List[Union[np.ndarray, Any]]:
     return cfg
 
 
-def reformat_yaml_iter(cfg: List[Any]) -> List[Union[np.ndarray, Any]]:
+def reformat_yaml_iter(cfg: Union[List[Any], Dict[str,Any]]) -> List[Union[np.ndarray, Any]]:
+    """Reformat yaml list to numpy if possible in an iterative fasion
+
+    Parameters
+    ----------
+        cfg : Union[List[Any], Dict[str,Any]]
+            loaded yaml configuration
+
+    Returns
+    ----------
+        Reformatted yaml
+    """
     """Reformat yaml list to numpy if possible in iterative fashion"""
     for k, v in cfg.items():
         if isinstance(v, dict):
@@ -141,7 +187,17 @@ def reformat_yaml_iter(cfg: List[Any]) -> List[Union[np.ndarray, Any]]:
 
 
 def load_yaml(filepath: str) -> Dict:
-    """Load yaml file"""
+    """Load yaml file
+
+    Parameters
+    ----------
+        filepath : str
+            filepath to yaml file
+
+    Returns
+    ----------
+        Dictionary
+    """
     # load file
     with open(filepath, "r") as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.Loader)
@@ -152,17 +208,16 @@ def load_yaml(filepath: str) -> Dict:
 def str_in_list(lst: List, string: str) -> List[int]:
     """Get indices of a string in a list
 
-    Example:
-        $  indices = str_in_list(lst,string)
+    Parameters
+    ----------
+    lst : list
+        list of strings
+    string : str
+        string to search for
 
-    ...
-
-    Arguments:
-        lst (lst): list of strings
-        string (str): string to search for
-
-    Returns:
-        list of integers
+    Returns
+    -------
+    List[int]
     """
     if isinstance(string, (list, np.ndarray)):
         return [str_in_list(lst, _string) for _string in string]
@@ -175,17 +230,20 @@ def listnp_combine(
 ) -> np.ndarray:
     """Concatenate or stack a list of numpy along with error handling
 
-    Example:
-        $  nparray = listnp_combine(lst,method='concatenate',axis=0, allow_error=False)
+    Parameters
+    ----------
+    lst : list
+        list of np arrays
+    method : str
+        'concatenate' or 'stack'
+    axis : int
+        axis to concat or stack over
+    allow_error : bool
+        allow for error handling. If op does not succes, list is provided
 
-    Arguments:
-        lst (lst): list of np arrays
-        method (str): 'concatenate' or 'stack'
-        axis (int): axis to concat or stack over
-        allow_error (bool): allow for error handling. If op does not succes, list is provided
-
-    Returns:
-        np.array OR list of np.array in case of error
+    Returns
+    -------
+    np.array OR list of np.array in case of error
     """
 
     def combine(lst):
@@ -222,18 +280,22 @@ def listdictnp_combine(
 ) -> Dict[str, Union[np.ndarray, List]]:
     """Concatenate or stack a list of dictionaries contains numpys along with error handling
 
-    Example:
-        $  nparray = listdictnp_combine(lst, method='concatenate',axis=0, keep_nested=False, allow_error=False)
+    Parameters
+    ----------
+    lst : list
+        list of dicts containings np arrays
+    method : str
+        'concatenate' or 'stack'
+    axis : int
+        axis to concat or stack over
+    keep_nested : bool
+        keep nested structure of list or not
+    allow_error : bool
+        allow for error handling. If op does not succes, list is provided
 
-    Arguments:
-        lst (lst): list of dicts containings np arrays
-        method (str): 'concatenate' or 'stack'
-        axis (int): axis to concat or stack over
-        keep_nested (bool): keep nested structure of list or not
-        allow_error (bool): allow for error handling. If op does not succes, list is provided
-
-    Returns:
-        np.array OR list of np.array in case of error
+    Returns
+    -------
+    np.array OR list of np.array in case of error
     """
     for k in range(len(lst)):
         assert (
@@ -264,12 +326,13 @@ def listdictnp_combine(
 def unique_list(seq: List) -> List:
     """Get unique entries in a list
 
-    Example:
-        $  unique_seq = unique_list(seq)
+    Parameters
+    ----------
+        seq: list
+            sequence you want to unique-fy
 
-    Arguments:
-        seq (list)
-    Returns:
+    Returns
+    -------
         list of unique values
     """
     seen = set()
@@ -280,12 +343,13 @@ def unique_list(seq: List) -> List:
 def flatten_nested_lst(nested_lst: List[List]) -> List:
     """Flatten a nested list
 
-    Example:
-        $  flattened_list = flatten_nested_lst(nested_lst)
+    Parameters
+    ----------
+        nested_lst : list
+            A nested list
 
-    Arguments:
-        nested_lst (list)
-    Returns:
+    Returns
+    -------
         flattened list
     """
     return [item for sublist in nested_lst for item in sublist]
@@ -294,12 +358,13 @@ def flatten_nested_lst(nested_lst: List[List]) -> List:
 def any2str(obj: Any) -> str:
     """Convert anything to a string
 
-    Example:
-        $  str = any2str(obj)
+    Parameters
+    ----------
+        obj : Any
+            anything to convert to a str rep
 
-    Arguments:
-        obj: anything to convert to a str rep
-    Returns:
+    Returns
+    -------
         string
     """
     if isinstance(obj, str):
@@ -323,15 +388,18 @@ def filter_data(
 ) -> Iterable:
     """Filter any sequential data object based on indices
 
-    Example:
-        $  filtered_data = filter_data(data,sel_vect,squeeze=False)
+    Parameters
+    ----------
+    data : Iterable
+        Iterable object to be filtered
+    sel_vect : List[int] or np.ndarray
+        indices to filter
+    squeeze : bool
+        squeeze output when numpy
 
-    Arguments:
-        data (obj): seq object to be filtered
-        sel_vect: indices to filter
-        squeeze: squeeze output when numpy
-    Returns:
-        filtered data
+    Returns
+    -------
+        Filtered iterable
     """
     # inits
     from dabstract.dataset import abstract
@@ -373,12 +441,13 @@ def filter_data(
 def safe_import_module(module_string: str) -> object:
     """Import module with error handling
 
-    Example:
-        $  module = safe_import_module(module_string)
+    Parameters
+    ----------
+        module_string : str
+            module string to import
 
-    Arguments:
-        module_string: module string to import
-    Returns:
+    Returns
+    ----------
         imported module
     """
     try:
@@ -387,35 +456,86 @@ def safe_import_module(module_string: str) -> object:
         return object()
 
 
-def combs_numpy(delays: Union[List, np.ndarray]) -> np.ndarray:
-    """All possible combinations of numpy entries"""
+def combs_numpy(values: Union[List, np.ndarray]) -> np.ndarray:
+    """All possible combinations of numpy entries
+
+    Parameters
+    ----------
+    values : Union[List, np.ndarray]
+        All unique examples to get combinations from
+
+    Returns
+    -------
+    np.ndarray
+    """
     return np.unique(
         np.array(
-            list(itertools.product(*[delays[:, k] for k in range(delays.shape[1])]))
+            list(itertools.product(*[values[:, k] for k in range(values.shape[1])]))
         ),
         axis=0,
     )
 
 
-def combs_list(delays: Union[List, np.ndarray]) -> List:
-    """All possible combinations of list entries"""
-    return list(itertools.product(*delays))
+def combs_list(values: Union[List, np.ndarray]) -> List:
+    """All possible combinations of list entries
+
+    Parameters
+    ----------
+    values : Union[List, np.ndarray]
+        All unique examples to get combinations from
+
+    Returns
+    -------
+    List
+    """
+    return list(itertools.product(*values))
 
 
-def combs_size_numpy(values: Union[List, np.ndarray], size: int) -> np.ndarray:
-    """Size of all possible combinations of numpy entries"""
-    return np.array([comb for comb in itertools.combinations(values, size)])
+# def combs_size_numpy(values: Union[List, np.ndarray], size: int) -> np.ndarray:
+#     """Size of all possible combinations of numpy entries
+#
+#     Parameters
+#     ----------
+#     values : Union[List, np.ndarray]
+#         Any object you want the length from
+#
+#     Returns
+#     -------
+#     int
+#     """
+#
+#     return np.array([comb for comb in itertools.combinations(values, size)])
 
 
 def pprint_ext(str: str, dict: Dict, np_precision: int = 2) -> None:
-    """pprint with np precision specification and title"""
+    """pprint with np precision specification and title
+
+    Parameters
+    ----------
+    str : str
+        title to print
+    dict : Dict
+        Dictionary to print
+    np_precision : int
+        precision of numpy print
+    """
     np.set_printoptions(precision=np_precision, suppress=True)
     print(str)
     pprint(dict)
 
 
 def safe_len(var: Any) -> int:
-    """safely get length"""
+    """safely get length
+
+    Parameters
+    ----------
+    var : Any
+        Any object you want the length from
+
+    Returns
+    -------
+    int
+    """
     try:
         return len(var)
     except TypeError:
@@ -423,7 +543,17 @@ def safe_len(var: Any) -> int:
 
 
 def stringlist2ind(strlist: List[str]) -> np.ndarray:
-    """list to unique indices"""
+    """list to unique indices
+
+    Parameters
+    ----------
+    strlist : List[str]
+        List of strings to indices
+
+    Returns
+    -------
+    List[int]
+    """
     subdb_ext = unique_list(strlist)
     group_np = np.zeros((len(strlist)))
     for k in range(len(strlist)):
@@ -432,19 +562,55 @@ def stringlist2ind(strlist: List[str]) -> np.ndarray:
 
 
 def intersection(lst1: List, lst2: List) -> List:
-    """List intersection"""
+    """Intersect the values of two lists
+
+    Parameters
+    ----------
+    lst1 : List
+        First list
+    lst2 : List
+        Second list
+
+    Returns
+    -------
+    Intersected list
+    """
     return [(k, value) for k, value in enumerate(lst1) if value in lst2]
 
 
 def get_class(name: str, module_location: str, *args, **kwargs):
-    """Load a class given the name, module location and it's args and kwargs"""
+    """Load a class given the name, module location and it's args and kwargs
+
+    Parameters
+    ----------
+    name : str
+        class name
+    module_location : str
+        class location
+
+    Returns
+    -------
+    Instance
+    """
     module = safe_import_module(module_location)
     assert hasattr(module, name), name + " is not a part of module " + module_location
     return getattr(module, name)(*args, **kwargs)
 
 
 def get_fct(name: str, module_location: str):
-    """Load a fct given the name, module location and it's args and kwargs"""
+    """Load a fct given the name, module location and it's args and kwargs
+
+    Parameters
+    ----------
+    name : str
+        function name
+    module_location : str
+        function location
+
+    Returns
+    -------
+    Callable
+    """
     module = safe_import_module(module_location)
     assert hasattr(module, name), name + " is not a part of module " + module_location
     return getattr(module, name)

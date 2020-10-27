@@ -17,14 +17,13 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
 
     This function creates a dataset class from a dictionary definition.
     It is advised to define your configuration in yaml, read it using
-    dabstract.utils.yaml_from_config and utilise it as such:
+    dabstract.utils.yaml_from_config and utilise it as such::
 
-    Example:
         $  data = load_yaml_config(filename=path_to_dir, path=path_to_yaml, walk=True/False,
         $  post_process=dataset_from_config, **kwargs)
 
-        As a configuration one is advised to check the examples in dabstract/examples/introduction.
-        e.g. introduction/configs/dbs/EXAMPLE_anomaly.yaml:
+    As a configuration one is advised to check the examples in dabstract/examples/introduction.
+    e.g. introduction/configs/dbs/EXAMPLE_anomaly.yaml::
 
         A full format is defined as with placeholders:
         $ datasets:
@@ -46,32 +45,28 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
         $ split:
         $ xval:
 
-        For each dataset, name and parameters/path is mandatory.
-        Select/split/test_only are default options to subsample, split or define
-        that the dataset is for testing only (1/0) respectively.
-        other refers to the fact that you can add custom keys/items to your own dataset
-
-        select/split can be used for a dataset specifically or for the whole dataset (below)
-        xval specifies the xval definition
-
-        Select/split/xval are all defined in the following way:
+    For each dataset, name and parameters/path is mandatory.
+    Select/split/test_only are default options to subsample, split or define
+    that the dataset is for testing only (1/0) respectively.
+    Select/split/xval are all defined in the following way::
         $   name:
         $   parameters:
-        parameters is not mandatory
-        name refers to either a string of a class that can be found in dataset.select/dataset.xval respectively or in
-        the custom folder defined by os.environ["dabstract_CUSTOM_DIR"]
 
-        More information on the possibilities of select, split and xval the reader is referred to:
-        dataset.dataset.add_select()
-        dataset.dataset.add_split()
-        dataset.dataset.set_xval()
+    `name` refers to either a string of a class that can be found in dataset.select/dataset.xval respectively or in
+    the custom folder defined by os.environ["dabstract_CUSTOM_DIR"].
+    `parameters` is not mandatory.
 
-    Arguments:
-        config (string): dictionary configuration
-        overwrite_xval (bool): overwrite xval file
+    More information on the possibilities of select, split and xval the reader is referred to:
+    dataset.dataset.add_select()
+    dataset.dataset.add_split()
+    dataset.dataset.set_xval()
 
-    Returns:
-        dataset class
+    Parameters
+    ----------
+    config : str
+        dictionary configuration
+    overwrite_xval : bool
+        overwrite xval file
     """
 
     assert isinstance(config, dict), "config should be a dictionary"
@@ -98,9 +93,9 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
 def dataset_factory(
     name: (str, tvDataset, type) = None,
     paths: Dict[str, str] = None,
-    xval: Optional[str] = None,
-    split: Optional[int] = None,
-    select: Optional[str] = None,
+    xval: Optional[Dict[str,Union[str,int, Dict]]] = None,
+    split: Optional[Dict[str,Union[str,int, Dict]]] = None,
+    select: Optional[Dict[str,Union[str,int, Dict]]] = None,
     test_only: Optional[bool] = 0,
     **kwargs
 ) -> tvDataset:
@@ -111,30 +106,38 @@ def dataset_factory(
     - environment variable folder: os.environ["dabstract_CUSTOM_DIR"] = your_dir
     - dabstract.dataset.dbs folder
 
-    if name is defined as a class object, than it uses this to init the dataset with the given kwargs.
+    If name is defined as a class object, than it uses this to init the dataset with the given kwargs.
     This function is mostly used by dataset_from_config(). One is advised to directly
     import the desired dataset class instead of using dataset_factory. This is only
     handy for configuration based experiments, which need a load from string.
-
-    Example:
+    For example::
         $  data = dataset_factory(name='DCASE2020Task1B',
         $                         paths={'data': path_to_data,
         $                                'meta': path_to_meta,
         $                                'feat': path_to_feat},
 
-        One is advised to check the examples in dabstract/examples/introduction on
-        how to work with datasets
+    One is advised to check the examples in dabstract/examples/introduction on
+    how to work with datasets
 
-    Arguments:
-        select:
-        split:
-        xval:
-        test_only:
-        name (str/class): name of the class (or the class directly)
-        paths (dict[str]): dictionary containing paths to the data
-        kwargs: ToDo, not defined as this should be used only by load_from_config()
-    Returns:
-        dataset class
+    Parameters
+    ----------
+    select: Dict[str,Union[str,int, Dict]]
+        selector configuration.
+    split: Dict[str,Union[str,int, Dict]]
+        split configuration.
+    xval : Dict[str,Union[str,int, Dict]]
+        xval configuration.
+    test_only : bool
+        use the dataset for test (test_only=1) or both train and test (test_only=0)
+    name : str/instance/object
+        name of the class (or the class directly)
+    paths : dict[str]
+        dictionary containing paths to the data
+    kwargs: ToDo, not defined as this should be used only by load_from_config()
+
+    Parameters
+    ----------
+    dataset : Dataset class
     """
     from dabstract.dataset.dataset import Dataset
 
@@ -187,29 +190,36 @@ class FolderDictSeqAbstract(DictSeqAbstract):
     Additionally, this format keeps track of relevant information to either wav or numpy files.
     prepare_feat and add_split only work on data fields that have this structure.
 
-    Example:
-        $  folderdictseq = FolderDictSeqAbstract(path_to_directory, extension='.wav', file_info_save_path=None, filepath=None, overwrite_file_info=False)
+    Parameters
+    ----------
+    path : str
+        path to the directory to check
+    extension : str
+        only evaluate files with that extension
+    map_fct : Callable
+        add a mapping function y = f(x) to the 'data'
+    filepath : str
+        in case you already have the files you want to obtain information from,
+        the dir tree search is not done and this is used instead
+    file_info_save_path: : str
+        save the information to this location
+        this function can be costly, so saving is useful
+    overwrite_file_info : bool
+        overwrite file info file
 
-    Arguments:
-        path (str): path to the directory to check
-        extension (string): only evaluate files with that extension
-        map_fct: add a mapping function y = f(x) to the 'data'
-        filepath: in case you already have the files you want to obtain information from, the dir tree search is not done
-                    and this is used instead
-        file_info_save_path: save the information to this location
-                             this function can be costly, so saving is useful
-        overwrite_file_info: overwrite file info file
-
-    Returns:
-        folderdictseq containing file information as a list, formatted as:
-        output['filepath'] = list of paths to files
-        output['example'] = example string (i.e. filename without extension)
-        output['filename'] = filename
-        output['subdb'] = relative subdirectory (starting from 'path') to file
-        output['info'][file_id] = { 'output_shape': .., #output shape of the wav file
-                                    'fs': .., # sampling frequency
-                                    'time_step' ..: # sample period
-                                    }
+    Returns
+    -------
+    DictSeqAbstract : DictSeqAbstract
+        dictseq containing file information as a list,
+        formatted as::
+            output['filepath'] = list of paths to files
+            output['example'] = example string (i.e. filename without extension)
+            output['filename'] = filename
+            output['subdb'] = relative subdirectory (starting from 'path') to file
+            output['info'][file_id] = { 'output_shape': .., #output shape of the wav file
+                                        'fs': .., # sampling frequency
+                                        'time_step' ..: # sample period
+                                        }
     """
 
     def __init__(
@@ -282,27 +292,37 @@ def get_dir_info(
     This is mainly useful for obtaining apriori information of wav files such that they can be splitted in a lazy
     manner from disk.
 
-    Example:
-        $  dict = get_dir_info(path_to_directory, extension='.wav', file_info_save_path=None, filepath=None, overwrite_file_info=False),
+    Parameters
+    ----------
+    path : str
+        path to the directory to check
+    extension : str
+        only evaluate files with that extension
+    map_fct : Callable
+        add a mapping function y = f(x) to the 'data'
+    filepath : str
+        in case you already have the files you want to obtain information from,
+        the dir tree search is not done and this is used instead
+    file_info_save_path: : str
+        save the information to this location
+        this function can be costly, so saving is useful
+    overwrite_file_info : bool
+        overwrite file info file
 
-    Arguments:
-        path (str): path to the directory to check
-        extension (string): only evaluate files with that extension
-        filepath: in case you already have the files you want to obtain information from, the dir tree search is not done
-                    and this is used instead
-        file_info_save_path: save the information to this location
-                             this function can be costly, so saving is useful
-        overwrite_file_info: overwrite file info file
-    Returns:
-        dict containing file information as a list, formatted as:
-        output['filepath'] = list of paths to files
-        output['example'] = example string (i.e. filename without extension)
-        output['filename'] = filename
-        output['subdb'] = relative subdirectory (starting from 'path') to file
-        output['info'][file_id] = { 'output_shape': .., #output shape of the wav file
-                                    'fs': .., # sampling frequency
-                                    'time_step' ..: # sample period
-                                    }
+
+    Returns
+    -------
+    dict : dict
+        dict containing file information as a list,
+        formatted as::
+            output['filepath'] = list of paths to files
+            output['example'] = example string (i.e. filename without extension)
+            output['filename'] = filename
+            output['subdb'] = relative subdirectory (starting from 'path') to file
+            output['info'][file_id] = { 'output_shape': .., #output shape of the wav file
+                                        'fs': .., # sampling frequency
+                                        'time_step' ..: # sample period
+                                        }
     """
 
     def _get_dir_info(filepath: str, extension: str) -> List[Dict]:

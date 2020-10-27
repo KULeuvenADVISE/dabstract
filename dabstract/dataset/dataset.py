@@ -9,7 +9,7 @@ import pickle
 import types
 from pprint import pprint
 
-from typing import Union, Any, List, Optional, TypeVar, Callable, Dict
+from typing import Union, Any, List, Optional, cast, Type, TypeVar, Callable, Dict
 
 tvDataset = TypeVar("Dataset")
 
@@ -18,103 +18,95 @@ class Dataset:
     """Dataset base class
 
     This is the dataset base class. It essentially is a DictSeqAbstract with additional functionality,
-    such as management for: crossvalidation, feature extraction, example splitting and sample selection
-    All of the aforementioned definitions best work in combination with a configuration yaml file as
-    defining the arguments of this function in hard-coded fashion would be cumbersome. This is done on purpose
-    as we want to define dataset definitions from config by design.
+    such as management for: crossvalidation, feature extraction, example splitting and sample selection.
 
     This class should not be used on it's own. It is a base class for other datasets. When using this class as a base
-    for your own dataset, one should use the following structure:
+    for your own dataset, one should use the following structure::
 
-    Example:
-       class EXAMPLE(dataset):
-           def __init__(self,
-                        paths=None,
-                        split=None,
-                        filter=None,
-                        test_only=0,
-                        other=...
-                        **kwargs):
-               # init dict abstract
-               super().__init__(name=self.__class__.__name__,
-                                paths=paths,
-                                split=split,
-                                filter=filter,
-                                test_only=test_only)
-               #init other variables
+        $ class EXAMPLE(dataset):
+        $     def __init__(self,
+        $                  paths=None,
+        $                  test_only=0,
+        $                  other=...
+        $                  **kwargs):
+        $         # init dict abstract
+        $         super().__init__(name=self.__class__.__name__,
+        $                          filter=filter,
+        $                          test_only=test_only)
+        $         #init other variables
+        $
+        $     # Data: get data
+        $     def set_data(self, paths):
+        $         # set up dataset containing the data and optional lazy mapping and so on
+        $         # the dataset is essentially a wrapped DictSeqAbstract. All your data is
+        $         # is accessible through self.. e.g. len(self), self.add, self.concat, ...
+        $         self.add('data', ... )
+        $         self.add('label', ... )
+        $         return self
+        $
+        $     def prepare(self,paths):
+        $         # prepare data here, i.e. download
 
-           # Data: get data
-           def set_data(self, paths):
-               # set up dataset containing the data and optional lazy mapping and so on
-               # the dataset is essentially a wrapped DictSeqAbstract. All your data is
-               # is accessible through self.. e.g. len(self), self.add, self.concat, ...
-               self.add('data', ... )
-               self.add('label', ... )
-               return self
+    One is advised to check the examples in dabstract/examples/introduction on how to work with datasets before reading
+    the rest of this help.
 
-           def prepare(self,paths):
-               # prepare data here, i.e. download
+    To initialise this dataset the only mandatory field is paths and paths['feat'] specifically.
+    Paths should be provided as such::
 
-        One is advised to check the examples in dabstract/examples/introduction on how to work with datasets before reading
-        the rest of this help.
+    $   paths={'data': path_to_data,
+    $          'meta': path_to_meta,
+    $          'feat': path_to_feat}
+    $   dataset = EXAMPLE(paths={...})
 
-        This class contains a set of arguments to initialize including split, filter and test_only. These arguments are
-        used for the purpose of interfacing with yaml configs. Note that you do not have to specify these and can simply
-        call:
-        $ dataset = EXAMPLE(paths={...})
-        The only mandatory field is paths. Paths should be provided as such:
-            $   paths={'data': path_to_data,
-            $          'meta': path_to_meta,
-            $          'feat': path_to_feat}
-        One is free to adjust 'data','meta' key strings to whatever you like but, the convention is to use to repr.
-        'feat' is the only key which should remain te same as it's used internally.
+    The other entries
+    for 'data' and 'meta' are just a suggestion and one can add as much as they like. However, it is advised to keep this convention
+    if possible.
 
-        The class offers the following key functionality on top of your dataset definition, which can be called by
-        the following methods:
+    The class offers the following key functionality on top of your dataset definition, which can be called by
+    the following methods::
 
-        .add - Add another key to the dataset
-        .add_dict - Add the keys and fields of an existing dataset or DictSeqAbstract to this one
-        .add_subdict_from_folder - Add a DictSeq from a folder that includes filenames, information (e.g. fs), ...
-        .concat - concat dataset with dataset
-        .remove - remove key from dataset
-        .add_map - add mapping to a key
-        .add_split - add a splitting operation to your dataset
-        .add_select - apply a selection to your dataset
-        .add_alias - add an alias to another key
-        .keys - show the set of keys
-        .set_active_keys - set an active key
-        .reset_active_keys - reset the active keys
-        .unpack - unpack DictSeq to a list representation
-        .set_data - overwrite this method with yours to set your data
-        .load_memory - load a particular key into memory
-        .summary - show a summary of the dataset
-        .prepare_feat - compute the features and save to disk
-        .set_xval - set crossvalidation folds
-        .get_xval_set - get a subdataset givin the folds
+    .add - Add another key to the dataset
+    .add_dict - Add the keys and fields of an existing dataset or DictSeqAbstract to this one
+    .concat - concat dataset with dataset
+    .remove - remove key from dataset
+    .add_map - add mapping to a key
+    .add_split - add a splitting operation to your dataset
+    .add_select - apply a selection to your dataset
+    .add_alias - add an alias to another key
+    .keys - show the set of keys
+    .set_active_keys - set an active key
+    .reset_active_keys - reset the active keys
+    .unpack - unpack DictSeq to a list representation
+    .set_data - overwrite this method with yours to set your data
+    .load_memory - load a particular key into memory
+    .summary - show a summary of the dataset
+    .prepare_feat - compute the features and save to disk
+    .set_xval - set crossvalidation folds
+    .get_xval_set - get a subdataset givin the folds
 
-        The full explanation for each method is provided as a docstring at each method.
+    The full explanation for each method is provided as a docstring at each method.
 
-        As mentioned earlier, the only required arguments is paths. The other are used for configuration interfaces.
-        One can achieve the same functionality with doing add_split/add_select after instantiation of the class.
-        The arguments are briefly introduced below.
+    As mentioned earlier, the only required arguments is paths. The other are used for configuration interfaces.
+    One can achieve the same functionality with doing add_split/add_select after instantiation of the class.
+    The arguments are briefly introduced below.
 
-    Arguments:
-        paths (dict of str): dictionary configuration paths. Formatted as follows:
-            $   paths={'data': path_to_data,
-            $          'meta': path_to_meta,
-            $          'feat': path_to_feat}
-        split (dict): dictionary configuration. Formatted as follows:
-            $   {'split_size': ...  e.g. 1,
-            $   'constraint': ... e.g. None
-            $   'type': ... e.g. seconds}
-            split_size=None, constraint=None, type='seconds'
-        filter (dict): dictionary configuration. Formatted as follows:
-            $   {'name': ...  e.g. 'random_subsample',
-            $   'parameters': ... e.g. {'ratio': 0.5}}
-        test_only: to specify if this dataset should be used for testing or both testing and train
-                    This is only relevant if multiple datasets are combined and set_xval() is used.
+    Parameters
+    ----------
+    paths : dict or str:
+        Path configuration in the form of a dictionary.
+        For example::
+            $   paths={ 'data': path_to_data,
+            $           'meta': path_to_meta,
+            $           'feat': path_to_feat}
+    test_only : bool
+        To specify if this dataset should be used for testing or both testing and train.
+        This is only relevant if multiple datasets are combined and set_xval() is used.
+        For example::
+            test_only = 0 -> use for both train and test
+            test_only = 1 -> use only for test
 
-    Returns:
+    Returns
+    -------
         dataset class
     """
 
@@ -169,13 +161,17 @@ class Dataset:
     ) -> None:
         """Add key to dataset.
         Requirement: data should be as long as len(self)
-        Example:
-            $  self.add(key,data)
-        Arguments:
-            key (str): key to add
-            data (seq/dictseq/np/list): data to add
-            info (list): additional information that can be added that will be progated along with the data
-            lazy (bool): apply lazily or not
+
+        Parameters
+        ----------
+        key : str
+            key to add
+        data : seq/dictseq/np/list
+            data to add
+        info : list
+            additional information that can be added that will be progated along with the data
+        lazy : bool
+            apply lazily or not
         """
         self._data.add(key, data, info=info, lazy=lazy, **kwargs)
 
@@ -183,85 +179,36 @@ class Dataset:
         self, data: dict or DictSeqAbstract, lazy: bool = True, **kwargs
     ) -> None:
         """Add the keys of a dictionary to the existing dataset
-        Requirement: data should be as long as len(self)
-        Example:
-            $  self.add_dict(data)
-        Arguments:
-            lazy (bool): let this dict be lazy or not
-            data (dictseq/dict): dict to add
+        Requirement: length of each item in the dict should be as long as len(self)
+
+        Parameters
+        ----------
+        lazy : bool
+            let this dict be lazy or not
+        data : dictseq/dict
+            dict to add
         """
         self._data.add_dict(data, lazy=lazy, **kwargs)
 
-    def add_subdict_from_folder(
-        self,
-        key,
-        path,
-        extension=".wav",
-        map_fct=None,
-        file_info_save_path=None,
-        filepath=None,
-        overwrite_file_info=False,
-        **kwargs
-    ):
-        """Add meta information of the files in a directory and add them to the dataset in a key
-
-        This function gets meta information (e.g. sampling frequency, length) of files in your provided directory.
-        It return a DictSeq with the filenames/information/subfolders.
-        This is mainly useful for obtaining apriori information of wav files such that they can be splitted in a lazy
-        manner from disk.
-
-        Example:
-            $  self.add_subdict_from_folder(self,key, path, extension='.wav', map_fct=None, file_info_save_path=None, filepath=None, overwrite_file_info=False, **kwargs)
-
-        Arguments:
-            key (str): name of the key you want to add to the dataset
-            path (str): path to the directory to check
-            extension (string): only evaluate files with that extension
-            map_fct: add a mapping function y = f(x) to the 'data'
-            filepath: in case you already have the files you want to obtain information from, the dir tree search is not done
-                        and this is used instead
-            file_info_save_path: save the information to this location
-                                 this function can be costly, so saving is useful
-            overwrite_file_info: overwrite file info file
-
-        Returns:
-            dictseq containing file information as a list, formatted as:
-            output['filepath'] = list of paths to files
-            output['example'] = example string (i.e. filename without extension)
-            output['filename'] = filename
-            output['subdb'] = relative subdirectory (starting from 'path') to file
-            output['info'][file_id] = { 'output_shape': .., #output shape of the wav file
-                                        'fs': .., # sampling frequency
-                                        'time_step' ..: # sample period
-                                        }
-        """
-        from dabstract.dataset.helpers import dictseq_from_folder
-
-        tmp = dictseq_from_folder(
-            path,
-            extension=extension,
-            map_fct=map_fct,
-            file_info_save_path=file_info_save_path,
-            filepath=filepath,
-            overwrite_file_info=overwrite_file_info,
-            **kwargs
-        )
-        warnings.warn(
-            "This function is deprecated. Please use the self.add(key, FolderDictSeqAbstract(*arg,**kwargs)) class to add a data folder to your dataset"
-        )
-        self.add(key, tmp)
 
     def concat(
         self, data: tvDataset, intersect: bool = False, adjust_base: bool = True
     ) -> tvDataset:
         """Add the keys of a dictionary to the existing dataset
         Requirement: data should be as long as len(self)
-        Example:
-            $  self.add_dict(data)
-        Arguments:
-            data (dictseq/dict): dict to add
-            intersect (bool): keep intersection of the two dicts based on the keys
-            adjust_base (bool): protect the original dataset from adjusting.
+
+        Parameters
+        ----------
+        data : dictseq/dict
+            dict to add
+        intersect : bool
+            keep intersection of the two dicts based on the keys
+        adjust_base : bool
+            protect the original dataset from adjusting.
+
+        Returns
+        -------
+        dataset : Dataset class
         """
         assert isinstance(
             data, Dataset
@@ -286,17 +233,17 @@ class Dataset:
 
     def add_map(self, key: str, map_fct: Callable, lazy: bool = None) -> None:
         """Add a mapping to a key
-        Example:
-            $  add_map(self, key, map_fct)
-        Arguments:
-            lazy (bool): apply lazily or not
-            key (str): key to apply the mapping to
-            map_fct (fct): fct which performs y = f(x)
+
+        Parameters
+        ----------
+        lazy : bool
+            apply lazily or not
+        key : str
+            key to apply the mapping to
+        map_fct : Callable
+            fct which performs y = f(x)
         """
-        # from dabstract.dataset.helpers import FolderDictSeqAbstract
-        # if isinstance(self._data[key], FolderDictSeqAbstract):
-        #     self._data[key]['data'] = MapAbstract(copy.deepcopy(self._data[key]['data']),map_fct=map_fct)
-        # else:
+
         self._data[key] = Map(
             copy.deepcopy(self._data[key]),
             lazy=(self._data._lazy[key] if lazy is None else lazy),
@@ -304,7 +251,7 @@ class Dataset:
         )
 
     def set_meta(self, param: dict) -> dict:
-        """ToDo: add set meta function instead of intro"""
+        """ToDo(gert): add set meta function instead of intro"""
         return param
 
     def add_split(
@@ -321,19 +268,22 @@ class Dataset:
         want examples of 1s but you do not want to reformat your entire dataset. This functionality does it
         in a lazy manner, e.g. splitting is only performed when needed. For this it needs apriori information on the
         output_shape of each example and the sampling frequency. This is automatically available IF you use
-        self.add_subdict_from_folder, as this adds a DictSeq to your dataset containing filepath, filename, .. and info.
+        FolderDictSeqAbstract data structure, as this creates DictSeq to your dataset containing filepath, filename, .. and info.
         The info entry contains the output_shape, sampling rate of your data. This work for folders containing .wav files
         AND for extracted features in the numpy format when this was performed using self.prepare_feat in this class.
         This class basically uses SplitAbstract and SampleReplicateAbstract. Key's including information, will be splitted,
         while keys including only data will be replicated depending on the splitting rate.
 
-        Example:
-            $  self.add_split(self, split_size=None, constraint=None, metric='seconds', **kwargs)
-        Arguments:
-            split_size (float/integer): split size in seconds/samples depending on 'metric'
-            constraint: None/'power2', creates sizes with a order of 2 (used for autoencoders)
-            type (str): split_size type ('seconds','samples')
-            reference_key (str): if samples is set as a size, one needs to provide a key reference to acquire
+        Parameters
+        ----------
+        split_size : float/int
+            split size in seconds/samples depending on 'metric'
+        constraint : None/str
+            Option 'power2' creates sizes with a order of 2 (used for autoencoders)
+        type : str
+            split_size type ('seconds','samples')
+        reference_key : str
+            if samples is set as a size, one needs to provide a key reference to acquire
             time_step information from.
         """
 
@@ -459,23 +409,31 @@ class Dataset:
 
         Besides a function one can also directly provide indices.
 
-        Example:
-            $  self.add_select(name, parameters=dict(), *arg, **kwargs)
-            dabstract already has a set of build-in selectors in dabstract.dataset.select such that one can simply do:
+        dabstract already has a set of build-in selectors in dabstract.dataset.select such
+        that one can simply do::
             $  self.add_select(random_subsample, parameters=dict('ratio': 0.5))
-            for random subsampling. And
+
+        for random subsampling,
+        and::
             $  self.add_select(subsample_by_str, parameters=dict('key': ..., 'keep': ...))
-            for selecting based on a key and a particular value
-            One can also use lambda function such as:
+
+        for selecting based on a key and a particular value
+        One can also also use the lambda function such as::
             $  self.add_select((lambda x,k: x['data']['subdb'][k]))
-            Or directly Use indices:
+
+        Or directly use indices
+        such as::
             $  indices = np.array[0,1,2,3,4])
             $  self.add_select(indices)
 
-        Arguments:
-            selector (function/str/indices): selector defined as a str (translated to fct internally) or function or indices
-            parameters: additional parameters in case name is a str to init the function/class
-            arg/kwargs: additional param to provide to the function if needed
+        Parameters
+        ----------
+        selector : Callable/str/List[int]/np.ndarray
+            selector defined as a str (translated to fct internally) or function or indices
+        parameters : dict
+            additional parameters in case name is a str to init the function/class
+        arg/kwargs:
+            additional param to provide to the function if needed
         """
 
         # get fct
@@ -568,14 +526,18 @@ class Dataset:
 
         If you want to already load some data in memory as this might be the faster option you can use function.
 
-        Example:
-            $  self.load_memory(self, key, workers=2,buffer_len=2, verbose=True)
-        Arguments:
-            key (str): key to be loaded in memory
-            workers (int): amount of workers used for loading the data
-            buffer_len (int): buffer_len of the pool
-            keep_structure (bool): keep structure up another class than DictSeqAbstract
-            verbose (bool): provide print feedback
+        Parameters
+        ----------
+        key : str
+            key to be loaded in memory
+        workers : int
+            amount of workers used for loading the data
+        buffer_len : int
+            buffer_len of the pool
+        keep_structure : bool
+            keep structure up another class than DictSeqAbstract
+        verbose : bool
+            provide print feedback
         """
         if verbose:
             print(
@@ -667,23 +629,26 @@ class Dataset:
         the files inside that folder will have the same structure as the original files have, except that now they are writting
         as npy files.
 
-        !!
-        It is required that 'key' contains a dictionary containing filepath, example, subdb and info in order to
-        make this functionality work. This means that you should use self.add_subdict_from_folder() for the raw data.
-        !!
+        `It is required that 'key' contains a dictionary containing filepath, example, subdb and info in order to
+        make this functionality work. This means that you should use self.add_subdict_from_folder() for the raw data.`
 
-        Example:
-            $  prepare_feat(key,fe_name,fe_dp, new_key=None, overwrite=False, verbose=True,
-            $               workers=2, buffer_len=2)
-        Arguments:
-            key (str): key to extract features from.
-            fe_name (str): the name of the feature extraction, which will be used to define the foldername
-            fe_dp (processing_chain): processing_chain applied to the data
-            new_key (str/None): if None, then key will be overwritten with the data, if a string, then a new key is added
-                                to the dataset
-            overwrite (bool): overwrite the features that already saved
-            workers (int): amount of workers used for loading data and extracting features
-            buffer_len (int): buffer_len of the pool
+        Parameters
+        ----------
+        key : str
+            key to extract features from.
+        fe_name : str
+            the name of the feature extraction, which will be used to define the foldername
+        fe_dp : ProcessingChain
+            processing_chain applied to the data
+        new_key : str/None
+            If None, then key will be overwritten with the data.
+            If a string, then a new key is added to the dataset.
+        overwrite : bool
+            overwrite the features that already saved
+        workers : int
+            amount of workers used for loading data and extracting features
+        buffer_len : int
+            buffer_len of the pool
         """
         # checks
         from dabstract.dataset.helpers import FolderDictSeqAbstract
@@ -832,23 +797,33 @@ class Dataset:
         to save your xval configuration such that it's identical to last experiment OR depending on where you save,
         use the same xval for different experiments.
 
-        Example:
-            $  self.set_xval(self, name, parameters = dict(), save_path=None, overwrite=True)
-            dabstract already has a set of build-in selectors in dabstract.dataset.xval such that one can simply do:
+        dabstract already has a set of build-in selectors in dabstract.dataset.xval
+        such that one can simply do::
             $  self.set_xval(group_random_kfold, parameters=dict('folds': 4, 'val_frac=1/3, group_key='group'))
-            for random crossvalidation with a group constraint, and,
-            $  self.set_xval(sequential_kfold, parameters=dict('folds': 4, 'val_frac=1/3, group_key='group'))
-            for sequential crossvalidation with a group constraint, and,
-            $  self.set_xval(stratified_kfold, parameters=dict('folds': 4, 'val_frac=1/3))
-            for stratified crossvalidation, and,
-            $  self.set_xval(stratified_kfold, parameters=dict('folds': 4, 'val_frac=1/3))
-            for random crossvalidation
 
-        Arguments:
-            name (function/str/indices): xval defined as a str (translated to fct internally) or function
-            parameters: additional parameters in case name is a str to init the function/class
-            save_dir (str): filepath to where to pickle the xval folds
-            overwrite (bool): overwrite the saved file
+        for random crossvalidation with a group constraint,
+        and::
+            $  self.set_xval(sequential_kfold, parameters=dict('folds': 4, 'val_frac=1/3, group_key='group'))
+
+        for sequential crossvalidation with a group constraint,
+        and::
+            $  self.set_xval(stratified_kfold, parameters=dict('folds': 4, 'val_frac=1/3))
+
+        for stratified crossvalidation,
+        and::
+            $  self.set_xval(stratified_kfold, parameters=dict('folds': 4, 'val_frac=1/3))
+        for random crossvalidation.
+
+        Parameters
+        ----------
+        name : Callable/xval_func/str/List[int],np.ndarray
+            xval defined as a str (translated to fct internally) or function
+        parameters : dict
+            additional parameters in case name is a str to init the function/class
+        save_dir : str
+            filepath to where to pickle the xval folds
+        overwrite : bool
+            overwrite the saved file
         """
 
         assert name is not None
@@ -935,15 +910,20 @@ class Dataset:
 
         This function return a subdataset of the original one based on which set you want and which fold
 
-        Example:
-            $  subdataset = get_xval_set(set='train', fold=0, keys='all', **kwargs)
-        Arguments:
-            set (str): set should be in ('train','test','val') depending on what the crossvalidation fct returned
-            fold (int): get a particular fold
-            keys (str): get a subset of the keys, e.g. only input and target
-            lazy (bool): apply lazily
-            workers (int): amount of workers in case lazy is false
-            buffer_len (int): used buffer length for multiprocessing in case lazy is false
+        Parameters
+        ----------
+        set : str
+            set should be in ('train','test','val') depending on what the crossvalidation fct returned
+        fold : int
+            get a particular fold
+        keys : str
+            get a subset of the keys, e.g. only input and target
+        lazy : bool
+            apply lazily
+        workers : int
+            amount of workers in case lazy is false
+        buffer_len : int
+            used buffer length for multiprocessing in case lazy is false
         """
 
         # checks

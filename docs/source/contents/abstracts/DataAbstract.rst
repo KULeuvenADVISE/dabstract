@@ -1,4 +1,4 @@
-Map
+DataAbstract
 ===============
 .. automodule:: dabstract.dataset.abstract
    :members: DataAbstract
