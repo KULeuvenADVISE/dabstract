@@ -86,10 +86,6 @@ class Dataset:
 
     The full explanation for each method is provided as a docstring at each method.
 
-    As mentioned earlier, the only required arguments is paths. The other are used for configuration interfaces.
-    One can achieve the same functionality with doing add_split/add_select after instantiation of the class.
-    The arguments are briefly introduced below.
-
     Parameters
     ----------
     paths : dict or str:

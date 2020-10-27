@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+pip3 install -r requirements.txt
 make clean
 rm -Rf source/docstring
 #sphinx-apidoc -f -o source/docstring/dataprocessor ../dabstract/dataprocessor

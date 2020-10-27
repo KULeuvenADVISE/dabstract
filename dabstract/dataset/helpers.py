@@ -91,13 +91,13 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
 
 
 def dataset_factory(
-    name: (str, tvDataset, type) = None,
-    paths: Dict[str, str] = None,
-    xval: Optional[Dict[str,Union[str,int, Dict]]] = None,
-    split: Optional[Dict[str,Union[str,int, Dict]]] = None,
-    select: Optional[Dict[str,Union[str,int, Dict]]] = None,
-    test_only: Optional[bool] = 0,
-    **kwargs
+        name: (str, tvDataset, type) = None,
+        paths: Dict[str, str] = None,
+        xval: Optional[Dict[str, Union[str, int, Dict]]] = None,
+        split: Optional[Dict[str, Union[str, int, Dict]]] = None,
+        select: Optional[Dict[str, Union[str, int, Dict]]] = None,
+        test_only: Optional[bool] = 0,
+        **kwargs
 ) -> tvDataset:
     """Dataset factory
 
@@ -122,11 +122,11 @@ def dataset_factory(
     Parameters
     ----------
     select: Dict[str,Union[str,int, Dict]]
-        selector configuration.
+        selector configuration
     split: Dict[str,Union[str,int, Dict]]
-        split configuration.
+        split configuration
     xval : Dict[str,Union[str,int, Dict]]
-        xval configuration.
+        xval configuration
     test_only : bool
         use the dataset for test (test_only=1) or both train and test (test_only=0)
     name : str/instance/object
@@ -135,8 +135,8 @@ def dataset_factory(
         dictionary containing paths to the data
     kwargs: ToDo, not defined as this should be used only by load_from_config()
 
-    Parameters
-    ----------
+    Returns
+    -------
     dataset : Dataset class
     """
     from dabstract.dataset.dataset import Dataset
@@ -150,9 +150,9 @@ def dataset_factory(
                 os.environ["dabstract_CUSTOM_DIR"] + ".dataset.dbs"
             )
             assert hasattr(module, name), (
-                "Database class is not supported in both dabstract.dataset.dbs "
-                + os.environ["dabstract_CUSTOM_DIR"]
-                + ".dataset.dbs. Please check"
+                    "Database class is not supported in both dabstract.dataset.dbs "
+                    + os.environ["dabstract_CUSTOM_DIR"]
+                    + ".dataset.dbs. Please check"
             )
         db = getattr(module, name)(paths=paths, test_only=test_only, **kwargs)
     elif isinstance(name, Dataset):
@@ -223,15 +223,15 @@ class FolderDictSeqAbstract(DictSeqAbstract):
     """
 
     def __init__(
-        self,
-        path: str,
-        extension: str = ".wav",
-        map_fct: Callable = None,
-        file_info_save_path: bool = None,
-        filepath: str = None,
-        overwrite_file_info: bool = False,
-        info: List[Dict] = None,
-        **kwargs
+            self,
+            path: str,
+            extension: str = ".wav",
+            map_fct: Callable = None,
+            file_info_save_path: bool = None,
+            filepath: str = None,
+            overwrite_file_info: bool = False,
+            info: List[Dict] = None,
+            **kwargs
     ):
         super().__init__()
         if "save_path" in kwargs:
@@ -278,12 +278,12 @@ class FolderDictSeqAbstract(DictSeqAbstract):
 
 
 def get_dir_info(
-    path: str,
-    extension: str = ".wav",
-    file_info_save_path: bool = None,
-    filepath: str = None,
-    overwrite_file_info: bool = False,
-    **kwargs
+        path: str,
+        extension: str = ".wav",
+        file_info_save_path: bool = None,
+        filepath: str = None,
+        overwrite_file_info: bool = False,
+        **kwargs
 ) -> Dict[str, List[Any]]:
     """Get meta information of the files in a directory.
 
@@ -362,8 +362,8 @@ def get_dir_info(
 
     # get additional info
     if (
-        not os.path.isfile(os.path.join(path, "file_info.pickle"))
-        or overwrite_file_info
+            not os.path.isfile(os.path.join(path, "file_info.pickle"))
+            or overwrite_file_info
     ):
         info = _get_dir_info(filepath, extension)
         if (file_info_save_path is not None) and (info is not None):
