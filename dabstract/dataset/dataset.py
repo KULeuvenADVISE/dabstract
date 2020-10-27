@@ -228,7 +228,6 @@ class Dataset:
     def _set_summary(self, paths: dict = dict(), test_only: bool = False, **kwargs) -> None:
         """Internal function to set the summary
         """
-        # set summary parameters
         self._param = [
             {
                 "name": self.__class__.__name__,

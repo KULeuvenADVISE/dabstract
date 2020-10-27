@@ -28,7 +28,7 @@ from typing import (
 tvDictSeqAbstract = TypeVar("DictSeqAbstract")
 tvSeqAbstract = TypeVar("SeqAbstract")
 
-from dabstract.utils import intersection
+from dabstract.utils import list_intersection, list_difference
 from dabstract.dataprocessor import ProcessingChain
 
 
@@ -952,10 +952,15 @@ class DictSeqAbstract(Abstract):
                     assert (
                         data.keys() == self2.keys()
                     ), "keys do not match. Set intersect=True for keeping common keys."
-                    keys = enumerate(data.keys())
+                    keys = data.keys()
                 else:
-                    keys = intersection(data.keys(), self2.keys())
-                for k, key in keys:
+                    # get diff
+                    keys = list_intersection(data.keys(), self2.keys())
+                    rem_keys = list_difference(data.keys(), self2.keys())
+                    # remove ones which are not identical
+                    for rem_key in rem_keys:
+                        self2.remove(rem_key)
+                for key in keys:
                     if self2._lazy[key]:
                         # make sure that data format is as desired by the base dict
                         if not isinstance(
@@ -987,6 +992,7 @@ class DictSeqAbstract(Abstract):
 
     def remove(self, key: str) -> None:
         del self._data[key]
+        self.reset_active_keys()
         self._nr_keys -= 1
         return self
 

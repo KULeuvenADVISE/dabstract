@@ -4,6 +4,7 @@ import os
 from dabstract.dataset.dataset import Dataset
 from dabstract.dataset.helpers import *
 from dabstract.dataprocessor.processors import *
+from dabstract.dataprocessor.processing_chain import *
 from dabstract.utils import *
 
 
@@ -86,7 +87,7 @@ def test_EXAMPLE_dataset():
     assert isinstance(db['binary_anomaly'], np.ndarray)
     assert isinstance(db['group'], List)
     assert isinstance(db['group'][0], str)
-    assert isinstance(db['test_only'], List)
+    assert isinstance(db['test_only'], np.ndarray)
     assert isinstance(db['dataset_id'], np.ndarray)
 
 
@@ -177,7 +178,7 @@ def test_add():
     data.add('test2', np.zeros(3))
     data.add('test3', ['1', '2', '3'])
     # checks
-    assert data[0] == {'test1': 1.0, 'test2': 0.0, 'test3': '1'}
+    assert data[0] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'test2': 0.0, 'test3': '1'}
 
 
 def test_add_dict():
@@ -188,7 +189,7 @@ def test_add_dict():
                  'test3': ['1', '2', '3']}
     data.add_dict(data_dict)
     # checks
-    assert data[0] == {'test1': 1.0, 'test2': 0.0, 'test3': '1'}
+    assert data[0] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'test2': 0.0, 'test3': '1'}
 
 
 def test_concat():
@@ -210,11 +211,75 @@ def test_concat():
     data_dict = {'test2': np.zeros(3),
                  'test3': ['1', '2', '3']}
     data2.add_dict(data_dict)
+
     # checks
-    data3 = data+data
-    assert len(data3)==6
-    assert data[0] == {'test1': 1.0, 'test2': 0.0, 'test3': '1'}
-    assert data[-1] == {'test1': 1.0, 'test2': 0.0, 'test3': '3'}
+    data3 = data.concat(data, adjust_base=False)
+    assert len(data3) == 6
+    assert data[0] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'test2': 0.0, 'test3': '1'}
+    assert data[-1] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'test2': 0.0, 'test3': '3'}
+
+    data3 = data.concat(data2, intersect=True, adjust_base=False)
+    assert len(data3) == 6
+    assert data3[0] == {'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
+    assert data3[-1] == {'test2': 0.0, 'test3': '3', 'test_only': 0.0, 'dataset_id': 1}
+
+    data.concat(data2, intersect=True, adjust_base=True).concat(data2, intersect=True, adjust_base=True)
+    assert len(data) == 9
+    assert data[0] == {'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
+    assert data[-1] == {'test2': 0.0, 'test3': '3', 'test_only': 0.0, 'dataset_id': 1}
+
+
+def test_remove():
+    """Test remove"""
+    data = Dataset()
+    data_dict = {'test1': np.ones(3),
+                 'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data.add_dict(data_dict)
+    # checks
+    data.remove('test1')
+    assert all([key in ('test2','test3','test_only','dataset_id') for key in data[0].keys()])
+    assert all([key in ('test2','test3','test_only','dataset_id') for key in data.keys()])
+
+def test_add_map():
+    """Test add_map"""
+    # define dataset
+    data = Dataset()
+    data_dict = {'test1': np.ones(3),
+                 'test2': np.zeros(3),
+                 'test3': ['1', '2', '3']}
+    data.add_dict(data_dict)
+    # define processing chain
+    class custom_processor(Processor):
+        def process(self, data, **kwargs):
+            return data+1, {'multiplier': 3}
+    class custom_processor2(Processor):
+        def process(self, data, **kwargs):
+            return data*kwargs['multiplier'], {}
+    dp = ProcessingChain()
+    dp.add(custom_processor)
+    dp.add(custom_processor2)
+    # checks
+    data.add_map('test1',lambda x: x+1)
+    assert data[0] == {'test1': 2.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
+    data.add_map('test1',dp)
+    assert data[0] == {'test1': 9.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
+
+def test_add_split():
+    """Test dataset loading"""
+    # db init
+    EXAMPLE = get_dataset()
+    db = EXAMPLE(paths={'data': os.path.join('data', 'data'),
+                        'meta': os.path.join('data', 'data')})
+
+    # checks
+    assert len(db) == 40
+    assert isinstance(db['data'], FolderDictSeqAbstract)
+    assert isinstance(db['binary_anomaly'], np.ndarray)
+    assert isinstance(db['group'], List)
+    assert isinstance(db['group'][0], str)
+    assert isinstance(db['test_only'], np.ndarray)
+    assert isinstance(db['dataset_id'], np.ndarray)
 
 
 if __name__ == "__main__":
@@ -225,3 +290,6 @@ if __name__ == "__main__":
     test_add()
     test_add_dict()
     test_concat()
+    test_remove()
+    test_add_map()
+    test_add_split()
