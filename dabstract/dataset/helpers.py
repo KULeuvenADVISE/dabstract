@@ -272,6 +272,14 @@ class FolderDictSeqAbstract(DictSeqAbstract):
             "A FolderDictSeqAbstract should always have data as the only active key. Resetting not possible. Please use DictSeqAbstract if other functionality is needed."
         )
 
+    def __setitem__(self, k: int, v: Any) -> None:
+        if isinstance(k, str):
+            self._data[k] = v
+        elif isinstance(k,numbers.Integral):
+            self._data['data'][k] = v
+        else:
+            raise NotImplementedError
+
     def __repr__(self) -> str:
         """string print representation of function"""
         return "folder_dict_seq containing: " + str(self.keys())

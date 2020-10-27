@@ -260,6 +260,10 @@ class MapAbstract(Abstract):
     def __getitem__(self, index: int) -> Any:
         return self.get(index)
 
+    def __setitem__(self, k, v):
+        raise NotImplementedError("MapAbstract does not support item assignment. \
+                First excecute the mapping and then asign, or asign and add mapping afterwards.")
+
     def get(
         self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
