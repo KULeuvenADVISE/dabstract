@@ -6,10 +6,14 @@ d.abstract: dataset and pre-processing abstraction
 [![Documentation Status](https://readthedocs.org/projects/dabstract/badge/?version=latest)](https://dabstract.readthedocs.io/en/latest/?badge=latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/KULeuvenADVISE/dabstract/blob/master/LICENSE)
 
-This is a -lightweight- library for defining and processing data(sets). The goals of the library are to a) uniformize dataset classes, b) speed up experiments where the data does not fit into memory, c) offer a general way of processing data independent of the data source, d) seamlessly combine different datasets.
- 
+This is a -lightweight- library for defining and processing data(sets). The goals of the library are to 
+    a) uniformize dataset classes,
+    b) speed up experiments where the data does not fit into memory, 
+    c) offer a general way of processing data independent of the data source, 
+    d) seamlessly combine different datasets.
+     
 The reader is advised to first go through EXAMPLES/introduction_notebook/Readme1/2/3_* and then check the EXAMPLE implementation.
-Each function is documented using docstrings if insights into core functionality are needed.
+For more information on each function check the docstrings or https://dabstract.readthedocs.io/. 
 
 ## Install instructions
 1) clone to a folder of choice (should be easily accessible, e.g. among other utilities)
