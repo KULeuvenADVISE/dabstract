@@ -6,7 +6,11 @@ cache: pip
 install:
   - pip install -r requirements.txt
   - pip install ipython
-  - pip install codecov
+  - pip install python-coveralls
+  - pip install coveralls
   - pip install --editable .[all]
 script:
-  - python3 tests/test_processing_chain.py
+  - pytest --cov=dabstract tests/
+
+after_success:
+    - coveralls
