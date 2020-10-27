@@ -11,6 +11,6 @@ PyYAML>=5.3.1
 scikit_learn>=0.23.2
 soundfile>=0.10.3.post1
 sphinx
-sphinx_rtd_theme
+sphinx_rtd_theme==0.5.0
 recommonmark
 numpydoc
