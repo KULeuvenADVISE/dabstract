@@ -1,6 +1,13 @@
 Cross-validation
 =============
 
+Use pre-defined sets from the dataset
+---------------------
+.. automodule:: dabstract.dataset.xval
+   :members: xval_from_item
+   :undoc-members:
+   :show-inheritance:
+
 Random split
 ---------------------
 .. automodule:: dabstract.dataset.xval
