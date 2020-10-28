@@ -14,4 +14,4 @@ To compile the document do;
 
     sh docs/build_doc.sh
     
-HTML files will be written in the `docs/source/html` directory.
+HTML files will be written in the `docs/build/html` directory.
