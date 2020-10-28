@@ -5,8 +5,6 @@ pandas>=1.0.4
 scipy>=1.4.1
 tqdm>=4.45.0
 numpy>=1.18.3
-evaluation>=0.0.2
-learner
 PyYAML>=5.3.1
 scikit_learn>=0.23.2
 soundfile>=0.10.3.post1
