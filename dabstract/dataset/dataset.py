@@ -306,7 +306,7 @@ class Dataset:
             )
             assert (
                 len(split_size) == 1
-            ), "can only do splittig when the time_steps in each example of your dataset/key are uniform."
+            ), "can only do splitting when the time_steps in each example of your dataset/key are uniform."
 
         # prep sample lengths
         sample_len, sample_period, sample_duration = dict(), dict(), dict()
