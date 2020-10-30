@@ -3,6 +3,7 @@ d.abstract: dataset and pre-processing abstraction
 
 [![Build Status](https://travis-ci.org/KULeuvenADVISE/dabstract.svg?branch=master)](https://travis-ci.org/KULeuvenADVISE/dabstract)
 [![Coverage Status](https://coveralls.io/repos/github/KULeuvenADVISE/dabstract/badge.svg?branch=master)](https://coveralls.io/github/KULeuvenADVISE/dabstract?branch=master)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![Documentation Status](https://readthedocs.org/projects/dabstract/badge/?version=latest)](https://dabstract.readthedocs.io/en/latest/?badge=latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/KULeuvenADVISE/dabstract/blob/master/LICENSE)
 
