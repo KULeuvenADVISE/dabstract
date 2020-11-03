@@ -261,8 +261,10 @@ class MapAbstract(Abstract):
         return self.get(index)
 
     def __setitem__(self, k, v):
-        raise NotImplementedError("MapAbstract does not support item assignment. \
-                First excecute the mapping and then asign, or asign and add mapping afterwards.")
+        raise NotImplementedError(
+            "MapAbstract does not support item assignment. \
+                First excecute the mapping and then asign, or asign and add mapping afterwards."
+        )
 
     def get(
         self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
@@ -390,7 +392,7 @@ def Map(
 #         elif isinstance(index, str):
 #             return KeyAbstract(self, index)
 #         else:
-#             raise TypeError('Index should be a str our number')
+#             raise TypeError('Index should be a str or number')
 #
 #     def __len__(self):
 #         return len(self._data) * self._factor
@@ -444,7 +446,7 @@ class SampleReplicateAbstract(Abstract):
         elif isinstance(index, str):
             return KeyAbstract(self, index)
         else:
-            raise TypeError("Index should be a str our number")
+            raise TypeError("Index should be a str or number")
 
     def __len__(self) -> int:
         return int(np.sum(self._factor))
@@ -493,26 +495,25 @@ class SplitAbstract(Abstract):
 
     The SplitAbstract class offers the following key functionality, which can be called by the following methods::
 
-    ._init_split - TODO, nodig?
-    .get - TODO
-    .keys - TODO
+    .get - return entry from SplitAbstract
+    .keys - return attribute keys of data
 
     The full explanation for each method is provided as a docstring at each method.
 
     Parameters
     ----------
     data : Iterable
-        TODO
+        Iterable object to be splitted
     split_size : int
-        TODO
+        split size in seconds/samples depending on 'metric'
     constraint : str
-        TODO
+        option 'power2' creates sizes with a order of 2 (used for autoencoders)
     sample_len : int
-        TODO
+        sample length (default = None)
     sample_period : int
-        TODO
+        sample period (default = None)
     type : str
-        TODO
+        split_size type ('seconds','samples') (default = 'seconds')
 
     Returns
     -------
@@ -587,17 +588,19 @@ class SplitAbstract(Abstract):
         self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
-        TODO
         Parameters
         ----------
-        index
-        return_info
-        arg
-        kwargs
-
+        index : int
+            index to retrieve data from
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+        arg : List
+            additional param to provide to the function if needed
+        kwargs : Dict
+            additional param to provide to the function if needed
         Returns
         -------
-
+        List OR np.ndarray OR Any
         """
         if isinstance(index, numbers.Integral):
             assert index < len(self)
@@ -624,7 +627,7 @@ class SplitAbstract(Abstract):
         elif isinstance(index, str):
             return KeyAbstract(self, index)
         else:
-            raise TypeError("Index should be a str our number")
+            raise TypeError("Index should be a str or number")
 
     def __len__(self) -> int:
         return int(np.sum(self._split_len))
@@ -675,10 +678,9 @@ def Split(
     constraint : str
         option 'power2' creates sizes with a order of 2 (used for autoencoders)
     sample_len : int
-        TODO
-
+        sample length (default = None)
     sample_period : int
-        TODO (default = None)
+        sample period (default = None)
     type : str
         split_size type ('seconds','samples') (default = 'seconds')
     lazy : bool
@@ -732,21 +734,21 @@ class SelectAbstract(Abstract):
 
     The SelectAbstract class offers the following key functionality, which can be called by the following methods::
 
-    .get - TODO
-    .keys - TODO
+    .get - return entry from SelectAbstract
+    .keys - return the list of keys
 
     The full explanation for each method is provided as a docstring at each method.
 
     Parameters
     ----------
     data : Iterable
-        TODO
+        input data to perform selection on, if eval_data is None
     selector : List[int] OR Callable OR numbers.Integral
-        TODO
+        selection criterium
     eval_data : Any
-        TODO
+        if eval_data not None, then selection will be performed on eval_data, else data (default = None)
     kwargs : Dict
-        TODO
+        additional param to provide to the function if needed
 
     Returns
     -------
@@ -801,9 +803,9 @@ class SelectAbstract(Abstract):
         Parameters
         ----------
         index : int
-            TODO
+            index to retrieve data from
         return_info : bool
-            TODO (default = False)
+            return tuple (data, info) if True else data (default = False)
         arg : List
             additional param to provide to the function if needed
         kwargs : Dict
@@ -827,7 +829,7 @@ class SelectAbstract(Abstract):
             return SelectAbstract(self._data[index], self._indices)
             # return KeyAbstract(self, index)
         else:
-            raise TypeError("Index should be a str our number")
+            raise TypeError("Index should be a str or number")
 
     def __len__(self) -> int:
         return len(self._indices)
@@ -862,12 +864,12 @@ def Select(
 
     Parameters
     ----------
-    data
-        Input data to perform selection on
+    data : Iterable
+        input data to perform selection on, if eval_data is None
     selector : List[int] OR Callable OR numbers.Integral
-        TODO
+        selection criterium
     eval_data : Any
-        TODO (default = None)
+        if eval_data not None, then selection will be performed on eval_data, else data (default = None)
     lazy : bool
         apply lazily or not (default = True)
     workers : int
@@ -898,7 +900,7 @@ class FilterAbstract(Abstract):
 
     The FilterAbstract class offers the following key functionality, which can be called by the following methods::
 
-    .get - TODO
+    .get - return entry from FilterAbstract
     .keys - show the set of keys
 
     The full explanation for each method is provided as a docstring at each method.
@@ -906,9 +908,9 @@ class FilterAbstract(Abstract):
     Parameters
     ----------
     data : Iterable
-        TODO
+        Iterable object to be filtered
     filter_fct : Callable
-        TODO
+        Callable function that needs to be applied
     kwargs:
         additional param to provide to the function if needed
 
@@ -942,9 +944,9 @@ class FilterAbstract(Abstract):
         Parameters
         ----------
         index : int
-            TODO
+            index to retrieve data from
         return_info : bool
-            TODO
+            return tuple (data, info) if True else data (default = False)
         arg : List
             additional param to provide to the function if needed
         kwargs : Dict
@@ -966,7 +968,7 @@ class FilterAbstract(Abstract):
         elif isinstance(index, str):
             return KeyAbstract(self, index)
         else:
-            raise TypeError("Index should be a str our number")
+            raise TypeError("Index should be a str or number")
 
     def __len__(self) -> int:
         raise Exception("Length not available as filter is evaluated on the fly")
