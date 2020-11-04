@@ -261,8 +261,10 @@ class MapAbstract(Abstract):
         return self.get(index)
 
     def __setitem__(self, k, v):
-        raise NotImplementedError("MapAbstract does not support item assignment. \
-                First excecute the mapping and then asign, or asign and add mapping afterwards.")
+        raise NotImplementedError(
+            "MapAbstract does not support item assignment. \
+                First excecute the mapping and then asign, or asign and add mapping afterwards."
+        )
 
     def get(
         self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
@@ -390,7 +392,7 @@ def Map(
 #         elif isinstance(index, str):
 #             return KeyAbstract(self, index)
 #         else:
-#             raise TypeError('Index should be a str our number')
+#             raise TypeError('Index should be a str or number')
 #
 #     def __len__(self):
 #         return len(self._data) * self._factor
@@ -444,7 +446,7 @@ class SampleReplicateAbstract(Abstract):
         elif isinstance(index, str):
             return KeyAbstract(self, index)
         else:
-            raise TypeError("Index should be a str our number")
+            raise TypeError("Index should be a str or number")
 
     def __len__(self) -> int:
         return int(np.sum(self._factor))
@@ -488,7 +490,35 @@ def SampleReplicate(
 
 
 class SplitAbstract(Abstract):
-    """Split the datastream"""
+    """
+    Split the datastream
+
+    The SplitAbstract class offers the following key functionality, which can be called by the following methods::
+
+    .get - return entry from SplitAbstract
+    .keys - return attribute keys of data
+
+    The full explanation for each method is provided as a docstring at each method.
+
+    Parameters
+    ----------
+    data : Iterable
+        Iterable object to be splitted
+    split_size : int
+        split size in seconds/samples depending on 'metric'
+    constraint : str
+        option 'power2' creates sizes with a order of 2 (used for autoencoders)
+    sample_len : int
+        sample length (default = None)
+    sample_period : int
+        sample period (default = None)
+    type : str
+        split_size type ('seconds','samples') (default = 'seconds')
+
+    Returns
+    -------
+    SplitAbstract class
+    """
 
     def __init__(
         self,
@@ -557,6 +587,21 @@ class SplitAbstract(Abstract):
     def get(
         self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
+        """
+        Parameters
+        ----------
+        index : int
+            index to retrieve data from
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+        arg : List
+            additional param to provide to the function if needed
+        kwargs : Dict
+            additional param to provide to the function if needed
+        Returns
+        -------
+        List OR np.ndarray OR Any
+        """
         if isinstance(index, numbers.Integral):
             assert index < len(self)
             if index < 0:
@@ -582,12 +627,17 @@ class SplitAbstract(Abstract):
         elif isinstance(index, str):
             return KeyAbstract(self, index)
         else:
-            raise TypeError("Index should be a str our number")
+            raise TypeError("Index should be a str or number")
 
     def __len__(self) -> int:
         return int(np.sum(self._split_len))
 
     def keys(self) -> List[str]:
+        """
+        Returns
+        -------
+        List of strings
+        """
         if hasattr(self._data, "keys"):
             return self._data.keys()
         else:
@@ -616,7 +666,38 @@ def Split(
     *arg: List,
     **kwargs: Dict
 ) -> Union[SplitAbstract, DataAbstract, np.ndarray, list]:
-    """Factory function to allow for choice between lazy and direct example splittin"""
+    """
+    Factory function to allow for choice between lazy and direct example splitting
+
+    Parameters
+    ----------
+    data : Iterable
+        Iterable object to be splitted
+    split_size : int
+        split size in seconds/samples depending on 'metric'
+    constraint : str
+        option 'power2' creates sizes with a order of 2 (used for autoencoders)
+    sample_len : int
+        sample length (default = None)
+    sample_period : int
+        sample period (default = None)
+    type : str
+        split_size type ('seconds','samples') (default = 'seconds')
+    lazy : bool
+        apply lazily or not (default = True)
+    workers : int
+        amount of workers used for loading the data (default = 1)
+    buffer_len : int
+        buffer_len of the pool (default = 3)
+    arg : List
+        additional param to provide to the function if needed
+    kwargs : Dict
+        additional param to provide to the function if needed
+
+    Returns
+    -------
+    SplitAbstract OR DataAbstract OR np.ndarray OR list
+    """
     _abstract = True if isinstance(data, Abstract) else False
     if lazy:
         return SplitAbstract(
@@ -647,8 +728,31 @@ def Split(
 
 
 class SelectAbstract(Abstract):
-    """Select a subset of your input sequence. Selection is performed directly, this means that it should be a
+    """
+    Select a subset of your input sequence. Selection is performed directly, this means that it should be a
     variable which is readily available from memory.
+
+    The SelectAbstract class offers the following key functionality, which can be called by the following methods::
+
+    .get - return entry from SelectAbstract
+    .keys - return the list of keys
+
+    The full explanation for each method is provided as a docstring at each method.
+
+    Parameters
+    ----------
+    data : Iterable
+        input data to perform selection on, if eval_data is None
+    selector : List[int] OR Callable OR numbers.Integral
+        selection criterium
+    eval_data : Any
+        if eval_data not None, then selection will be performed on eval_data, else data (default = None)
+    kwargs : Dict
+        additional param to provide to the function if needed
+
+    Returns
+    -------
+    SelectAbstract class
     """
 
     def __init__(
@@ -695,6 +799,22 @@ class SelectAbstract(Abstract):
     def get(
         self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
+        """
+        Parameters
+        ----------
+        index : int
+            index to retrieve data from
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+        arg : List
+            additional param to provide to the function if needed
+        kwargs : Dict
+            additional param to provide to the function if needed
+
+        Returns
+        -------
+        List OR np.ndarray OR Any
+        """
         if isinstance(index, numbers.Integral):
             assert index < len(self)
             index = self._indices[index]
@@ -709,12 +829,17 @@ class SelectAbstract(Abstract):
             return SelectAbstract(self._data[index], self._indices)
             # return KeyAbstract(self, index)
         else:
-            raise TypeError("Index should be a str our number")
+            raise TypeError("Index should be a str or number")
 
     def __len__(self) -> int:
         return len(self._indices)
 
     def keys(self) -> List[str]:
+        """
+        Returns
+        -------
+        List of strings
+        """
         if hasattr(self._data, "keys"):
             return self._data.keys()
         else:
@@ -734,7 +859,29 @@ def Select(
     *arg,
     **kwargs
 ) -> Union[SelectAbstract, DataAbstract, np.ndarray, list]:
-    """Factory function to allow for choice between lazy and direct example selection"""
+    """
+    Factory function to allow for choice between lazy and direct example selection
+
+    Parameters
+    ----------
+    data : Iterable
+        input data to perform selection on, if eval_data is None
+    selector : List[int] OR Callable OR numbers.Integral
+        selection criterium
+    eval_data : Any
+        if eval_data not None, then selection will be performed on eval_data, else data (default = None)
+    lazy : bool
+        apply lazily or not (default = True)
+    workers : int
+        amount of workers used for loading the data (default = 1)
+    buffer_len : int
+        buffer_len of the pool (default = 3)
+    arg/kwargs:
+        additional param to provide to the function if needed
+
+    Returns
+    SelectAbstract OR DataAbstract OR np.ndarray OR list
+    """
     _abstract = True if isinstance(data, Abstract) else False
     if lazy:
         return SelectAbstract(data, selector, eval_data=eval_data, **kwargs)
@@ -748,7 +895,29 @@ def Select(
 
 
 class FilterAbstract(Abstract):
-    """Filter on the fly. Interesting when the variable to filter on takes long to compute."""
+    """
+    Filter on the fly. Interesting when the variable to filter on takes long to compute.
+
+    The FilterAbstract class offers the following key functionality, which can be called by the following methods::
+
+    .get - return entry from FilterAbstract
+    .keys - show the set of keys
+
+    The full explanation for each method is provided as a docstring at each method.
+
+    Parameters
+    ----------
+    data : Iterable
+        Iterable object to be filtered
+    filter_fct : Callable
+        Callable function that needs to be applied
+    kwargs:
+        additional param to provide to the function if needed
+
+    Returns
+    -------
+    FilterAbstract class
+    """
 
     def __init__(self, data: Iterable, filter_fct: Callable, **kwargs):
         assert callable(filter_fct), filter_fct
@@ -771,6 +940,22 @@ class FilterAbstract(Abstract):
     def get(
         self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
+        """
+        Parameters
+        ----------
+        index : int
+            index to retrieve data from
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+        arg : List
+            additional param to provide to the function if needed
+        kwargs : Dict
+            additional param to provide to the function if needed
+
+        Returns
+        -------
+        List OR np.ndarray OR Any
+        """
         if isinstance(index, numbers.Integral):
             assert index < len(self)
             if self._abstract:
@@ -783,12 +968,17 @@ class FilterAbstract(Abstract):
         elif isinstance(index, str):
             return KeyAbstract(self, index)
         else:
-            raise TypeError("Index should be a str our number")
+            raise TypeError("Index should be a str or number")
 
     def __len__(self) -> int:
         raise Exception("Length not available as filter is evaluated on the fly")
 
     def keys(self) -> List[str]:
+        """
+        Returns
+        -------
+        List of strings
+        """
         if hasattr(self._data, "keys"):
             return self._data.keys()
         else:
@@ -807,7 +997,30 @@ def Filter(
     *arg: List,
     **kwargs: Dict
 ) -> Union[FilterAbstract, DataAbstract, np.ndarray, list]:
-    """Factory function to allow for choice between lazy and direct example selection"""
+    """
+    Factory function to allow for choice between lazy and direct example selection
+
+    Parameters
+    ----------
+    data : Iterable
+        Iterable object to be filtered
+    filter_fct : Callable
+        Callable function that needs to be applied
+    lazy : bool
+        apply lazily or not (default = True)
+    workers : int
+        amount of workers used for loading the data (default = 1)
+    buffer_len : int
+        buffer_len of the pool (default = 3)
+    arg : List
+        additional param to provide to the function if needed
+    kwargs : Dict
+        additional param to provide to the function if needed
+
+    Returns
+    -------
+    FilterAbstract OR DataAbstract OR np.ndarray OR list
+    """
     _abstract = True if isinstance(data, Abstract) else False
     if lazy:
         return FilterAbstract(data, filter_fct, **kwargs)
