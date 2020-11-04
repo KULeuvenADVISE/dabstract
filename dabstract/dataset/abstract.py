@@ -491,10 +491,21 @@ def SampleReplicate(
 
 class SplitAbstract(Abstract):
     """
-    Split the datastream
+    The class is an abstract wrapper around an iterable to split this iterable in a lazy manner. Splitting refers
+    to dividing the a particular example in multiple chunks, i.e. 60s examples are divided into 1s segments.
 
-    The SplitAbstract class offers the following key functionality, which can be called by the following methods::
+    Splitting is based on the parameters split_size, constraint, sample_len, sample_period and type.
 
+    If type is set to 'samples' one has to define 'sample_len' and 'split_size'. In that case 'sample_len' refers to
+    the amount of samples in one example, and split_size the size of one segment. 'sample_len' can be set as an integer
+    if all examples are of the same size OR a list of integers if these are different between examples.
+
+    If type is set to 'seconds' one has to define 'sample_len', 'split_size' and 'sample_period'. In this case each of
+    these variables are not samples but defined in terms of seconds. 'sample_period' additionally specifies the sample period
+    of these samples in order to properly split.
+
+    The SplitAbstract contains the following methods:
+    ::
     .get - return entry from SplitAbstract
     .keys - return attribute keys of data
 
@@ -508,7 +519,7 @@ class SplitAbstract(Abstract):
         split size in seconds/samples depending on 'metric'
     constraint : str
         option 'power2' creates sizes with a order of 2 (used for autoencoders)
-    sample_len : int
+    sample_len : int or List[int]
         sample length (default = None)
     sample_period : int
         sample period (default = None)
@@ -525,7 +536,7 @@ class SplitAbstract(Abstract):
         data: Iterable,
         split_size: int = None,
         constraint: str = None,
-        sample_len: int = None,
+        sample_len: Union[int,List[int]] = None,
         sample_period: int = None,
         type: str = "seconds",
         **kwargs: Dict
@@ -594,6 +605,7 @@ class SplitAbstract(Abstract):
             index to retrieve data from
         return_info : bool
             return tuple (data, info) if True else data (default = False)
+            info contains the information that has been propagated through the chain of operations
         arg : List
             additional param to provide to the function if needed
         kwargs : Dict
@@ -634,6 +646,8 @@ class SplitAbstract(Abstract):
 
     def keys(self) -> List[str]:
         """
+        This function returns the keys available in the data
+
         Returns
         -------
         List of strings
@@ -667,7 +681,12 @@ def Split(
     **kwargs: Dict
 ) -> Union[SplitAbstract, DataAbstract, np.ndarray, list]:
     """
-    Factory function to allow for choice between lazy and direct example splitting
+    Factory function to allow for choice between lazy and direct example splitting.
+
+    For both an instance of SplitAbstract is created. Different from lazy splitting, is that with direct splitting
+    all examples are immediately evaluated.
+
+    To have more information on splitting, please read the docstring of SplitAbstract().
 
     Parameters
     ----------
@@ -729,11 +748,37 @@ def Split(
 
 class SelectAbstract(Abstract):
     """
-    Select a subset of your input sequence. Selection is performed directly, this means that it should be a
-    variable which is readily available from memory.
+    Select a subset of your input sequence.
 
-    The SelectAbstract class offers the following key functionality, which can be called by the following methods::
+    Selection is based on a so called 'selector' which may have the form of a Callable or a list/np.ndarray of integers.
+    Important for these Callables is that they accept two arguments: (1) data to base selection on and (2) index of the
+    variable to be evaluated.
 
+    Regarding the selector one can use  set of build-in selectors in dabstract.dataset.select, lambda function, an own custom function
+    or indices. For example:
+
+    1) random subsampling with
+    ::
+        $  SelectAbstract(data, dabstract.dataset.select.random_subsample('ratio': 0.5))
+
+    2) select based on a key and a particular value
+    ::
+        $  SelectAbstract(data, dabstract.dataset.select.subsample_by_str('ratio': 0.5))
+
+    3) use the lambda function such as
+    ::
+        $  SelectAbstract(data, (lambda x,k: x['data']['subdb'][k]))
+
+    4) directly use indices
+    ::
+        $  indices = np.array[0,1,2,3,4])
+        $  SelectAbstract(data, indices)
+
+    If no 'eval_data' is used, the evaluation is performed on data available in 'data'. If 'eval_data' is available
+    the evaluation is performed on 'eval_data'
+
+    The SelectAbstract contains the following methods
+    ::
     .get - return entry from SelectAbstract
     .keys - return the list of keys
 
@@ -860,7 +905,12 @@ def Select(
     **kwargs
 ) -> Union[SelectAbstract, DataAbstract, np.ndarray, list]:
     """
-    Factory function to allow for choice between lazy and direct example selection
+    Factory function to allow for choice between lazy and direct example selection.
+
+    For both an instance of SelectAbstract is created. Different from lazy selecting, is that with direct selecting
+    all examples are immediately evaluated.
+
+    For more information on the functionality of Select please check the docstring of SelectAbstract().
 
     Parameters
     ----------
@@ -880,6 +930,7 @@ def Select(
         additional param to provide to the function if needed
 
     Returns
+    -------
     SelectAbstract OR DataAbstract OR np.ndarray OR list
     """
     _abstract = True if isinstance(data, Abstract) else False
@@ -898,8 +949,11 @@ class FilterAbstract(Abstract):
     """
     Filter on the fly. Interesting when the variable to filter on takes long to compute.
 
-    The FilterAbstract class offers the following key functionality, which can be called by the following methods::
+    When the FilterAbstract wrapper is applied, the length of your data is undefined as filtering is based on a net yet
+    excecuted function 'filter_fct'.
 
+    The FilterAbstract class contain the following methods
+    ::
     .get - return entry from FilterAbstract
     .keys - show the set of keys
 
@@ -998,7 +1052,12 @@ def Filter(
     **kwargs: Dict
 ) -> Union[FilterAbstract, DataAbstract, np.ndarray, list]:
     """
-    Factory function to allow for choice between lazy and direct example selection
+    Factory function to allow for choice between lazy and direct example selection.
+
+    For both an instance of FilterAbstract is created. Different from lazy filtering, is that with direct filtering
+    all examples are immediately evaluated.
+
+    For more information on the functionality of Filter please check the docstring of FilterAbstract().
 
     Parameters
     ----------

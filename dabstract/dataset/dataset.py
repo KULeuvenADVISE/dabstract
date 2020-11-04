@@ -23,29 +23,29 @@ class Dataset:
     This class should not be used on it's own. It is a base class for other datasets. When using this class as a base
     for your own dataset, one should use the following structure::
 
-        $ class EXAMPLE(dataset):
-        $     def __init__(self,
-        $                  paths=None,
-        $                  test_only=0,
-        $                  other=...
-        $                  **kwargs):
-        $         # init dict abstract
-        $         super().__init__(name=self.__class__.__name__,
-        $                          filter=filter,
-        $                          test_only=test_only)
-        $         #init other variables
-        $
-        $     # Data: get data
-        $     def set_data(self, paths):
-        $         # set up dataset containing the data and optional lazy mapping and so on
-        $         # the dataset is essentially a wrapped DictSeqAbstract. All your data is
-        $         # is accessible through self.. e.g. len(self), self.add, self.concat, ...
-        $         self.add('data', ... )
-        $         self.add('label', ... )
-        $         return self
-        $
-        $     def prepare(self,paths):
-        $         # prepare data here, i.e. download
+    $ class EXAMPLE(dataset):
+    $     def __init__(self,
+    $                  paths=None,
+    $                  test_only=0,
+    $                  other=...
+    $                  **kwargs):
+    $         # init dict abstract
+    $         super().__init__(name=self.__class__.__name__,
+    $                          filter=filter,
+    $                          test_only=test_only)
+    $         #init other variables
+    $
+    $     # Data: get data
+    $     def set_data(self, paths):
+    $         # set up dataset containing the data and optional lazy mapping and so on
+    $         # the dataset is essentially a wrapped DictSeqAbstract. All your data is
+    $         # is accessible through self.. e.g. len(self), self.add, self.concat, ...
+    $         self.add('data', ... )
+    $         self.add('label', ... )
+    $         return self
+    $
+    $     def prepare(self,paths):
+    $         # prepare data here, i.e. download
 
     One is advised to check the examples in dabstract/examples/introduction on how to work with datasets before reading
     the rest of this help.
