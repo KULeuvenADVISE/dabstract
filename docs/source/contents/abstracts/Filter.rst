@@ -1,6 +1,6 @@
 Filter
 ===============
-.. automodule:: dabstract.dataset.abstract
+.. automodule:: dabstract.abstract.abstract
    :members: Filter, FilterAbstract
    :undoc-members:
    :show-inheritance:

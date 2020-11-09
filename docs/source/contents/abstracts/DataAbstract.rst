@@ -1,6 +1,6 @@
 DataAbstract
 ===============
-.. automodule:: dabstract.dataset.abstract
+.. automodule:: dabstract.abstract.abstract
    :members: DataAbstract
    :undoc-members:
    :show-inheritance:
