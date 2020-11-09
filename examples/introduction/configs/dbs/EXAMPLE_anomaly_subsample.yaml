@@ -8,8 +8,8 @@ datasets:
       select:
         name: subsample_by_str
         parameters:
-          key: [data,subdb]
-          keep: normal
+          key: binary_anomaly
+          keep: 0
       test_only: 0
   - name: EXAMPLE
     parameters:
@@ -20,8 +20,8 @@ datasets:
       select:
         name: subsample_by_str
         parameters:
-          key: [data,subdb]
-          keep: abnormal
+          key: binary_anomaly
+          keep: 1
       test_only: 1
 select:
   name: random_subsample

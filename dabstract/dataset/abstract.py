@@ -536,7 +536,7 @@ class SplitAbstract(Abstract):
         data: Iterable,
         split_size: int = None,
         constraint: str = None,
-        sample_len: Union[int,List[int]] = None,
+        sample_len: Union[int, List[int]] = None,
         sample_period: int = None,
         type: str = "seconds",
         **kwargs: Dict

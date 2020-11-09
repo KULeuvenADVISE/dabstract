@@ -1,7 +1,5 @@
 import numpy as np
-from typing import (
-    TypeVar, List, Union
-)
+from typing import TypeVar, List, Union
 
 tvSubsampleFunc = TypeVar("subsample_fct")
 
@@ -26,13 +24,14 @@ def random_subsample(ratio: int = 1, **kwargs) -> tvSubsampleFunc:
     return func
 
 
-def subsample_by_str(key: str = None,
-                     keep: Union[str,List[str]] = None, **kwargs) -> tvSubsampleFunc:
+def subsample_by_str(
+    key: str = None, keep: Union[str, List[str]] = None, **kwargs
+) -> tvSubsampleFunc:
     """Subsampling fct: by string or list of strings"""
 
     def func(data):
         assert keep is not None
-        if not isinstance(keep,list):
+        if not isinstance(keep, list):
             kp = [keep]
         else:
             kp = keep

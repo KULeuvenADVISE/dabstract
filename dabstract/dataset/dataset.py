@@ -166,7 +166,6 @@ class Dataset:
         self._data.add_dict(data, lazy=lazy, **kwargs)
         self._update_internal_meta()
 
-
     def concat(
         self, data: tvDataset, intersect: bool = False, adjust_base: bool = True
     ) -> tvDataset:
@@ -193,7 +192,7 @@ class Dataset:
         data = copy.deepcopy(data)
         for par in data._param:
             self._param.append(par)
-        data['dataset_id'] = MapAbstract(data['dataset_id'],lambda x: x+1)
+        data["dataset_id"] = MapAbstract(data["dataset_id"], lambda x: x + 1)
         self._nr_datasets += data._nr_datasets
         # concat
         self2 = self if adjust_base else copy.deepcopy(self)
@@ -225,9 +224,10 @@ class Dataset:
             map_fct=map_fct,
         )
 
-    def _set_summary(self, paths: dict = dict(), test_only: bool = False, **kwargs) -> None:
-        """Internal function to set the summary
-        """
+    def _set_summary(
+        self, paths: dict = dict(), test_only: bool = False, **kwargs
+    ) -> None:
+        """Internal function to set the summary"""
         self._param = [
             {
                 "name": self.__class__.__name__,
@@ -238,14 +238,12 @@ class Dataset:
         ]
 
     def _update_internal_meta(self, test_only: bool = False):
-        """Internal function to set some internal meta
-        """
+        """Internal function to set some internal meta"""
         # Set other database meta
         if "test_only" not in self.keys():
             self.add("test_only", test_only * np.ones(len(self)))
         if "dataset_id" not in self.keys():
             self.add("dataset_id", np.zeros(len(self), np.int))
-
 
     def add_split(
         self,
@@ -433,8 +431,8 @@ class Dataset:
         if isinstance(selector, dict):
             if "parameters" in selector:
                 parameters = selector["parameters"]
-            if "name" in selector:
-                selector = selector["name"]
+            assert "name" in selector
+            selector = selector["name"]
         if isinstance(selector, str):
             module = selectm
             if not hasattr(module, selector):

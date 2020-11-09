@@ -8,6 +8,7 @@ from typing import TypeVar
 
 tvXvalFunction = TypeVar("cross_val_fct")
 
+
 def xval_from_item(key: str) -> tvXvalFunction:
     """Crossvalidation fct: start from split defined by item in dataset"""
 
@@ -17,8 +18,9 @@ def xval_from_item(key: str) -> tvXvalFunction:
         lst = [sample for sample in data[key]]
         ulst = unique_list([sample for sample in data[key]])
         for item in ulst:
-            xval_folds[item] = [np.where([_key==item for _key in lst])[0]]
+            xval_folds[item] = [np.where([_key == item for _key in lst])[0]]
         return xval_folds
+
     return get
 
 
