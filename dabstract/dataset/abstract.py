@@ -41,11 +41,26 @@ class UnpackAbstract(Abstract):
     The class is an abstract wrapper around a dictionary or DictSeqAbstract to unpack this dictionary in a lazy manner.
     Unpacking refers to copying the content of the dictionary into a list.
     
-    Unpacking is based on the parameter keys.
-    
+    Unpacking is based on the parameter "keys". For example, consider a Dict or DictSeqAbstract with the
+    following content::
+
+        $   data = {'data': [10,5,8],
+        $           'label': [1,1,2],
+        $           'other': ['some','other','information']
+
+    To index this such that it returns a tuple containing the indexed item of keys 'data' and 'label',
+    one can do::
+
+        $   data_up = UnpackAbstract(data,keys=['data','label'])
+        $   print(data_up[0])
+        [10, 1]
+
+    To index through the data one could directly use default indexing, i.e. [idx] or use the .get() method.
+
     The UnpackAbstract contains the following methods:
     ::
-    .get - return entry form UnpackAbstract
+
+        .get - return entry form UnpackAbstract
 
     The full explanation for each method is provided as a docstring at each method.
 
@@ -271,14 +286,76 @@ class MapAbstract(Abstract):
     """
     The class applies a mapping to data in a lazy manner.
 
-    The mapping is based on the parameters map_fct and info, and the optional parameters args and kwargs.
-
-    The UnpackAbstract contains the following methods:
+    For example, consider the following function:
     ::
-    .get - return entry from MapAbstract
-    .shape - return np.shape of first element of data if data is np.ndarray, return length of first element of
-    data if data has length attribute or return [] if first element of data is neither np.ndarray nor has length attribute
-    .keys - return attribute keys of data
+
+        $   def some_function(input, multiplier, logarithm=False)
+        $       output = input * multiplier
+        $       if logarithm:
+        $           output = np.log10(output)
+        $       return output
+
+    You can apply this function with multiplier=5 and logarithm=True as follows:
+    ::
+
+        $   data = [1,2,3]
+        $   data_map = MapAbstract(data,map_fct=some_function, 5, logarithm=True)
+        $   print(data_map[0])
+        0.6989
+
+    Similarly, one could use a lambda function:
+    ::
+
+        $   data = [1,2,3]
+        $   data_map = MapAbstract(data, lambda x: np.log10(x*5))
+        $   print(data_map[0])
+        0.6989
+
+    Another example is to use the ProcessingChain. This would allow propagation of information.
+    For example, assume the following ProcessingChain::
+
+        $   class custom_processor(Processor):
+        $       def process(self, data, **kwargs):
+        $           return data + 1, {'multiplier': 3}
+        $   class custom_processor2(Processor):
+        $       def process(self, data, **kwargs):
+        $           return data * kwargs['multiplier'], {}
+        $   dp = ProcessingChain()
+        $   dp.add(custom_processor)
+        $   dp.add(custom_processor2)
+
+    And add this to some data with a MapAbstract
+    ::
+
+        $   data = [1,2,3]
+        $   data_map = MapAbstract(data,map_fct=dp)
+        $   print(data_map[0])
+        6
+
+    When using a ProcessingChain one can utilise the fact that it propagates the so-called 'info' through lazy operations.
+    To obtain the information that has been progated, one can use the .get() method::
+
+        $   print(data_map.get(0, return_info=True)
+        (6, {'multiplier': 3, 'output_shape': ()})
+
+    For more information on how to use a ProcessingChain, please check dabstract.dataprocessor.ProcessingChain.
+
+    There are cases when one would like to use a function that has not been defined as a dabstract Processor, but
+    where it still is desired to for example propagate information, e.g. sampling frequency.
+    One can encapsulate information in a mapping function such as::
+
+        $   data = [1,2,3]
+        $   data_map = MapAbstract(data, (lambda x): x, info=({'fs': 16000}, {'fs': 16000}, {'fs': 16000}))
+        $   print(data_map[0])
+        (1, {'fs': 16000})
+
+    To index through the data one could directly use default indexing, i.e. [idx] or use the .get() method.
+
+    The MapAbstract contains the following methods:
+    ::
+
+        .get - return entry from MapAbstract
+        .keys - return attribute keys of data
 
     The full explanation for each method is provided as a docstring at each method.
 
@@ -289,7 +366,8 @@ class MapAbstract(Abstract):
     map_fct : Callable
         Callable object that defines the mapping
     info : List[Dict]
-        List of Dictionary containing information that has been propagated through the chain of operations
+        List of Dictionary containing information that will be propagated through the chain of operations.
+        Useful when the mapping function is not a ProcessingChain
         (default = None)
     arg : list
         additional param to provide to the function if needed
@@ -305,8 +383,8 @@ class MapAbstract(Abstract):
             self,
             data: Iterable,
             map_fct: Callable,
-            info: List[Dict] = None,
             *arg: list,
+            info: List[Dict] = None,
             **kwargs: dict
     ):
         assert callable(map_fct), map_fct
@@ -366,7 +444,7 @@ class MapAbstract(Abstract):
                     data, *self._args, **dict(self._kwargs, **info), return_info=True
                 )
             else:
-                data = self._map_fct(data)
+                data = self._map_fct(data, *self._args, **dict(self._kwargs, **info))
             return (data, info) if return_info else data
         elif isinstance(index, str):
             warnings.warn(
@@ -381,21 +459,6 @@ class MapAbstract(Abstract):
                             and other data including no keys."
             )
             # ToDo(gert) add a way to raise a error in case data does not contain any key.
-
-    def shape(self) -> Union[Tuple, int]:
-        """
-
-        Returns
-        -------
-        Tuple or int
-        """
-        data = self[0]
-        if isinstance(data, np.ndarray):
-            return data.shape
-        elif hasattr(data, "__len__"):
-            return len(data)
-        else:
-            return []
 
     def __len__(self) -> int:
         return len(self._data)
@@ -539,8 +602,13 @@ class SampleReplicateAbstract(Abstract):
     """
     Replicate data on sample-by-sample basis.
 
-    Sample replication is based on the parameter factor. This parameter is used to convert a given index into another
-    index. The latter index denotes the element in data that is used for a sample.
+    Sample replication is based on the parameter 'factor'. This parameter is used to control to replication ratio.
+    For example::
+
+        $ data = [1, 2, 3]
+        $ data_rep = SampleReplicateAbstract([1, 2, 3], factor = 3)
+        $ print([tmp for tmp in data_rep])
+        [1, 1, 1, 2, 2, 2, 3, 3, 3]
 
     The SampleReplicateAbstract contains the following methods:
     ::
@@ -1559,19 +1627,6 @@ class DictSeqAbstract(Abstract):
     def keys(self) -> List[str]:
         return list(self._data.keys())
 
-    def shape(self) -> Union[Tuple[int], int]:
-        if len(self._active_keys) == 1:
-            data = self[0]
-            if isinstance(data, np.ndarray):
-                return data.shape
-            elif hasattr(data, "__len__"):
-                return len(data)
-            else:
-                return []
-        raise NotImplementedError(
-            "Shape only available if a single active key is set and if that item has a .shape() method."
-        )
-
     def summary(self) -> Dict:
         summary = dict()
         for name, data in zip(self.keys(), self._data):
@@ -1692,15 +1747,6 @@ class SeqAbstract(Abstract):
 
     def summary(self) -> Dict:
         return {"nr_examples": self.nr_examples, "name": self._name}
-
-    def shape(self) -> Union[Tuple[int], int]:
-        data = self[0]
-        if isinstance(data, np.ndarray):
-            return data.shape
-        elif hasattr(data, "__len__"):
-            return len(data)
-        else:
-            return []
 
     def __repr__(self):
         r = "seq containing:"
