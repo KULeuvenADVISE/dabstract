@@ -115,7 +115,6 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Create an STFT, get mean and std over time and fit this to normalization (created from hardcoded configuration)
 from dabstract.dataprocessor import ProcessingChain
-from dabstract.dataprocessor.processors import *
 
 config = {'chain': [{'name': 'NumpyDatareader'},
                     {'name': 'Framing',
@@ -232,7 +231,7 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Example on how to use any function in a dabstract processing chain and still use info propagation
 # -- processing chain from config BIS
-from dabstract.dataprocessor import ProcessingChain, Processor
+from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
 
@@ -275,7 +274,7 @@ print('\n\n\n')
 from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
-from dabstract.dataset.abstract import MapAbstract, DataAbstract
+from dabstract.abstract.abstract import MapAbstract, DataAbstract
 
 # get yaml configuration and process with ProcessingChain()
 dp = load_yaml_config(filename='Readme_1_dp_config', path=os.path.join('configs','dp'),post_process=ProcessingChain)

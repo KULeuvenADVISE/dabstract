@@ -127,8 +127,7 @@ class ProcessingChain:
         **kwargs
     ) -> tvProcessingChain:
         """fit parameters"""
-        from dabstract.dataset.abstract import (
-            Abstract,
+        from dabstract.abstract.abstract import (
             SelectAbstract,
             MapAbstract,
             DataAbstract,

@@ -1,10 +1,9 @@
 import pathlib
 import pickle
-import types
 import soundfile as sf
 
 from dabstract.utils import safe_import_module
-from dabstract.dataset.abstract import *
+from dabstract.abstract.abstract import *
 from dabstract.dataset import dbs
 
 from typing import Any, List, Optional, TypeVar, Callable, Dict

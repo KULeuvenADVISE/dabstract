@@ -1,7 +1,6 @@
 import yaml
 import numpy as np
 import os
-from datetime import datetime
 import sys
 import itertools
 from pprint import pprint
@@ -406,7 +405,7 @@ def filter_data(
         Filtered iterable
     """
     # inits
-    from dabstract.dataset import abstract
+    from dabstract.abstract import abstract
 
     if isinstance(sel_vect, (np.int64, int)):
         sel_vect = np.array([sel_vect])

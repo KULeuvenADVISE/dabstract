@@ -1452,7 +1452,10 @@ class SeqAbstract(Abstract):
                     # get
                     if isinstance(self._data[k], Abstract):
                         data, info = data.get(
-                            index, key=key, return_info=True, **info, **kwargs
+                            index,
+                            return_info=True,
+                            **(info if key is None else dict(info, key=key)),
+                            **kwargs
                         )
                     else:
                         assert key is None
