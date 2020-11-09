@@ -23,29 +23,29 @@ class Dataset:
     This class should not be used on it's own. It is a base class for other datasets. When using this class as a base
     for your own dataset, one should use the following structure::
 
-    $ class EXAMPLE(dataset):
-    $     def __init__(self,
-    $                  paths=None,
-    $                  test_only=0,
-    $                  other=...
-    $                  **kwargs):
-    $         # init dict abstract
-    $         super().__init__(name=self.__class__.__name__,
-    $                          filter=filter,
-    $                          test_only=test_only)
-    $         #init other variables
-    $
-    $     # Data: get data
-    $     def set_data(self, paths):
-    $         # set up dataset containing the data and optional lazy mapping and so on
-    $         # the dataset is essentially a wrapped DictSeqAbstract. All your data is
-    $         # is accessible through self.. e.g. len(self), self.add, self.concat, ...
-    $         self.add('data', ... )
-    $         self.add('label', ... )
-    $         return self
-    $
-    $     def prepare(self,paths):
-    $         # prepare data here, i.e. download
+        $ class EXAMPLE(dataset):
+        $     def __init__(self,
+        $                  paths=None,
+        $                  test_only=0,
+        $                  other=...
+        $                  **kwargs):
+        $         # init dict abstract
+        $         super().__init__(name=self.__class__.__name__,
+        $                          filter=filter,
+        $                          test_only=test_only)
+        $         #init other variables
+        $
+        $     # Data: get data
+        $     def set_data(self, paths):
+        $         # set up dataset containing the data and optional lazy mapping and so on
+        $         # the dataset is essentially a wrapped DictSeqAbstract. All your data is
+        $         # is accessible through self.. e.g. len(self), self.add, self.concat, ...
+        $         self.add('data', ... )
+        $         self.add('label', ... )
+        $         return self
+        $
+        $     def prepare(self,paths):
+        $         # prepare data here, i.e. download
 
     One is advised to check the examples in dabstract/examples/introduction on how to work with datasets before reading
     the rest of this help.
@@ -53,10 +53,10 @@ class Dataset:
     To initialise this dataset the only mandatory field is paths and paths['feat'] specifically.
     Paths should be provided as such::
 
-    $   paths={'data': path_to_data,
-    $          'meta': path_to_meta,
-    $          'feat': path_to_feat}
-    $   dataset = EXAMPLE(paths={...})
+        $   paths={'data': path_to_data,
+        $          'meta': path_to_meta,
+        $          'feat': path_to_feat}
+        $   dataset = EXAMPLE(paths={...})
 
     The other entries
     for 'data' and 'meta' are just a suggestion and one can add as much as they like. However, it is advised to keep this convention
@@ -65,24 +65,24 @@ class Dataset:
     The class offers the following key functionality on top of your dataset definition, which can be called by
     the following methods::
 
-    .add - Add another key to the dataset
-    .add_dict - Add the keys and fields of an existing dataset or DictSeqAbstract to this one
-    .concat - concat dataset with dataset
-    .remove - remove key from dataset
-    .add_map - add mapping to a key
-    .add_split - add a splitting operation to your dataset
-    .add_select - apply a selection to your dataset
-    .add_alias - add an alias to another key
-    .keys - show the set of keys
-    .set_active_keys - set an active key
-    .reset_active_keys - reset the active keys
-    .unpack - unpack DictSeq to a list representation
-    .set_data - overwrite this method with yours to set your data
-    .load_memory - load a particular key into memory
-    .summary - show a summary of the dataset
-    .prepare_feat - compute the features and save to disk
-    .set_xval - set crossvalidation folds
-    .get_xval_set - get a subdataset givin the folds
+        .add - Add another key to the dataset
+        .add_dict - Add the keys and fields of an existing dataset or DictSeqAbstract to this one
+        .concat - concat dataset with dataset
+        .remove - remove key from dataset
+        .add_map - add mapping to a key
+        .add_split - add a splitting operation to your dataset
+        .add_select - apply a selection to your dataset
+        .add_alias - add an alias to another key
+        .keys - show the set of keys
+        .set_active_keys - set an active key
+        .reset_active_keys - reset the active keys
+        .unpack - unpack DictSeq to a list representation
+        .set_data - overwrite this method with yours to set your data
+        .load_memory - load a particular key into memory
+        .summary - show a summary of the dataset
+        .prepare_feat - compute the features and save to disk
+        .set_xval - set crossvalidation folds
+        .get_xval_set - get a subdataset givin the folds
 
     The full explanation for each method is provided as a docstring at each method.
 

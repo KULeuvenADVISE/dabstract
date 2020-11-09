@@ -240,8 +240,8 @@ class MapAbstract(Abstract):
         self,
         data: Iterable,
         map_fct: Callable,
-        info: List[Dict] = None,
         *arg: list,
+        info: List[Dict] = None,
         **kwargs: dict
     ):
         assert callable(map_fct), map_fct
@@ -283,7 +283,7 @@ class MapAbstract(Abstract):
                     data, *self._args, **dict(self._kwargs, **info), return_info=True
                 )
             else:
-                data = self._map_fct(data)
+                data = self._map_fct(data, *self._args, **dict(self._kwargs, **info))
             return (data, info) if return_info else data
         elif isinstance(index, str):
             warnings.warn(
@@ -298,15 +298,6 @@ class MapAbstract(Abstract):
                             and other data including no keys."
             )
             # ToDo(gert) add a way to raise a error in case data does not contain any key.
-
-    def shape(self) -> Union[Tuple, int]:
-        data = self[0]
-        if isinstance(data, np.ndarray):
-            return data.shape
-        elif hasattr(data, "__len__"):
-            return len(data)
-        else:
-            return []
 
     def __len__(self) -> int:
         return len(self._data)
@@ -779,8 +770,8 @@ class SelectAbstract(Abstract):
 
     The SelectAbstract contains the following methods
     ::
-    .get - return entry from SelectAbstract
-    .keys - return the list of keys
+        .get - return entry from SelectAbstract
+        .keys - return the list of keys
 
     The full explanation for each method is provided as a docstring at each method.
 
@@ -1358,19 +1349,6 @@ class DictSeqAbstract(Abstract):
     def keys(self) -> List[str]:
         return list(self._data.keys())
 
-    def shape(self) -> Union[Tuple[int], int]:
-        if len(self._active_keys) == 1:
-            data = self[0]
-            if isinstance(data, np.ndarray):
-                return data.shape
-            elif hasattr(data, "__len__"):
-                return len(data)
-            else:
-                return []
-        raise NotImplementedError(
-            "Shape only available if a single active key is set and if that item has a .shape() method."
-        )
-
     def summary(self) -> Dict:
         summary = dict()
         for name, data in zip(self.keys(), self._data):
@@ -1491,15 +1469,6 @@ class SeqAbstract(Abstract):
 
     def summary(self) -> Dict:
         return {"nr_examples": self.nr_examples, "name": self._name}
-
-    def shape(self) -> Union[Tuple[int], int]:
-        data = self[0]
-        if isinstance(data, np.ndarray):
-            return data.shape
-        elif hasattr(data, "__len__"):
-            return len(data)
-        else:
-            return []
 
     def __repr__(self):
         r = "seq containing:"
