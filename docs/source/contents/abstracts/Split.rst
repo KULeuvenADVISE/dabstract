@@ -1,6 +1,6 @@
 Split
 ===============
-.. automodule:: dabstract.abstract.abstract
+.. automodule:: dabstract.dataset.abstract
    :members: Split, SplitAbstract
    :undoc-members:
    :show-inheritance:

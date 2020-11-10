@@ -1,6 +1,6 @@
 Parallel_op
 ===============
-.. automodule:: dabstract.abstract.abstract
+.. automodule:: dabstract.dataset.abstract
    :members: parallel_op
    :undoc-members:
    :show-inheritance:

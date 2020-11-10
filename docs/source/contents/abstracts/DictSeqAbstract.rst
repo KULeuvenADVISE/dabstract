@@ -1,6 +1,6 @@
 DictSeqAbstract
 ===============
-.. automodule:: dabstract.abstract.abstract
+.. automodule:: dabstract.dataset.abstract
    :members: DictSeqAbstract
    :undoc-members:
    :show-inheritance:

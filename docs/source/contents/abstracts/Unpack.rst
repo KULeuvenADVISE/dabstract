@@ -1,6 +1,6 @@
 Unpack
 ===============
-.. automodule:: dabstract.abstract.abstract
+.. automodule:: dabstract.dataset.abstract
    :members: Unpack, UnpackAbstract
    :undoc-members:
    :show-inheritance:
