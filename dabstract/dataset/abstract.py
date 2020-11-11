@@ -121,11 +121,11 @@ class UnpackAbstract(Abstract):
 def parallel_op(
         data: Iterable,
         type: str = "threadpool",
-        *args: list,
         workers: int = 0,
         buffer_len: int = 3,
         return_info: bool = False,
-        **kwargs
+        *args: list,
+        **kwargs: Dict
 ) -> Generator:
     """Apply a multiproc generator to the input sequence"""
     # define function to evaluate
@@ -169,6 +169,7 @@ class DataAbstract(Abstract):
             workers: int = 0,
             buffer_len: int = 3,
             load_memory: bool = False,
+            *args: List,
             **kwargs: Dict
     ):
         self._data = data
@@ -176,6 +177,7 @@ class DataAbstract(Abstract):
         self._workers = workers
         self._buffer_len = buffer_len
         self._load_memory = load_memory
+        self._args = args
         self._kwargs = kwargs
 
     def __iter__(self) -> Any:
@@ -188,6 +190,7 @@ class DataAbstract(Abstract):
     def __iter__(self) -> Generator:
         return parallel_op(
             self._data,
+            *self._args,
             workers=self._workers,
             buffer_len=self._buffer_len,
             return_info=False,
@@ -200,13 +203,13 @@ class DataAbstract(Abstract):
     def get(
             self,
             index: Iterable,
-            *args: list,
             return_info: bool = False,
             workers: int = 0,
             buffer_len: int = 3,
             return_generator: bool = False,
             verbose: bool = False,
-            **kwargs
+            *args: list,
+            **kwargs: Dict
     ) -> Any:
         if isinstance(index, numbers.Integral):
             if self._abstract:
@@ -222,6 +225,7 @@ class DataAbstract(Abstract):
             gen = parallel_op(
                 _data,
                 *args,
+                *self._args,
                 workers=workers,
                 buffer_len=buffer_len,
                 return_info=return_info,
@@ -383,18 +387,18 @@ class MapAbstract(Abstract):
             self,
             data: Iterable,
             map_fct: Callable,
-            *arg: list,
             info: List[Dict] = None,
-            **kwargs: dict
+            *args: list,
+            **kwargs: Dict
     ):
         assert callable(map_fct), map_fct
         self._map_fct = map_fct
         self._data = data
         self._chain = True if isinstance(map_fct, ProcessingChain) else False
         self._abstract = True if isinstance(data, Abstract) else False
-        self._kwargs = kwargs
         self._info = info
-        self._args = arg
+        self._args = args
+        self._kwargs = kwargs
 
     def __iter__(self) -> Generator:
         for k in range(len(self)):
@@ -410,7 +414,7 @@ class MapAbstract(Abstract):
         )
 
     def get(
-            self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
 
@@ -434,17 +438,17 @@ class MapAbstract(Abstract):
             if index < 0:
                 index = index % len(self)
             if self._abstract:
-                data, info = self._data.get(index, return_info=True, *arg, **kwargs)
+                data, info = self._data.get(index, *args, return_info=True, **kwargs)
             else:
                 data, info = self._data[index], kwargs
-            if self._info is not None:
-                info = dict(info, **self._info[index])
             if self._chain:
                 data, info = self._map_fct(
                     data, *self._args, **dict(self._kwargs, **info), return_info=True
                 )
             else:
                 data = self._map_fct(data, *self._args, **dict(self._kwargs, **info))
+            if self._info is not None:
+                info = dict(info, **self._info[index])
             return (data, info) if return_info else data
         elif isinstance(index, str):
             warnings.warn(
@@ -524,10 +528,10 @@ def Map(
 
     _abstract = True if isinstance(data, Abstract) else False
     if lazy:
-        return MapAbstract(data, map_fct, info=info, *arg, **kwargs)
+        return MapAbstract(data, map_fct, *arg, info=info, **kwargs)
     else:
         return DataAbstract(
-            MapAbstract(data, map_fct, info=info, *arg, **kwargs),
+            MapAbstract(data, map_fct, *arg, info=info, **kwargs),
             workers=workers,
             buffer_len=buffer_len,
         )[:]
@@ -748,7 +752,7 @@ def SampleReplicate(
     """
     _abstract = True if isinstance(data, Abstract) else False
     if lazy:
-        return SampleReplicateAbstract(data, factor, **kwargs)
+        return SampleReplicateAbstract(data, factor, *arg, **kwargs)
     else:
         # ToDo: replace by a list and np equivalent
         return DataAbstract(
@@ -808,7 +812,6 @@ class SplitAbstract(Abstract):
             sample_len: Union[int, List[int]] = None,
             sample_period: int = None,
             type: str = "seconds",
-            **kwargs: Dict
     ):
         self._data = data
         assert split_size is not None, "Please provide a split in " + type
@@ -820,7 +823,6 @@ class SplitAbstract(Abstract):
             self._sample_len = self._sample_len * np.ones(len(data))
         self._sample_period = sample_period
         self._abstract = True if isinstance(data, Abstract) else False
-        self._kwargs = kwargs
         self._init_split()
 
     def _init_split(self):
@@ -865,7 +867,7 @@ class SplitAbstract(Abstract):
         return self.get(index)
 
     def get(
-            self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
         Parameters
@@ -896,11 +898,10 @@ class SplitAbstract(Abstract):
                     if self._abstract:
                         data, info = self._data.get(
                             k,
+                            *args,
                             return_info=True,
-                            *arg,
+                            read_range=read_range,
                             **kwargs,
-                            **self._kwargs,
-                            read_range=read_range
                         )
                     else:
                         data, info = self._data[k][read_range[0]: read_range[1]], {}
@@ -946,7 +947,7 @@ def Split(
         lazy: bool = True,
         workers: bool = 1,
         buffer_len: int = 3,
-        *arg: List,
+        *args: List,
         **kwargs: Dict
 ) -> Union[SplitAbstract, DataAbstract, np.ndarray, list]:
     """
@@ -995,7 +996,6 @@ def Split(
             sample_len=sample_len,
             sample_period=sample_period,
             type=type,
-            **kwargs
         )
     else:
         # ToDo: replace by a list and np equivalent
@@ -1007,8 +1007,6 @@ def Split(
                 sample_len=sample_len,
                 sample_period=sample_period,
                 type=type,
-                *arg,
-                **kwargs
             ),
             workers=workers,
             buffer_len=buffer_len,
@@ -1074,6 +1072,7 @@ class SelectAbstract(Abstract):
             data: Iterable,
             selector: Union[List[int], Callable, numbers.Integral],
             eval_data: Any = None,
+            *args,
             **kwargs: Dict
     ):
         self._data = data
@@ -1081,10 +1080,10 @@ class SelectAbstract(Abstract):
         self._selector = selector
         if callable(selector):
             if len(inspect.getargspec(selector)[0]) == 1:
-                self._indices = selector(self._eval_data)
+                self._indices = selector(self._eval_data, *args, **kwargs)
             else:
                 self._indices = np.where(
-                    [selector(self._eval_data, k) for k in range(len(self._eval_data))]
+                    [selector(self._eval_data, k, *args, **kwargs) for k in range(len(self._eval_data))]
                 )[0]
         elif isinstance(selector, slice):
             self._indices = np.arange(
@@ -1097,7 +1096,6 @@ class SelectAbstract(Abstract):
         elif isinstance(selector, numbers.Integral):
             self._indices = [selector]
         self._abstract = True if isinstance(data, Abstract) else False
-        self._kwargs = kwargs
         if self._abstract:
             if hasattr(self._data, "_lazy"):
                 if not self._data._lazy:
@@ -1111,7 +1109,7 @@ class SelectAbstract(Abstract):
         return self.get(index)
 
     def get(
-            self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
         Parameters
@@ -1134,7 +1132,7 @@ class SelectAbstract(Abstract):
             index = self._indices[index]
             if self._abstract:
                 data, info = self._data.get(
-                    index, return_info=True, *arg, **kwargs, **self._kwargs
+                    index, return_info=True, *args, **kwargs
                 )
             else:
                 data, info = self._data[index], {}
@@ -1170,8 +1168,8 @@ def Select(
         lazy: bool = True,
         workers: int = 1,
         buffer_len: int = 3,
-        *arg,
-        **kwargs
+        *args: List,
+        **kwargs: Dict
 ) -> Union[SelectAbstract, DataAbstract, np.ndarray, list]:
     """
     Factory function to allow for choice between lazy and direct example selection.
@@ -1204,11 +1202,11 @@ def Select(
     """
     _abstract = True if isinstance(data, Abstract) else False
     if lazy:
-        return SelectAbstract(data, selector, eval_data=eval_data, **kwargs)
+        return SelectAbstract(data, selector, *args, eval_data=eval_data, **kwargs)
     else:
         # ToDo: replace by a list and np equivalent
         return DataAbstract(
-            SelectAbstract(data, selector, eval_data=eval_data, *arg, **kwargs),
+            SelectAbstract(data, selector, *args, eval_data=eval_data, **kwargs),
             workers=workers,
             buffer_len=buffer_len,
         )[:]
@@ -1242,16 +1240,17 @@ class FilterAbstract(Abstract):
     FilterAbstract class
     """
 
-    def __init__(self, data: Iterable, filter_fct: Callable, **kwargs):
+    def __init__(self, data: Iterable, filter_fct: Callable, *args, **kwargs):
         assert callable(filter_fct), filter_fct
         self.filter_fct = filter_fct
         self.abstract = data
+        self._args = args
         self._kwargs = kwargs
 
     def __iter__(self) -> Generator:
         for index in range(len(self)):
             data = self.get(index)
-            if self.filter_fct(data):
+            if self.filter_fct(data, *self._args, **self._kwargs):
                 yield data
 
     def __getitem__(self, index: int) -> Any:
@@ -1283,8 +1282,7 @@ class FilterAbstract(Abstract):
             assert index < len(self)
             if self._abstract:
                 data, info = self._data.get(
-                    index, return_info=True, *arg, **kwargs, **self._kwargs
-                )
+                    index, return_info=True, *arg, **kwargs)
             else:
                 data, info = self._data[index], {}
             return (data, info) if return_info else data
@@ -1366,11 +1364,10 @@ class KeyAbstract(Abstract):
     This will allow for key/index indexing even if the particular index does not have a key.
     """
 
-    def __init__(self, data: Iterable, key: str, **kwargs: Dict):
+    def __init__(self, data: Iterable, key: str):
         assert isinstance(data, Abstract)
         self._data = data
         self._key = key
-        self._kwargs = kwargs
 
     def __iter__(self) -> Generator:
         for k in range(len(self)):
@@ -1388,10 +1385,9 @@ class KeyAbstract(Abstract):
                 data, info = self._data.get(
                     key=self._key,
                     index=index,
-                    return_info=True,
                     *arg,
+                    return_info=True,
                     **kwargs,
-                    **self._kwargs
                 )
             except:
                 data, info = None, {}

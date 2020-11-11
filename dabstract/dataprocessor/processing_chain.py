@@ -98,7 +98,7 @@ class ProcessingChain:
         kwargs = copy.deepcopy(kwargs)  # ensure immutability
         for chain in self._chain:
             # process
-            data, info_out = chain.process(data, return_info=True, **kwargs)
+            data, info_out = chain.process(data, **kwargs)
             # update info dictionary
             kwargs.update(info_out)
         # add output shape info
