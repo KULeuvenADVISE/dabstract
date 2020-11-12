@@ -37,7 +37,43 @@ class Abstract:
 
 
 class UnpackAbstract(Abstract):
-    """Unpack a dictionary into a list"""
+    """
+    The class is an abstract wrapper around a dictionary or DictSeqAbstract to unpack this dictionary in a lazy manner.
+    Unpacking refers to copying the content of the dictionary into a list.
+    
+    Unpacking is based on the parameter "keys". For example, consider a Dict or DictSeqAbstract with the
+    following content::
+
+        $   data = {'data': [10,5,8],
+        $           'label': [1,1,2],
+        $           'other': ['some','other','information']
+
+    To index this such that it returns a tuple containing the indexed item of keys 'data' and 'label',
+    one can do::
+
+        $   data_up = UnpackAbstract(data,keys=['data','label'])
+        $   print(data_up[0])
+        [10, 1]
+
+    To index through the data one could directly use default indexing, i.e. [idx] or use the .get() method.
+
+    The UnpackAbstract contains the following methods::
+
+        .get - return entry form UnpackAbstract
+
+    The full explanation for each method is provided as a docstring at each method.
+
+    Parameters
+    ----------
+    data : dict or tvDictSeqAbstract
+        dictionary or DictSeqAbstract to be unpacked
+    keys : List[str]
+        list containing the strings that are used as keys
+    
+    Returns
+    ----------
+    UnpackAbstract class
+    """
 
     def __init__(self, data: dict or tvDictSeqAbstract, keys: List[str]):
         self._data = data
@@ -45,6 +81,18 @@ class UnpackAbstract(Abstract):
         self._abstract = True if isinstance(data, Abstract) else False
 
     def get(self, index: int, return_info: bool = False) -> List[Any]:
+        """
+        Parameters
+        ----------
+        index : int
+            index to retrieve data from
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+            info contains the information that has been propagated through the chain of operations
+        Returns
+        ----------
+        List of Any
+        """
         if isinstance(index, numbers.Integral):
             out = list()
             if len(self._keys) == 1:
@@ -70,13 +118,13 @@ class UnpackAbstract(Abstract):
 
 
 def parallel_op(
-    data: Iterable,
-    type: str = "threadpool",
-    *args: list,
-    workers: int = 0,
-    buffer_len: int = 3,
-    return_info: bool = False,
-    **kwargs
+        data: Iterable,
+        type: str = "threadpool",
+        workers: int = 0,
+        buffer_len: int = 3,
+        return_info: bool = False,
+        *args: list,
+        **kwargs: Dict
 ) -> Generator:
     """Apply a multiproc generator to the input sequence"""
     # define function to evaluate
@@ -115,18 +163,20 @@ class DataAbstract(Abstract):
     """Allow for multi-indexing and multi-processing on a sequence or dictseq"""
 
     def __init__(
-        self,
-        data: Iterable,
-        workers: int = 0,
-        buffer_len: int = 3,
-        load_memory: bool = False,
-        **kwargs: Dict
+            self,
+            data: Iterable,
+            workers: int = 0,
+            buffer_len: int = 3,
+            load_memory: bool = False,
+            *args: List,
+            **kwargs: Dict
     ):
         self._data = data
         self._abstract = True if isinstance(data, Abstract) else False
         self._workers = workers
         self._buffer_len = buffer_len
         self._load_memory = load_memory
+        self._args = args
         self._kwargs = kwargs
 
     def __iter__(self) -> Any:
@@ -139,6 +189,7 @@ class DataAbstract(Abstract):
     def __iter__(self) -> Generator:
         return parallel_op(
             self._data,
+            *self._args,
             workers=self._workers,
             buffer_len=self._buffer_len,
             return_info=False,
@@ -149,15 +200,15 @@ class DataAbstract(Abstract):
         return self.__iter__()
 
     def get(
-        self,
-        index: Iterable,
-        *args: list,
-        return_info: bool = False,
-        workers: int = 0,
-        buffer_len: int = 3,
-        return_generator: bool = False,
-        verbose: bool = False,
-        **kwargs
+            self,
+            index: Iterable,
+            return_info: bool = False,
+            workers: int = 0,
+            buffer_len: int = 3,
+            return_generator: bool = False,
+            verbose: bool = False,
+            *args: list,
+            **kwargs: Dict
     ) -> Any:
         if isinstance(index, numbers.Integral):
             if self._abstract:
@@ -173,6 +224,7 @@ class DataAbstract(Abstract):
             gen = parallel_op(
                 _data,
                 *args,
+                *self._args,
                 workers=workers,
                 buffer_len=buffer_len,
                 return_info=return_info,
@@ -197,7 +249,7 @@ class DataAbstract(Abstract):
                             if isinstance(tmp_data, (np.ndarray)):
                                 data_out = np.zeros((len(_data),) + tmp_data.shape)
                             elif isinstance(
-                                tmp_data, (np.int, np.int64, int, np.float64)
+                                    tmp_data, (np.int, np.int64, int, np.float64)
                             ):
                                 data_out = np.zeros((len(_data), 1))
                             else:
@@ -227,31 +279,120 @@ class DataAbstract(Abstract):
 
     def __repr__(self) -> str:
         return (
-            class_str(self._data)
-            + "\n data abstract: multi_processing "
-            + str((True if self._workers > 0 else False))
+                class_str(self._data)
+                + "\n data abstract: multi_processing "
+                + str((True if self._workers > 0 else False))
         )
 
 
 class MapAbstract(Abstract):
-    """Add a mapping on input data"""
+    """
+    The class applies a mapping to data in a lazy manner.
+
+    For example, consider the following function::
+
+        $   def some_function(input, multiplier, logarithm=False)
+        $       output = input * multiplier
+        $       if logarithm:
+        $           output = np.log10(output)
+        $       return output
+
+    You can apply this function with multiplier=5 and logarithm=True as follows::
+
+        $   data = [1,2,3]
+        $   data_map = MapAbstract(data,map_fct=some_function, 5, logarithm=True)
+        $   print(data_map[0])
+        0.6989
+
+    Similarly, one could use a lambda function::
+
+        $   data = [1,2,3]
+        $   data_map = MapAbstract(data, lambda x: np.log10(x*5))
+        $   print(data_map[0])
+        0.6989
+
+    Another example is to use the ProcessingChain. This would allow propagation of information.
+    For example, assume the following ProcessingChain::
+
+        $   class custom_processor(Processor):
+        $       def process(self, data, **kwargs):
+        $           return data + 1, {'multiplier': 3}
+        $   class custom_processor2(Processor):
+        $       def process(self, data, **kwargs):
+        $           return data * kwargs['multiplier'], {}
+        $   dp = ProcessingChain()
+        $   dp.add(custom_processor)
+        $   dp.add(custom_processor2)
+
+    And add this to some data with a MapAbstract::
+
+        $   data = [1,2,3]
+        $   data_map = MapAbstract(data,map_fct=dp)
+        $   print(data_map[0])
+        6
+
+    When using a ProcessingChain one can utilise the fact that it propagates the so-called 'info' through lazy operations.
+    To obtain the information that has been progated, one can use the .get() method::
+
+        $   print(data_map.get(0, return_info=True)
+        (6, {'multiplier': 3, 'output_shape': ()})
+
+    For more information on how to use a ProcessingChain, please check dabstract.dataprocessor.ProcessingChain.
+
+    There are cases when one would like to use a function that has not been defined as a dabstract Processor, but
+    where it still is desired to for example propagate information, e.g. sampling frequency.
+    One can encapsulate information in a mapping function such as::
+
+        $   data = [1,2,3]
+        $   data_map = MapAbstract(data, (lambda x): x, info=({'fs': 16000}, {'fs': 16000}, {'fs': 16000}))
+        $   print(data_map[0])
+        (1, {'fs': 16000})
+
+    To index through the data one could directly use default indexing, i.e. [idx] or use the .get() method.
+
+    The MapAbstract contains the following methods::
+
+        .get - return entry from MapAbstract
+        .keys - return attribute keys of data
+
+    The full explanation for each method is provided as a docstring at each method.
+
+    Parameters
+    ----------
+    data : Iterable
+        Iterable object to be mapped
+    map_fct : Callable
+        Callable object that defines the mapping
+    info : List[Dict]
+        List of Dictionary containing information that will be propagated through the chain of operations.
+        Useful when the mapping function is not a ProcessingChain
+        (default = None)
+    arg : list
+        additional param to provide to the function if needed
+    kwargs : dict
+        additional param to provide to the function if needed
+
+    Returns
+    ----------
+    MapAbstract class
+    """
 
     def __init__(
-        self,
-        data: Iterable,
-        map_fct: Callable,
-        *arg: list,
-        info: List[Dict] = None,
-        **kwargs: dict
+            self,
+            data: Iterable,
+            map_fct: Callable,
+            info: List[Dict] = None,
+            *args: list,
+            **kwargs: Dict
     ):
         assert callable(map_fct), map_fct
         self._map_fct = map_fct
         self._data = data
         self._chain = True if isinstance(map_fct, ProcessingChain) else False
         self._abstract = True if isinstance(data, Abstract) else False
-        self._kwargs = kwargs
         self._info = info
-        self._args = arg
+        self._args = args
+        self._kwargs = kwargs
 
     def __iter__(self) -> Generator:
         for k in range(len(self)):
@@ -267,23 +408,41 @@ class MapAbstract(Abstract):
         )
 
     def get(
-        self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
+        """
+
+        Parameters
+        ----------
+        index : int
+            index to retrieve data from
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+            info contains the information that has been propagated through the chain of operations
+        arg : List
+            additional param to provide to the function if needed
+        kwargs : Dict
+            additional param to provide to the function if needed
+
+        Returns
+        -------
+        List OR np.ndarray OR Any
+        """
         if isinstance(index, numbers.Integral):
             if index < 0:
                 index = index % len(self)
             if self._abstract:
-                data, info = self._data.get(index, return_info=True, *arg, **kwargs)
+                data, info = self._data.get(index, *args, return_info=True, **kwargs)
             else:
                 data, info = self._data[index], kwargs
-            if self._info is not None:
-                info = dict(info, **self._info[index])
             if self._chain:
                 data, info = self._map_fct(
                     data, *self._args, **dict(self._kwargs, **info), return_info=True
                 )
             else:
                 data = self._map_fct(data, *self._args, **dict(self._kwargs, **info))
+            if self._info is not None:
+                info = dict(info, **self._info[index])
             return (data, info) if return_info else data
         elif isinstance(index, str):
             warnings.warn(
@@ -303,6 +462,12 @@ class MapAbstract(Abstract):
         return len(self._data)
 
     def keys(self) -> List[str]:
+        """
+
+        Returns
+        -------
+        List of strings
+        """
         if hasattr(self._data, "keys"):
             return self._data.keys()
         else:
@@ -313,22 +478,54 @@ class MapAbstract(Abstract):
 
 
 def Map(
-    data,
-    map_fct: Callable,
-    info: List[Dict] = None,
-    lazy: bool = True,
-    workers: int = 1,
-    buffer_len: int = 3,
-    *arg: list,
-    **kwargs: Dict
+        data,
+        map_fct: Callable,
+        info: List[Dict] = None,
+        lazy: bool = True,
+        workers: int = 1,
+        buffer_len: int = 3,
+        *arg: list,
+        **kwargs: Dict
 ) -> Union[MapAbstract, DataAbstract, np.ndarray, list]:
-    """Factory function to allow for choice between lazy and direct mapping"""
+    """
+    Factory function to allow for choice between lazy and direct mapping.
+
+    For both an instance of MapAbstract is created. Different from lazy mapping, is that with direct mapping all examples
+    are immediately evaluated.
+
+    To have more information on mapping, please read the docstring of MapAbstract().
+
+    Parameters
+    -------
+    data :
+        The data that needs to be mapped
+    map_fct : Callable
+        Callable object that defines the mapping
+    info : List[Dict]
+        List of Dictionary containing information that has been propagated through the chain of operations
+        (default = None)
+    lazy : bool
+        apply lazily or not (default = True)
+    workers : int
+        amount of workers used for loading the data (default = 1)
+    buffer_len : int
+        buffer_len of the pool (default = 3)
+    arg : list
+        additional param to provide to the function if needed
+    kwargs : Dict
+        additional param to provide to the function if needed
+
+    Returns
+    -------
+    MapAbstract OR DataAbstract OR np.ndarray OR list
+    """
+
     _abstract = True if isinstance(data, Abstract) else False
     if lazy:
-        return MapAbstract(data, map_fct, info=info, *arg, **kwargs)
+        return MapAbstract(data, map_fct, *arg, info=info, **kwargs)
     else:
         return DataAbstract(
-            MapAbstract(data, map_fct, info=info, *arg, **kwargs),
+            MapAbstract(data, map_fct, *arg, info=info, **kwargs),
             workers=workers,
             buffer_len=buffer_len,
         )[:]
@@ -400,7 +597,37 @@ def Map(
 
 
 class SampleReplicateAbstract(Abstract):
-    """Replicate data on sample-by-sample basis"""
+    """
+    Replicate data on sample-by-sample basis.
+
+    Sample replication is based on the parameter 'factor'. This parameter is used to control to replication ratio.
+    For example::
+
+        $ data = [1, 2, 3]
+        $ data_rep = SampleReplicateAbstract([1, 2, 3], factor = 3)
+        $ print([tmp for tmp in data_rep])
+        [1, 1, 1, 2, 2, 2, 3, 3, 3]
+
+    The SampleReplicateAbstract contains the following methods::
+
+    .get - return entry form SampleReplicateAbstract
+    .keys - return the list of keys
+
+    The full explanation for each method is provided as a docstring at each method.
+
+    Parameters
+    -------
+    data : Iterable
+        input data to replicate on a sample-by-sample basis
+    factor : int
+        integer used to compute an index for element in data used as sample
+    kwargs : Dict
+        additional param to provide to the function if needed
+
+    Returns
+    -------
+    SampleReplicateAbstract class
+    """
 
     def __init__(self, data: Iterable, factor: int, **kwargs: Dict):
         self._data = data
@@ -417,8 +644,24 @@ class SampleReplicateAbstract(Abstract):
         return self.get(index)
 
     def get(
-        self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
+        """
+        Parameters
+        ----------
+        index : int
+            index to sample from data
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+        arg : List
+            additional param to provide to the function if needed
+        kwargs : Dict
+            additional param to provide to the function if needed
+
+        Returns
+        -------
+        List OR np.ndarray OR Any
+        """
         if isinstance(index, numbers.Integral):
             assert index < len(self), "Index should be lower than len(dataset)"
             if index < 0:
@@ -443,6 +686,11 @@ class SampleReplicateAbstract(Abstract):
         return int(np.sum(self._factor))
 
     def keys(self) -> List[str]:
+        """
+        Returns
+        -------
+        List of strings
+        """
         if hasattr(self._data, "keys"):
             return self._data.keys()
         else:
@@ -450,27 +698,55 @@ class SampleReplicateAbstract(Abstract):
 
     def __repr__(self) -> str:
         return (
-            self._data.__repr__()
-            + "\n replicate: "
-            + str(self._factor.min())
-            + " - "
-            + str(self._factor.max())
+                self._data.__repr__()
+                + "\n replicate: "
+                + str(self._factor.min())
+                + " - "
+                + str(self._factor.max())
         )
 
 
 def SampleReplicate(
-    data: Iterable,
-    factor: int,
-    lazy: bool = True,
-    workers: int = 1,
-    buffer_len: int = 3,
-    *arg: List,
-    **kwargs: Dict
+        data: Iterable,
+        factor: int,
+        lazy: bool = True,
+        workers: int = 1,
+        buffer_len: int = 3,
+        *arg: List,
+        **kwargs: Dict
 ) -> Union[SampleReplicateAbstract, DataAbstract, np.ndarray, list]:
-    """Factory function to allow for choice between lazy and direct sample replication"""
+    """
+    Factory function to allow for choice between lazy and direct sample replication.
+
+    For both an instance of SampleReplicateAbstract is created. Different from sample replication, is that with direct
+    sample replication all examples are immediately evaluated.
+
+    To have more information on sample replication, please read the docstring of SampleReplicateAbstract().
+
+    Parameters
+    -------
+    data : Iterable
+        input data to perform sample replication on
+    factor : int
+        integer used to compute an index for element in data used as sample
+    lazy : bool
+        apply lazily or not (default = True)
+    workers : int
+        amount of workers used for loading the data (default = 1)
+    buffer_len : int
+        buffer_len of the pool (default = 3)
+    arg : List
+        additional param to provide to the function if needed
+    kwargs : Dict
+        additional param to provide to the function if needed
+
+    Returns
+    -------
+    SampleReplicateAbstract OR DataAbstract OR np.ndarray OR list
+    """
     _abstract = True if isinstance(data, Abstract) else False
     if lazy:
-        return SampleReplicateAbstract(data, factor, **kwargs)
+        return SampleReplicateAbstract(data, factor, *arg, **kwargs)
     else:
         # ToDo: replace by a list and np equivalent
         return DataAbstract(
@@ -495,10 +771,10 @@ class SplitAbstract(Abstract):
     these variables are not samples but defined in terms of seconds. 'sample_period' additionally specifies the sample period
     of these samples in order to properly split.
 
-    The SplitAbstract contains the following methods:
-    ::
-    .get - return entry from SplitAbstract
-    .keys - return attribute keys of data
+    The SplitAbstract contains the following methods::
+
+        .get - return entry from SplitAbstract
+        .keys - return attribute keys of data
 
     The full explanation for each method is provided as a docstring at each method.
 
@@ -523,14 +799,13 @@ class SplitAbstract(Abstract):
     """
 
     def __init__(
-        self,
-        data: Iterable,
-        split_size: int = None,
-        constraint: str = None,
-        sample_len: Union[int, List[int]] = None,
-        sample_period: int = None,
-        type: str = "seconds",
-        **kwargs: Dict
+            self,
+            data: Iterable,
+            split_size: int = None,
+            constraint: str = None,
+            sample_len: Union[int, List[int]] = None,
+            sample_period: int = None,
+            type: str = "seconds",
     ):
         self._data = data
         assert split_size is not None, "Please provide a split in " + type
@@ -542,7 +817,6 @@ class SplitAbstract(Abstract):
             self._sample_len = self._sample_len * np.ones(len(data))
         self._sample_period = sample_period
         self._abstract = True if isinstance(data, Abstract) else False
-        self._kwargs = kwargs
         self._init_split()
 
     def _init_split(self):
@@ -564,8 +838,8 @@ class SplitAbstract(Abstract):
                 int(
                     np.floor(
                         (
-                            (self._sample_len[j] - (self._window_size - 1) - 1)
-                            / self._window_size
+                                (self._sample_len[j] - (self._window_size - 1) - 1)
+                                / self._window_size
                         )
                         + 1
                     )
@@ -587,7 +861,7 @@ class SplitAbstract(Abstract):
         return self.get(index)
 
     def get(
-        self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
         Parameters
@@ -618,14 +892,13 @@ class SplitAbstract(Abstract):
                     if self._abstract:
                         data, info = self._data.get(
                             k,
+                            *args,
                             return_info=True,
-                            *arg,
+                            read_range=read_range,
                             **kwargs,
-                            **self._kwargs,
-                            read_range=read_range
                         )
                     else:
-                        data, info = self._data[k][read_range[0] : read_range[1]], {}
+                        data, info = self._data[k][read_range[0]: read_range[1]], {}
                     return (data, info) if return_info else data
         elif isinstance(index, str):
             return KeyAbstract(self, index)
@@ -650,26 +923,26 @@ class SplitAbstract(Abstract):
 
     def __repr__(self):
         return (
-            self._data.__repr__()
-            + "\n split: "
-            + str(self._window_size * self._sample_period)
-            + " "
-            + self._type
+                self._data.__repr__()
+                + "\n split: "
+                + str(self._window_size * self._sample_period)
+                + " "
+                + self._type
         )
 
 
 def Split(
-    data: Iterable,
-    split_size: int = None,
-    constraint: str = None,
-    sample_len: int = None,
-    sample_period: int = None,
-    type: str = "seconds",
-    lazy: bool = True,
-    workers: bool = 1,
-    buffer_len: int = 3,
-    *arg: List,
-    **kwargs: Dict
+        data: Iterable,
+        split_size: int = None,
+        constraint: str = None,
+        sample_len: int = None,
+        sample_period: int = None,
+        type: str = "seconds",
+        lazy: bool = True,
+        workers: bool = 1,
+        buffer_len: int = 3,
+        *args: List,
+        **kwargs: Dict
 ) -> Union[SplitAbstract, DataAbstract, np.ndarray, list]:
     """
     Factory function to allow for choice between lazy and direct example splitting.
@@ -717,7 +990,6 @@ def Split(
             sample_len=sample_len,
             sample_period=sample_period,
             type=type,
-            **kwargs
         )
     else:
         # ToDo: replace by a list and np equivalent
@@ -729,8 +1001,6 @@ def Split(
                 sample_len=sample_len,
                 sample_period=sample_period,
                 type=type,
-                *arg,
-                **kwargs
             ),
             workers=workers,
             buffer_len=buffer_len,
@@ -748,28 +1018,28 @@ class SelectAbstract(Abstract):
     Regarding the selector one can use  set of build-in selectors in dabstract.dataset.select, lambda function, an own custom function
     or indices. For example:
 
-    1) random subsampling with
-    ::
+    1) random subsampling with::
+
         $  SelectAbstract(data, dabstract.dataset.select.random_subsample('ratio': 0.5))
 
-    2) select based on a key and a particular value
-    ::
+    2) select based on a key and a particular value::
+
         $  SelectAbstract(data, dabstract.dataset.select.subsample_by_str('ratio': 0.5))
 
-    3) use the lambda function such as
-    ::
+    3) use the lambda function such as::
+
         $  SelectAbstract(data, (lambda x,k: x['data']['subdb'][k]))
 
-    4) directly use indices
-    ::
+    4) directly use indices::
+
         $  indices = np.array[0,1,2,3,4])
         $  SelectAbstract(data, indices)
 
     If no 'eval_data' is used, the evaluation is performed on data available in 'data'. If 'eval_data' is available
     the evaluation is performed on 'eval_data'
 
-    The SelectAbstract contains the following methods
-    ::
+    The SelectAbstract contains the following methods::
+
         .get - return entry from SelectAbstract
         .keys - return the list of keys
 
@@ -792,21 +1062,22 @@ class SelectAbstract(Abstract):
     """
 
     def __init__(
-        self,
-        data: Iterable,
-        selector: Union[List[int], Callable, numbers.Integral],
-        eval_data: Any = None,
-        **kwargs: Dict
+            self,
+            data: Iterable,
+            selector: Union[List[int], Callable, numbers.Integral],
+            eval_data: Any = None,
+            *args,
+            **kwargs: Dict
     ):
         self._data = data
         self._eval_data = data if eval_data is None else eval_data
         self._selector = selector
         if callable(selector):
             if len(inspect.getargspec(selector)[0]) == 1:
-                self._indices = selector(self._eval_data)
+                self._indices = selector(self._eval_data, *args, **kwargs)
             else:
                 self._indices = np.where(
-                    [selector(self._eval_data, k) for k in range(len(self._eval_data))]
+                    [selector(self._eval_data, k, *args, **kwargs) for k in range(len(self._eval_data))]
                 )[0]
         elif isinstance(selector, slice):
             self._indices = np.arange(
@@ -819,7 +1090,6 @@ class SelectAbstract(Abstract):
         elif isinstance(selector, numbers.Integral):
             self._indices = [selector]
         self._abstract = True if isinstance(data, Abstract) else False
-        self._kwargs = kwargs
         if self._abstract:
             if hasattr(self._data, "_lazy"):
                 if not self._data._lazy:
@@ -833,7 +1103,7 @@ class SelectAbstract(Abstract):
         return self.get(index)
 
     def get(
-        self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
         Parameters
@@ -856,7 +1126,7 @@ class SelectAbstract(Abstract):
             index = self._indices[index]
             if self._abstract:
                 data, info = self._data.get(
-                    index, return_info=True, *arg, **kwargs, **self._kwargs
+                    index, return_info=True, *args, **kwargs
                 )
             else:
                 data, info = self._data[index], {}
@@ -886,14 +1156,14 @@ class SelectAbstract(Abstract):
 
 
 def Select(
-    data,
-    selector: Union[List[int], Callable, numbers.Integral],
-    eval_data: Any = None,
-    lazy: bool = True,
-    workers: int = 1,
-    buffer_len: int = 3,
-    *arg,
-    **kwargs
+        data,
+        selector: Union[List[int], Callable, numbers.Integral],
+        eval_data: Any = None,
+        lazy: bool = True,
+        workers: int = 1,
+        buffer_len: int = 3,
+        *args: List,
+        **kwargs: Dict
 ) -> Union[SelectAbstract, DataAbstract, np.ndarray, list]:
     """
     Factory function to allow for choice between lazy and direct example selection.
@@ -926,11 +1196,11 @@ def Select(
     """
     _abstract = True if isinstance(data, Abstract) else False
     if lazy:
-        return SelectAbstract(data, selector, eval_data=eval_data, **kwargs)
+        return SelectAbstract(data, selector, *args, eval_data=eval_data, **kwargs)
     else:
         # ToDo: replace by a list and np equivalent
         return DataAbstract(
-            SelectAbstract(data, selector, eval_data=eval_data, *arg, **kwargs),
+            SelectAbstract(data, selector, *args, eval_data=eval_data, **kwargs),
             workers=workers,
             buffer_len=buffer_len,
         )[:]
@@ -964,16 +1234,17 @@ class FilterAbstract(Abstract):
     FilterAbstract class
     """
 
-    def __init__(self, data: Iterable, filter_fct: Callable, **kwargs):
+    def __init__(self, data: Iterable, filter_fct: Callable, *args, **kwargs):
         assert callable(filter_fct), filter_fct
         self.filter_fct = filter_fct
         self.abstract = data
+        self._args = args
         self._kwargs = kwargs
 
     def __iter__(self) -> Generator:
         for index in range(len(self)):
             data = self.get(index)
-            if self.filter_fct(data):
+            if self.filter_fct(data, *self._args, **self._kwargs):
                 yield data
 
     def __getitem__(self, index: int) -> Any:
@@ -983,7 +1254,7 @@ class FilterAbstract(Abstract):
         raise IndexError("Not available.")
 
     def get(
-        self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
         Parameters
@@ -1005,8 +1276,7 @@ class FilterAbstract(Abstract):
             assert index < len(self)
             if self._abstract:
                 data, info = self._data.get(
-                    index, return_info=True, *arg, **kwargs, **self._kwargs
-                )
+                    index, return_info=True, *arg, **kwargs)
             else:
                 data, info = self._data[index], {}
             return (data, info) if return_info else data
@@ -1034,13 +1304,13 @@ class FilterAbstract(Abstract):
 
 
 def Filter(
-    data: Iterable,
-    filter_fct: Callable,
-    lazy: bool = True,
-    workers: int = 1,
-    buffer_len: int = 3,
-    *arg: List,
-    **kwargs: Dict
+        data: Iterable,
+        filter_fct: Callable,
+        lazy: bool = True,
+        workers: int = 1,
+        buffer_len: int = 3,
+        *arg: List,
+        **kwargs: Dict
 ) -> Union[FilterAbstract, DataAbstract, np.ndarray, list]:
     """
     Factory function to allow for choice between lazy and direct example selection.
@@ -1088,11 +1358,10 @@ class KeyAbstract(Abstract):
     This will allow for key/index indexing even if the particular index does not have a key.
     """
 
-    def __init__(self, data: Iterable, key: str, **kwargs: Dict):
+    def __init__(self, data: Iterable, key: str):
         assert isinstance(data, Abstract)
         self._data = data
         self._key = key
-        self._kwargs = kwargs
 
     def __iter__(self) -> Generator:
         for k in range(len(self)):
@@ -1102,7 +1371,7 @@ class KeyAbstract(Abstract):
         return self.get(index)
 
     def get(
-        self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         if isinstance(index, numbers.Integral):
             assert index < len(self)
@@ -1110,10 +1379,9 @@ class KeyAbstract(Abstract):
                 data, info = self._data.get(
                     key=self._key,
                     index=index,
-                    return_info=True,
                     *arg,
+                    return_info=True,
                     **kwargs,
-                    **self._kwargs
                 )
             except:
                 data, info = None, {}
@@ -1163,18 +1431,18 @@ class DictSeqAbstract(Abstract):
         self._adjust_mode = False
 
     def add(
-        self,
-        key: str,
-        data: Iterable,
-        lazy: bool = True,
-        info: List[Dict] = None,
-        **kwargs: Dict
+            self,
+            key: str,
+            data: Iterable,
+            lazy: bool = True,
+            info: List[Dict] = None,
+            **kwargs: Dict
     ) -> None:
         assert hasattr(
             data, "__getitem__"
         ), "provided data instance must have __getitem__ method."
         assert (
-            key != "all"
+                key != "all"
         ), "The name 'all' is reserved for referring to all keys when applying a transform."
         if not self._adjust_mode:
             if self._nr_keys > 0:
@@ -1198,7 +1466,7 @@ class DictSeqAbstract(Abstract):
         return self
 
     def concat(
-        self, data: Iterable, intersect: bool = False, adjust_base: bool = True
+            self, data: Iterable, intersect: bool = False, adjust_base: bool = True
     ) -> None:
         from dabstract.dataset.helpers import FolderDictSeqAbstract
 
@@ -1213,7 +1481,7 @@ class DictSeqAbstract(Abstract):
             if self2._nr_keys != 0:
                 if not intersect:
                     assert (
-                        data.keys() == self2.keys()
+                            data.keys() == self2.keys()
                     ), "keys do not match. Set intersect=True for keeping common keys."
                     keys = data.keys()
                 else:
@@ -1227,13 +1495,13 @@ class DictSeqAbstract(Abstract):
                     if self2._lazy[key]:
                         # make sure that data format is as desired by the base dict
                         if not isinstance(
-                            self2[key],
-                            (SeqAbstract, DictSeqAbstract, FolderDictSeqAbstract),
+                                self2[key],
+                                (SeqAbstract, DictSeqAbstract, FolderDictSeqAbstract),
                         ):
                             self2[key] = SeqAbstract().concat(self2[key])
                         # concatenate SeqAbstract
                         if isinstance(
-                            data[key], SeqAbstract
+                                data[key], SeqAbstract
                         ):  # if already a SeqAbstract, concat cleaner to avoid overhead
                             for _data in data[key]._data:
                                 self2[key].concat(_data)
@@ -1241,7 +1509,7 @@ class DictSeqAbstract(Abstract):
                             self2[key].concat(data[key])
                     else:
                         assert (
-                            self2[key].__class__ == data[key].__class__
+                                self2[key].__class__ == data[key].__class__
                         ), "When using lazy=False, datatypes should be same in case of concatenation."
                         if isinstance(self2[key], list):
                             self2[key] = self2[key] + data[key]
@@ -1312,12 +1580,12 @@ class DictSeqAbstract(Abstract):
         self.add(k, v, lazy=lazy)
 
     def get(
-        self,
-        index: int,
-        key: str = None,
-        return_info: bool = False,
-        *arg: List,
-        **kwargs: Dict
+            self,
+            index: int,
+            key: str = None,
+            return_info: bool = False,
+            *arg: List,
+            **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         if isinstance(index, str):
             assert key is None
@@ -1382,7 +1650,7 @@ class SeqAbstract(Abstract):
         ), "provided data instance must have __getitem__ method."
         if isinstance(data, DictSeqAbstract):
             assert (
-                len(data._active_keys) == 1
+                    len(data._active_keys) == 1
             ), "You can only add a dict_abstract in case there is only one active key."
         # Add
         data = copy.deepcopy(data)
@@ -1434,12 +1702,12 @@ class SeqAbstract(Abstract):
         return self.concat(other)
 
     def get(
-        self,
-        index: int,
-        key: str = None,
-        return_info: bool = False,
-        *arg: List,
-        **kwargs: Dict
+            self,
+            index: int,
+            key: str = None,
+            return_info: bool = False,
+            *arg: List,
+            **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         if isinstance(index, numbers.Integral):
             if index < 0:
@@ -1453,6 +1721,7 @@ class SeqAbstract(Abstract):
                     if isinstance(self._data[k], Abstract):
                         data, info = data.get(
                             index,
+                            *arg,
                             return_info=True,
                             **(info if key is None else dict(info, key=key)),
                             **kwargs
