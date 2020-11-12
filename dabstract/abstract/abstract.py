@@ -57,8 +57,7 @@ class UnpackAbstract(Abstract):
 
     To index through the data one could directly use default indexing, i.e. [idx] or use the .get() method.
 
-    The UnpackAbstract contains the following methods:
-    ::
+    The UnpackAbstract contains the following methods::
 
         .get - return entry form UnpackAbstract
 
@@ -290,8 +289,7 @@ class MapAbstract(Abstract):
     """
     The class applies a mapping to data in a lazy manner.
 
-    For example, consider the following function:
-    ::
+    For example, consider the following function::
 
         $   def some_function(input, multiplier, logarithm=False)
         $       output = input * multiplier
@@ -299,16 +297,14 @@ class MapAbstract(Abstract):
         $           output = np.log10(output)
         $       return output
 
-    You can apply this function with multiplier=5 and logarithm=True as follows:
-    ::
+    You can apply this function with multiplier=5 and logarithm=True as follows::
 
         $   data = [1,2,3]
         $   data_map = MapAbstract(data,map_fct=some_function, 5, logarithm=True)
         $   print(data_map[0])
         0.6989
 
-    Similarly, one could use a lambda function:
-    ::
+    Similarly, one could use a lambda function::
 
         $   data = [1,2,3]
         $   data_map = MapAbstract(data, lambda x: np.log10(x*5))
@@ -328,8 +324,7 @@ class MapAbstract(Abstract):
         $   dp.add(custom_processor)
         $   dp.add(custom_processor2)
 
-    And add this to some data with a MapAbstract
-    ::
+    And add this to some data with a MapAbstract::
 
         $   data = [1,2,3]
         $   data_map = MapAbstract(data,map_fct=dp)
@@ -355,8 +350,7 @@ class MapAbstract(Abstract):
 
     To index through the data one could directly use default indexing, i.e. [idx] or use the .get() method.
 
-    The MapAbstract contains the following methods:
-    ::
+    The MapAbstract contains the following methods::
 
         .get - return entry from MapAbstract
         .keys - return attribute keys of data
@@ -614,8 +608,8 @@ class SampleReplicateAbstract(Abstract):
         $ print([tmp for tmp in data_rep])
         [1, 1, 1, 2, 2, 2, 3, 3, 3]
 
-    The SampleReplicateAbstract contains the following methods:
-    ::
+    The SampleReplicateAbstract contains the following methods::
+
     .get - return entry form SampleReplicateAbstract
     .keys - return the list of keys
 
@@ -777,10 +771,10 @@ class SplitAbstract(Abstract):
     these variables are not samples but defined in terms of seconds. 'sample_period' additionally specifies the sample period
     of these samples in order to properly split.
 
-    The SplitAbstract contains the following methods:
-    ::
-    .get - return entry from SplitAbstract
-    .keys - return attribute keys of data
+    The SplitAbstract contains the following methods::
+
+        .get - return entry from SplitAbstract
+        .keys - return attribute keys of data
 
     The full explanation for each method is provided as a docstring at each method.
 
@@ -1024,30 +1018,30 @@ class SelectAbstract(Abstract):
     Regarding the selector one can use  set of build-in selectors in dabstract.dataset.select, lambda function, an own custom function
     or indices. For example:
 
-    1) random subsampling with
-    ::
+    1) random subsampling with::
+
         $  SelectAbstract(data, dabstract.dataset.select.random_subsample('ratio': 0.5))
 
-    2) select based on a key and a particular value
-    ::
+    2) select based on a key and a particular value::
+
         $  SelectAbstract(data, dabstract.dataset.select.subsample_by_str('ratio': 0.5))
 
-    3) use the lambda function such as
-    ::
+    3) use the lambda function such as::
+
         $  SelectAbstract(data, (lambda x,k: x['data']['subdb'][k]))
 
-    4) directly use indices
-    ::
+    4) directly use indices::
+
         $  indices = np.array[0,1,2,3,4])
         $  SelectAbstract(data, indices)
 
     If no 'eval_data' is used, the evaluation is performed on data available in 'data'. If 'eval_data' is available
     the evaluation is performed on 'eval_data'
 
-    The SelectAbstract contains the following methods
-    ::
-    .get - return entry from SelectAbstract
-    .keys - return the list of keys
+    The SelectAbstract contains the following methods::
+
+        .get - return entry from SelectAbstract
+        .keys - return the list of keys
 
     The full explanation for each method is provided as a docstring at each method.
 
@@ -1726,7 +1720,11 @@ class SeqAbstract(Abstract):
                     # get
                     if isinstance(self._data[k], Abstract):
                         data, info = data.get(
-                            index, key=key, return_info=True, **info, **kwargs
+                            index,
+                            *arg,
+                            return_info=True,
+                            **(info if key is None else dict(info, key=key)),
+                            **kwargs
                         )
                     else:
                         assert key is None

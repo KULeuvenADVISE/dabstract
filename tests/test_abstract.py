@@ -3,7 +3,7 @@ from dabstract.utils import *
 
 def test_SampleReplicate():
     """Test SampleReplicate"""
-    from dabstract.dataset.abstract import SampleReplicate, DictSeqAbstract
+    from dabstract.abstract import SampleReplicate, DictSeqAbstract
     ## test with list
     # data init
     data = ['1', '2', '3', '4']
@@ -36,7 +36,7 @@ def test_SampleReplicate():
 
 def test_Map():
     """Test Map"""
-    from dabstract.dataset.abstract import Map
+    from dabstract.abstract import Map
     # data init
     data = [1, 2, 3, 4]
 
@@ -104,7 +104,7 @@ def test_Map():
 
 def test_UnpackAbstract():
     """Test UnpackAbstract.get"""
-    from dabstract.dataset.abstract import UnpackAbstract, DictSeqAbstract
+    from dabstract.abstract import UnpackAbstract, DictSeqAbstract
     # data of type dictionary init
     data_dict = {'test1': np.ones(3),
                  'test2': np.zeros(3),

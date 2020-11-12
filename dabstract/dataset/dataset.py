@@ -91,13 +91,16 @@ class Dataset:
     paths : dict or str:
         Path configuration in the form of a dictionary.
         For example::
+
             $   paths={ 'data': path_to_data,
             $           'meta': path_to_meta,
             $           'feat': path_to_feat}
+
     test_only : bool
         To specify if this dataset should be used for testing or both testing and train.
         This is only relevant if multiple datasets are combined and set_xval() is used.
         For example::
+
             test_only = 0 -> use for both train and test
             test_only = 1 -> use only for test
 
@@ -402,18 +405,20 @@ class Dataset:
 
         dabstract already has a set of build-in selectors in dabstract.dataset.select such
         that one can simply do::
+
             $  self.add_select(random_subsample, parameters=dict('ratio': 0.5))
 
-        for random subsampling,
-        and::
+        for random subsampling, and::
+
             $  self.add_select(subsample_by_str, parameters=dict('key': ..., 'keep': ...))
 
         for selecting based on a key and a particular value
         One can also also use the lambda function such as::
+
             $  self.add_select((lambda x,k: x['data']['subdb'][k]))
 
-        Or directly use indices
-        such as::
+        Or directly use indices such as::
+
             $  indices = np.array[0,1,2,3,4])
             $  self.add_select(indices)
 
@@ -793,19 +798,21 @@ class Dataset:
 
         dabstract already has a set of build-in selectors in dabstract.dataset.xval
         such that one can simply do::
+
             $  self.set_xval(group_random_kfold, parameters=dict('folds': 4, 'val_frac=1/3, group_key='group'))
 
-        for random crossvalidation with a group constraint,
-        and::
+        for random crossvalidation with a group constraint, and::
+
             $  self.set_xval(sequential_kfold, parameters=dict('folds': 4, 'val_frac=1/3, group_key='group'))
 
-        for sequential crossvalidation with a group constraint,
-        and::
+        for sequential crossvalidation with a group constraint, and::
+
             $  self.set_xval(stratified_kfold, parameters=dict('folds': 4, 'val_frac=1/3))
 
-        for stratified crossvalidation,
-        and::
+        for stratified crossvalidation, and::
+
             $  self.set_xval(stratified_kfold, parameters=dict('folds': 4, 'val_frac=1/3))
+
         for random crossvalidation.
 
         Parameters
