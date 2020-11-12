@@ -1,6 +1,6 @@
 SeqAbstract
 ===============
-.. automodule:: dabstract.dataset.abstract
+.. automodule:: dabstract.abstract.abstract
    :members: SeqAbstract
    :undoc-members:
    :show-inheritance:

@@ -56,7 +56,7 @@ def flow_feature_extraction():
     # -- get processing chain
     # get fe
     fe_dp = load_yaml_config(filename=args.features, path=os.path.join(args.config_dir, 'dp'), walk=True,
-                             post_process=processing_chain)
+                             post_process=ProcessingChain)
     # fit if needed
     fe_dp.fit(data[cg['key']]['data'])
     # -- get features

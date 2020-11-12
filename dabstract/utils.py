@@ -1,7 +1,6 @@
 import yaml
 import numpy as np
 import os
-from datetime import datetime
 import sys
 import itertools
 from pprint import pprint
@@ -12,13 +11,13 @@ from typing import Union, Any, List, Callable, Dict, Iterable
 
 
 def load_yaml_config(
-        filename: str,
-        path: str,
-        walk: bool = False,
-        verbose: bool = True,
-        post_process: Callable = None,
-        unpack: bool = False,
-        **kwargs
+    filename: str,
+    path: str,
+    walk: bool = False,
+    verbose: bool = True,
+    post_process: Callable = None,
+    unpack: bool = False,
+    **kwargs
 ) -> Union[str, Union[Dict, Any]]:
     """Load a yaml configuration file with some additional functionality
     For example do::
@@ -117,7 +116,7 @@ def load_yaml_config(
         assert len(seq) == 1
         loc_rdot = seq[0].rfind(".")
         module = safe_import_module(seq[0][:loc_rdot])
-        return getattr(module, seq[0][loc_rdot + 1:])
+        return getattr(module, seq[0][loc_rdot + 1 :])
 
     # add custom custructors
     yaml.add_constructor("!join", join)  # join strings
@@ -144,7 +143,9 @@ def load_yaml_config(
     return cfg
 
 
-def reformat_yaml(cfg: Union[List[Any], Dict[str, Any]]) -> List[Union[np.ndarray, Any]]:
+def reformat_yaml(
+    cfg: Union[List[Any], Dict[str, Any]]
+) -> List[Union[np.ndarray, Any]]:
     """Reformat yaml list to numpy if possible
 
     Parameters
@@ -165,7 +166,9 @@ def reformat_yaml(cfg: Union[List[Any], Dict[str, Any]]) -> List[Union[np.ndarra
     return cfg
 
 
-def reformat_yaml_iter(cfg: Union[List[Any], Dict[str, Any]]) -> List[Union[np.ndarray, Any]]:
+def reformat_yaml_iter(
+    cfg: Union[List[Any], Dict[str, Any]]
+) -> List[Union[np.ndarray, Any]]:
     """Reformat yaml list to numpy if possible in an iterative fasion
 
     Parameters
@@ -226,7 +229,7 @@ def str_in_list(lst: List, string: str) -> List[int]:
 
 
 def listnp_combine(
-        lst: List, method: str = "concatenate", axis: int = 0, allow_error: bool = False
+    lst: List, method: str = "concatenate", axis: int = 0, allow_error: bool = False
 ) -> np.ndarray:
     """Concatenate or stack a list of numpy along with error handling
 
@@ -272,11 +275,11 @@ def listnp_combine(
 
 
 def listdictnp_combine(
-        lst: List,
-        method: str = "concatenate",
-        axis: int = 0,
-        keep_nested: bool = False,
-        allow_error: bool = False,
+    lst: List,
+    method: str = "concatenate",
+    axis: int = 0,
+    keep_nested: bool = False,
+    allow_error: bool = False,
 ) -> Dict[str, Union[np.ndarray, List]]:
     """Concatenate or stack a list of dictionaries contains numpys along with error handling
 
@@ -299,7 +302,7 @@ def listdictnp_combine(
     """
     for k in range(len(lst)):
         assert (
-                lst[0].keys() == lst[k].keys()
+            lst[0].keys() == lst[k].keys()
         ), "Dict keys do not match in listdictnp_combine fct"
     # get keys
     keys = lst[0].keys()
@@ -370,10 +373,10 @@ def any2str(obj: Any) -> str:
     if isinstance(obj, str):
         return obj
     elif (
-            isinstance(obj, int)
-            | isinstance(obj, np.ndarray)
-            | isinstance(obj, np.int64)
-            | isinstance(obj, dict)
+        isinstance(obj, int)
+        | isinstance(obj, np.ndarray)
+        | isinstance(obj, np.int64)
+        | isinstance(obj, dict)
     ):
         return str(obj)
     elif obj is None:
@@ -384,7 +387,7 @@ def any2str(obj: Any) -> str:
 
 
 def filter_data(
-        data: Iterable, sel_vect: Union[List[int], np.ndarray], squeeze: bool = False
+    data: Iterable, sel_vect: Union[List[int], np.ndarray], squeeze: bool = False
 ) -> Iterable:
     """Filter any sequential data object based on indices
 
@@ -402,7 +405,7 @@ def filter_data(
         Filtered iterable
     """
     # inits
-    from dabstract.dataset import abstract
+    from dabstract.abstract import abstract
 
     if isinstance(sel_vect, (np.int64, int)):
         sel_vect = np.array([sel_vect])
@@ -592,8 +595,9 @@ def list_difference(lst1: List, lst2: List) -> List:
     -------
     Difference list
     """
-    return [value for k, value in enumerate(lst1) if not value in lst2] + \
-           [value for k, value in enumerate(lst2) if not value in lst1]
+    return [value for k, value in enumerate(lst1) if not value in lst2] + [
+        value for k, value in enumerate(lst2) if not value in lst1
+    ]
 
 
 def get_class(name: str, module_location: str, *args, **kwargs):

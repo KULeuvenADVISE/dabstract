@@ -1,6 +1,6 @@
 SampleReplicate
 ===============
-.. automodule:: dabstract.dataset.abstract
+.. automodule:: dabstract.abstract.abstract
    :members: SampleReplicate, SampleReplicateAbstract
    :undoc-members:
    :show-inheritance:

@@ -404,7 +404,7 @@ def test_prepare_feat():
     dp.add(FFT(axis=1))
     dp.add(Aggregation(methods=['mean', 'std'], axis=0, combine='concatenate'))
     # check
-    db.prepare_feat('data', 'avgFFT', dp, 'feat', verbose=False)
+    db.prepare_feat('data', 'avgFFT', dp, 'feat', verbose=False, overwrite=True)
     assert np.all(db['feat'][0] == dp(db['data'][0], fs=16000))
 
 

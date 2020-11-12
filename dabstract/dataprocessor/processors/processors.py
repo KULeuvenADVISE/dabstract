@@ -5,6 +5,7 @@ import sys
 import os
 import scipy
 import scipy.signal as signal
+import librosa
 
 from dabstract.utils import listnp_combine, flatten_nested_lst
 from dabstract.dataprocessor import Processor
@@ -249,13 +250,12 @@ class Framing(Processor):
 
 
 class Windowing(Processor):
-    """Processor to apply a window"""
-
-    def __init__(self, axis: int = -1, window_func: str = "hamming", **kwargs):
+    def __init__(self, axis=-1, window_func="hamming", symmetry=True, **kwargs):
         self.axis = axis
         self.window_func = window_func
+        self.symmetry = symmetry
 
-    def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
+    def process(self, data, **kwargs):
         # init
         if self.axis == -1:
             axis = len(data.shape) - 1
@@ -263,17 +263,14 @@ class Windowing(Processor):
             axis = self.axis
 
         # get window
-        if self.window_func == "hamming":
-            hw = np.hamming(np.shape(data)[axis]).astype(float)
-        elif (self.window_func == "hanning") or (self.window_func == "hann"):
-            hw = np.hanning(np.shape(data)[axis]).astype(float)
-        elif self.window_func == "none" or self.window_func == "None":
+        if self.window_func == "none" or self.window_func == "None":
             return data, {}
         elif self.window_func is None:
             return data, {}
         else:
-            print("No other windows supported.")
-            sys.exit()
+            hw = signal.get_window(
+                self.window_func, np.shape(data)[axis], fftbins=self.symmetry
+            )
 
         # window
         data *= np.reshape(
@@ -343,17 +340,15 @@ class FFT(Processor):
 
 
 class Filterbank(Processor):
-    """Processor to apply a filterbank"""
-
     def __init__(
         self,
-        n_bands: int = 40,
-        scale: str = "linear",
-        nfft: str = "nextpow2",
-        fmin: int = 0,
-        fmax: int = np.Inf,
-        norm: str = None,
-        axis: int = -1,
+        n_bands=40,
+        scale="linear",
+        Nfft="nextpow2",
+        fmin=0,
+        norm=None,
+        fmax=np.Inf,
+        axis=-1,
         **kwargs
     ):
         self.n_bands = n_bands
@@ -364,9 +359,9 @@ class Filterbank(Processor):
         self.norm = norm
         if "fs" in kwargs:
             self.fs = kwargs["fs"]
-        self.nfft = nfft
+        self.Nfft = Nfft
 
-    def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
+    def process(self, data, **kwargs):
         # inits
         if "fs" in kwargs:
             fs = kwargs["fs"]
@@ -378,16 +373,16 @@ class Filterbank(Processor):
             print("No fs given in Filterbank()")
             sys.exit()
 
-        if self.nfft == "nextpow2":
+        if self.Nfft == "nextpow2":
             NFFT = np.shape(data)[self.axis] * 2 - 2
-        elif self.nfft == "original":
+        elif self.Nfft == "original":
             NFFT = np.shape(data)[self.axis]
 
         low_freq = self.fmin
         high_freq = np.min((fs / 2, self.fmax))
 
         # create filterbank
-        if not (hasattr(self, "fbank")):
+        if self.scale in ("mel", "linear"):
             if self.scale == "mel":
                 # Define the Mel frequency of high_freq and low_freq
                 low_freq_mel = 2595 * np.log10(1 + low_freq / 700)
@@ -418,23 +413,32 @@ class Filterbank(Processor):
             low_len = middle_bin - start_bin + 1
             high_len = tot_len - low_len + 1
             # Allocate the empty filterbank
-            self.fbank = np.zeros((self.n_bands, int(np.floor(NFFT / 2 + 1))))
+            fbank = np.zeros((self.n_bands, int(np.floor(NFFT / 2 + 1))))
             # Compute the filter weights matrix
             for m in range(1, self.n_bands + 1):
                 weights_low = np.arange(1, low_len[m - 1] + 1) / (low_len[m - 1])
                 for k in range(0, int(low_len[m - 1])):
-                    self.fbank[m - 1, int(start_bin[m - 1] + k)] = weights_low[k]
+                    fbank[m - 1, int(start_bin[m - 1] + k)] = weights_low[k]
                 weights_high = np.arange(high_len[m - 1], 0, -1) / (high_len[m - 1])
                 for k in range(0, int(high_len[m - 1])):
-                    self.fbank[m - 1, int(middle_bin[m - 1] + k)] = weights_high[k]
+                    fbank[m - 1, int(middle_bin[m - 1] + k)] = weights_high[k]
 
             # apply norm
             if self.norm == "slaney":
                 enorm = 2.0 / (stop_freq_hz - start_freq_hz)
-                self.fbank *= enorm[:, np.newaxis]
+                fbank *= enorm[:, np.newaxis]
+        elif self.scale in ("melLibrosa"):
+            fbank = librosa.filters.mel(
+                fs,
+                NFFT,
+                n_mels=self.n_bands,
+                fmin=low_freq,
+                fmax=high_freq,
+                norm=self.norm,
+            )
 
         # Apply the mel/linear warping
-        filter_banks = np.dot(data, self.fbank.T)
+        filter_banks = np.dot(data, fbank.T)
         filter_banks = np.where(
             filter_banks == 0, np.finfo(float).eps, filter_banks
         )  # Numerical Stability

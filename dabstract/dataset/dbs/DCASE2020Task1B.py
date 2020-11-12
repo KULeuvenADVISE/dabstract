@@ -33,6 +33,7 @@ class DCASE2020Task1B(Dataset):
     -------
         DCASE2020Task1B dataset class
     """
+
     def __init__(self, paths=None, test_only=0, **kwargs):
         super().__init__(name=self.__class__.__name__, paths=paths, test_only=test_only)
 

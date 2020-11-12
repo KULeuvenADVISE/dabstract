@@ -1,12 +1,12 @@
 from pylab import plot, imshow, show
 
 from dabstract.dataprocessor.processing_chain import ProcessingChain
-from dabstract.dataset.dataset import dataset
+from dabstract.dataset.dataset import Dataset
 from dabstract.dataset.helpers import FolderDictSeqAbstract
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import listnp_combine
 
-class EXAMPLE(dataset):
+class EXAMPLE(Dataset):
     def __init__(self,
                  paths=None,
                  test_only=0,

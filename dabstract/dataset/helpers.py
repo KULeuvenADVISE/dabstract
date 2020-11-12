@@ -1,10 +1,9 @@
 import pathlib
 import pickle
-import types
 import soundfile as sf
 
 from dabstract.utils import safe_import_module
-from dabstract.dataset.abstract import *
+from dabstract.abstract.abstract import *
 from dabstract.dataset import dbs
 
 from typing import Any, List, Optional, TypeVar, Callable, Dict
@@ -74,12 +73,14 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
     assert isinstance(
         config["datasets"], list
     ), "config['dataset'] should be represented as a list where each item is a dictionary containing kwargs of your dataset."
-    from dabstract.dataset.dataset import Dataset
 
-    ddataset = Dataset()
     # init datasets
     for k, db in enumerate(config["datasets"]):
-        ddataset.concat(dataset_factory(name=db["name"], **db["parameters"]))
+        tmp_ddataset = dataset_factory(name=db["name"], **db["parameters"])
+        if k == 0:
+            ddataset = tmp_ddataset
+        else:
+            ddataset.concat(tmp_ddataset)
     # add other functionality
     if "xval" in config:
         ddataset.set_xval(**config["xval"], overwrite=overwrite_xval)
@@ -91,13 +92,13 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
 
 
 def dataset_factory(
-        name: (str, tvDataset, type) = None,
-        paths: Dict[str, str] = None,
-        xval: Optional[Dict[str, Union[str, int, Dict]]] = None,
-        split: Optional[Dict[str, Union[str, int, Dict]]] = None,
-        select: Optional[Dict[str, Union[str, int, Dict]]] = None,
-        test_only: Optional[bool] = 0,
-        **kwargs
+    name: (str, tvDataset, type) = None,
+    paths: Dict[str, str] = None,
+    xval: Optional[Dict[str, Union[str, int, Dict]]] = None,
+    split: Optional[Dict[str, Union[str, int, Dict]]] = None,
+    select: Optional[Dict[str, Union[str, int, Dict]]] = None,
+    test_only: Optional[bool] = 0,
+    **kwargs
 ) -> tvDataset:
     """Dataset factory
 
@@ -150,9 +151,9 @@ def dataset_factory(
                 os.environ["dabstract_CUSTOM_DIR"] + ".dataset.dbs"
             )
             assert hasattr(module, name), (
-                    "Database class is not supported in both dabstract.dataset.dbs "
-                    + os.environ["dabstract_CUSTOM_DIR"]
-                    + ".dataset.dbs. Please check"
+                "Database class is not supported in both dabstract.dataset.dbs "
+                + os.environ["dabstract_CUSTOM_DIR"]
+                + ".dataset.dbs. Please check"
             )
         db = getattr(module, name)(paths=paths, test_only=test_only, **kwargs)
     elif isinstance(name, Dataset):
@@ -223,15 +224,15 @@ class FolderDictSeqAbstract(DictSeqAbstract):
     """
 
     def __init__(
-            self,
-            path: str,
-            extension: str = ".wav",
-            map_fct: Callable = None,
-            file_info_save_path: bool = None,
-            filepath: str = None,
-            overwrite_file_info: bool = False,
-            info: List[Dict] = None,
-            **kwargs
+        self,
+        path: str,
+        extension: str = ".wav",
+        map_fct: Callable = None,
+        file_info_save_path: bool = None,
+        filepath: str = None,
+        overwrite_file_info: bool = False,
+        info: List[Dict] = None,
+        **kwargs
     ):
         super().__init__()
         if "save_path" in kwargs:
@@ -275,8 +276,8 @@ class FolderDictSeqAbstract(DictSeqAbstract):
     def __setitem__(self, k: int, v: Any) -> None:
         if isinstance(k, str):
             self._data[k] = v
-        elif isinstance(k,numbers.Integral):
-            self._data['data'][k] = v
+        elif isinstance(k, numbers.Integral):
+            self._data["data"][k] = v
         else:
             raise NotImplementedError
 
@@ -286,12 +287,12 @@ class FolderDictSeqAbstract(DictSeqAbstract):
 
 
 def get_dir_info(
-        path: str,
-        extension: str = ".wav",
-        file_info_save_path: bool = None,
-        filepath: str = None,
-        overwrite_file_info: bool = False,
-        **kwargs
+    path: str,
+    extension: str = ".wav",
+    file_info_save_path: bool = None,
+    filepath: str = None,
+    overwrite_file_info: bool = False,
+    **kwargs
 ) -> Dict[str, List[Any]]:
     """Get meta information of the files in a directory.
 
@@ -370,8 +371,8 @@ def get_dir_info(
 
     # get additional info
     if (
-            not os.path.isfile(os.path.join(path, "file_info.pickle"))
-            or overwrite_file_info
+        not os.path.isfile(os.path.join(path, "file_info.pickle"))
+        or overwrite_file_info
     ):
         info = _get_dir_info(filepath, extension)
         if (file_info_save_path is not None) and (info is not None):

@@ -1,6 +1,6 @@
 Select
 ===============
-.. automodule:: dabstract.dataset.abstract
+.. automodule:: dabstract.abstract.abstract
    :members: Select, SelectAbstract
    :undoc-members:
    :show-inheritance:
