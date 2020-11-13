@@ -125,7 +125,94 @@ def test_UnpackAbstract():
     assert dsa_unpack[2] == [1.0, '3']
 
 
+def test_Split():
+    """Test Split"""
+    ## Checks on a DictSeqAbstract
+    # data: 60s of data (fs: 1Hz)
+    data = {'test1': np.ones((1,60)),
+            'test2': np.zeros((1,60))}
+    to_achieve = {'test1': np.ones(60),
+                  'test2': np.zeros(60)}
+
+    data = DictSeqAbstract().add_dict(data)
+    to_achieve = DictSeqAbstract().add_dict(to_achieve)
+
+    data_split_lazy = Split(data=data, split_size=1, sample_period=1, type='seconds', lazy=True)
+    assert data_split_lazy.get(0) == np.ones(
+
+DATA = np.random.uniform(size=(10,10000)) # multi example
+SA_split = SplitAbstract(DATA,split_size=1000,sample_len=DATA.shape[1],sample_period=1)
+
+
+def test_Select():
+    """Test Select"""
+    ## Checks on a DictSeqAbstract
+    # data
+    data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
+    data = DictSeqAbstract().add_dict(data)
+    indices = np.array([0, 1])
+    # apply select
+    data_select_indices_lazy = Select(data, indices, lazy=True)
+    data_select_indices_direct = Select(data, indices, lazy=False)
+    # check
+    assert data_select_indices_lazy[0] == {"test1": 1, "test2": 0, "test3": 1}
+    assert data_select_indices_direct[-1] == {"test1": 1, "test2": 0, "test3": 2}
+    assert data_select_indices_lazy[0] == {"test1": 1, "test2": 0, "test3": 1}
+    assert data_select_indices_direct[-1] == {"test1": 1, "test2": 0, "test3": 2}
+
+    ## Checks on a list
+    # data
+    data = [1, 2, 3, 4]
+    indices = np.array([0, 1])
+    # apply select
+    data_select_indices_lazy = Select(data, indices, lazy=True)
+    data_select_indices_direct = Select(data, indices, lazy=False)
+    # check
+    assert data_select_indices_lazy[0] == 1
+    assert data_select_indices_lazy[-1] == 2
+    assert data_select_indices_direct[0] == 1
+    assert data_select_indices_direct[-1] == 2
+
+    # Lambda function
+    # TODO
+    # Data
+    test3_criterium = [1, 2]
+    # apply select
+    data_select_lambda_lazy = Select(data=data, selector=(lambda x, k: x["test3"][k] in test3_criterium), lazy=True)
+    data_select_lambda_direct = Select(data=data, selector=(lambda x, k: x["test3"][k] in test3_criterium), lazy=False)
+    # check
+    assert data_select_lambda_lazy[0] == {"test1": 1, "test2": 0, "test3": 1}
+    assert data_select_lambda_direct[0] == {"test1": 1, "test2": 0, "test3": 1}
+    assert data_select_lambda_lazy[-1] == {"test1": 1, "test2": 0, "test3": 2}
+    assert data_select_lambda_direct[-1] == {"test1": 1, "test2": 0, "test3": 2}
+
+
+def test_Filter():
+    """Test Filter"""
+    # data
+    # data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
+    # data = DictSeqAbstract().add_dict(data)
+    data = [1, 2, 3, 4]
+    test3_criterium = [1, 2]
+    # Filter function definition
+    # def filter_func(x, k):
+    #     # return x['test3'][k] in [1, 2]
+    #     return x[k] in [1, 2]
+
+    # Filtering
+    data_filter_lazy = Filter(data, filter_fct=(lambda x, k: x["test3"][k] in test3_criterium), lazy=True)
+    data_filter_direct = Filter(data, filter_fct=(lambda x, k: x["test3"][k] in test3_criterium), lazy=False)
+
+    assert data_filter_lazy.get(0) == {"test1": 1, "test2": 0, "test3": 1}
+    assert data_filter_direct.get(0) == {"test1": 1, "test2": 0, "test3": 1}
+    assert data_filter_lazy.get(1) == {"test1": 1, "test2": 0, "test3": 2}
+    assert data_filter_direct.get(1) == {"test1": 1, "test2": 0, "test3": 2}
+
+
 if __name__ == "__main__":
     test_SampleReplicate()
     test_Map()
     test_UnpackAbstract()
+    test_Split()
+    test_Select()
+    test_Filter()
