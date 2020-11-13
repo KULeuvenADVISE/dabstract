@@ -839,6 +839,8 @@ class SplitAbstract(Abstract):
                             read_range=read_range,
                             **kwargs,
                         )
+                        if len(data) != np.diff(read_range)[0]:
+                            data = data[read_range[0] : read_range[1]]
                     else:
                         data, info = self._data[k][read_range[0] : read_range[1]], {}
                     return (data, info) if return_info else data
