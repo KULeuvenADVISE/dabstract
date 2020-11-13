@@ -1,5 +1,6 @@
 from dabstract.dataprocessor.processing_chain import *
 from dabstract.utils import *
+from dabstract.abstract import *
 
 def test_SampleReplicate():
     """Test SampleReplicate"""
@@ -138,14 +139,13 @@ def test_Split():
     to_achieve = DictSeqAbstract().add_dict(to_achieve)
 
     data_split_lazy = Split(data=data, split_size=1, sample_period=1, type='seconds', lazy=True)
-    assert data_split_lazy.get(0) == np.ones(
-
-DATA = np.random.uniform(size=(10,10000)) # multi example
-SA_split = SplitAbstract(DATA,split_size=1000,sample_len=DATA.shape[1],sample_period=1)
+    assert data_split_lazy.get(0) == to_achieve
 
 
 def test_Select():
     """Test Select"""
+    # Error when executing Filter(): Exception: Length not available as filter is evaluated on the fly
+
     ## Checks on a DictSeqAbstract
     # data
     data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
@@ -189,24 +189,29 @@ def test_Select():
 
 def test_Filter():
     """Test Filter"""
-    # data
-    # data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
-    # data = DictSeqAbstract().add_dict(data)
-    data = [1, 2, 3, 4]
-    test3_criterium = [1, 2]
-    # Filter function definition
-    # def filter_func(x, k):
-    #     # return x['test3'][k] in [1, 2]
-    #     return x[k] in [1, 2]
-
-    # Filtering
+    ## data: DictSeqAbstract
+    data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
+    data = DictSeqAbstract().add_dict(data)
+    test3_criterium = np.array([1, 2])
+    # filtering
     data_filter_lazy = Filter(data, filter_fct=(lambda x, k: x["test3"][k] in test3_criterium), lazy=True)
     data_filter_direct = Filter(data, filter_fct=(lambda x, k: x["test3"][k] in test3_criterium), lazy=False)
-
+    # check
     assert data_filter_lazy.get(0) == {"test1": 1, "test2": 0, "test3": 1}
     assert data_filter_direct.get(0) == {"test1": 1, "test2": 0, "test3": 1}
     assert data_filter_lazy.get(1) == {"test1": 1, "test2": 0, "test3": 2}
     assert data_filter_direct.get(1) == {"test1": 1, "test2": 0, "test3": 2}
+
+    ## data: list of int
+    data = [1, 2, 3, 4]
+    # filtering
+    data_filter_lazy = Filter(data, filter_fct=(lambda x, k: x["test3"][k] in test3_criterium), lazy=True)
+    data_filter_direct = Filter(data, filter_fct=(lambda x, k: x["test3"][k] in test3_criterium), lazy=False)
+    # check
+    assert data_filter_lazy.get(0) == 1
+    assert data_filter_direct.get(0) == 1
+    assert data_filter_lazy.get(1) == 2
+    assert data_filter_direct.get(1) == 2
 
 
 if __name__ == "__main__":
