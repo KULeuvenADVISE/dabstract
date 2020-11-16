@@ -94,6 +94,22 @@ def test_Select():
     assert data_select_lambda_lazy[-1] == {"test1": 1, "test2": 0, "test3": 2}
     assert data_select_lambda_direct[-1] == {"test1": 1, "test2": 0, "test3": 2}
 
+    ## eval_data not None
+    # data
+    # data = [1, 2, 3, 4]
+    # eval_data = [5, 6, 7]
+    # test3_criterium = [5, 6]
+    data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
+    eval_data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [5, 6, 7]}
+    data = DictSeqAbstract().add_dict(data)
+    eval_data = DictSeqAbstract().add_dict(eval_data)
+    test3_criterium = np.array([5, 6])
+    # select
+    data_select_indices_lazy = Select(data, selector=(lambda x: x in test3_criterium), eval_data=eval_data, lazy=True)
+    data_select_indices_direct = Select(data, selector=(lambda x: x in test3_criterium), eval_data=eval_data, lazy=False)
+    # # check
+    # # TODO
+
 
 def test_Filter():
     from dabstract.abstract import Filter, DictSeqAbstract
