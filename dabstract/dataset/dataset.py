@@ -391,7 +391,12 @@ class Dataset:
         self._data = new_data
 
     def add_select(
-        self, selector: Any, parameters=Optional[dict], *arg, **kwargs
+        self,
+        selector: Any,
+        *arg,
+        parameters: Optional[dict] = dict,
+        eval_data: Any = None,
+        **kwargs
     ) -> None:
         """Add a selection to the dataset
 
@@ -428,11 +433,14 @@ class Dataset:
             selector defined as a str (translated to fct internally) or function or indices
         parameters : dict
             additional parameters in case name is a str to init the function/class
+        eval_data : Any
+            data which could be used to available selector on in case no indices but a function is used.
+            Note that if no eval_data is selected it simply assumes the dataset itself to evaluate on.
         arg/kwargs:
             additional param to provide to the function if needed
         """
 
-        # get fct
+        # get selector
         if isinstance(selector, dict):
             if "parameters" in selector:
                 parameters = selector["parameters"]
@@ -449,23 +457,12 @@ class Dataset:
                     + selectm
                     + " is not supported in both dabstract and custom xvals. Please check"
                 )
-            func = getattr(module, selector)(**parameters)
+            selector = getattr(module, selector)(**parameters)
         elif isinstance(selector, type):
-            func = selector(**parameters)
-        else:
-            func = selector
+            selector = selector(**parameters)
+
         # apply selection
-        orig_data = copy.deepcopy(self._data)
-        self._data = DictSeqAbstract()
-        for key in orig_data.keys():
-            self[key] = Select(
-                orig_data[key],
-                func,
-                *arg,
-                lazy=orig_data._lazy[key],
-                eval_data=orig_data,
-                **kwargs
-            )
+        self._data.add_select(selector, *arg, eval_data=eval_data, **kwargs)
 
     def add_alias(self, key: str, new_key: str) -> None:
         """Add an alias to a particular key. Handy if you would like to use a dataset and add e.g. data/target referring to

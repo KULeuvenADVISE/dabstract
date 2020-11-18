@@ -1003,16 +1003,23 @@ class SelectAbstract(Abstract):
         )
         self._eval_data = data if eval_data is None else eval_data
         self._selector = selector
+        self.set_indices(selector, *args, **kwargs)
+
+    def set_indices(self, selector, *args, **kwargs):
         if callable(selector):
-            if len(inspect.getargspec(selector)[0]) == 1:
+            if len(inspect.getfullargspec(selector).args) == 1:
                 self._indices = selector(self._eval_data, *args, **kwargs)
-            else:
+            elif len(inspect.getfullargspec(selector).args) == 2:
                 self._indices = np.where(
                     [
                         selector(self._eval_data, k, *args, **kwargs)
                         for k in range(len(self._eval_data))
                     ]
                 )[0]
+            else:
+                raise NotImplementedError(
+                    "Selector not supported. Please consult the docstring for options."
+                )
         elif isinstance(selector, slice):
             self._indices = np.arange(
                 (0 if selector.start is None else selector.start),
@@ -1023,10 +1030,9 @@ class SelectAbstract(Abstract):
             self._indices = selector
         elif isinstance(selector, numbers.Integral):
             self._indices = [selector]
-        if self._abstract:
-            if hasattr(self._data, "_lazy"):
-                if not self._data._lazy:
-                    return DataAbstract(self)[:]
+
+    def get_indices(self):
+        return self._indices
 
     def get(
         self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
@@ -1449,6 +1455,35 @@ class DictSeqAbstract(Abstract):
 
     def add_map(self, key: str, map_fct: Callable, *arg: List, **kwargs: Dict) -> None:
         self[key] = Map(self[key], map_fct, lazy=self._lazy[key], *arg, **kwargs)
+
+    def add_select(self, selector, *arg, eval_data=None, **kwargs):
+        def iterative_select(data, indices, *arg, lazy=True, **kwargs):
+            if isinstance(data, DictSeqAbstract):
+                data._adjust_mode = True
+                for key in data.keys():
+                    if isinstance(data[key], DictSeqAbstract):
+                        data[key] = iterative_select(
+                            data[key], indices, *arg, lazy=data._lazy[key], **kwargs
+                        )
+                    else:
+                        data[key] = Select(
+                            data[key], indices, *arg, lazy=data._lazy[key], **kwargs
+                        )
+                data._adjust_mode = False
+            else:
+                data = Select(data, indices, *arg, lazy=lazy, **kwargs)
+            return data
+
+        # get indices for all to ensure no discrepancy between items
+        indices = Select(
+            self,
+            selector,
+            *arg,
+            eval_data=(self if eval_data is None else eval_data),
+            **kwargs,
+        ).get_indices()
+        # Add selection
+        iterative_select(self, indices, *arg, **kwargs)
 
     def add_alias(self, key: str, new_key: str) -> None:
         assert new_key not in self.keys(), "alias key already in existing keys."

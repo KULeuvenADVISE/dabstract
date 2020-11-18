@@ -301,7 +301,8 @@ def test_add_select():
     data = Dataset()
     data_dict = {'test1': np.ones(3),
                  'test2': np.zeros(3),
-                 'test3': ['1', '2', '3']}
+                 'test3': ['1', '2', '3'],
+                 'test4': ['1', '2', '3']}
     data.add_dict(data_dict)
     # checks
     data2 = copy.deepcopy(data)
@@ -312,6 +313,11 @@ def test_add_select():
     data2 = copy.deepcopy(data)
     data2.add_select(subsample_by_str('test3', ['2', '3']))
     assert data2[0] == data[1]
+
+    from dabstract.dataset.select import random_subsample
+    data2 = copy.deepcopy(data)
+    data2.add_select(random_subsample(ratio=0.5))
+    assert data2['test3'][0]==data2['test4'][0] and data2['test3'][1]==data2['test4'][1]
 
     data2 = copy.deepcopy(data)
     data2.add_select((lambda x, k: x['test3'][k] in ('2', '3')))
