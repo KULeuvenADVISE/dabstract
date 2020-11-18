@@ -29,10 +29,8 @@ def test_SampleReplicate():
     # checks
     assert dsa_eager_sample[0] == {'test1': '1', 'test2': 0.0}
     assert dsa_eager_sample[-1] == {'test1': '3', 'test2': 0.0}
-    assert dsa_eager_sample[0].keys() == {'test1', 'test2'}
     assert dsa_lazy_sample[0] == {'test1': '1', 'test2': 0.0}
     assert dsa_lazy_sample[-1] == {'test1': '3', 'test2': 0.0}
-    assert dsa_lazy_sample.keys() == ['test1', 'test2']
 
 def test_Map():
     """Test Map"""
@@ -71,7 +69,6 @@ def test_Map():
     ## Map using ProcessingChain
     class custom_processor(Processor):
         def process(self, data, **kwargs):
-            print(kwargs)
             return data + 1, {'multiplier': 3}
     class custom_processor2(Processor):
         def process(self, data, **kwargs):
