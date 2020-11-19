@@ -50,7 +50,6 @@ def test_Split():
 
 
 def test_Select():
-    # TODO: eval_data
     from dabstract.abstract import Select, DictSeqAbstract
     """Test Select"""
     ## Checks on a DictSeqAbstract
@@ -96,19 +95,14 @@ def test_Select():
 
     ## eval_data not None
     # data
-    # data = [1, 2, 3, 4]
-    # eval_data = [5, 6, 7]
-    # test3_criterium = [5, 6]
-    data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
-    eval_data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [5, 6, 7]}
-    data = DictSeqAbstract().add_dict(data)
-    eval_data = DictSeqAbstract().add_dict(eval_data)
-    test3_criterium = np.array([5, 6])
+    data = np.array([1, 2, 3, 4])
+    eval_data = np.array([5, 6, 7])
     # select
-    data_select_indices_lazy = Select(data, selector=(lambda x: x in test3_criterium), eval_data=eval_data, lazy=True)
-    data_select_indices_direct = Select(data, selector=(lambda x: x in test3_criterium), eval_data=eval_data, lazy=False)
-    # # check
-    # # TODO
+    data_select_indices_lazy = Select(data, selector=(np.argwhere((eval_data == 5) | (eval_data == 6))), eval_data=eval_data, lazy=True)
+    data_select_indices_direct = Select(data, selector=(np.argwhere((eval_data == 5) | (eval_data == 6))), eval_data=eval_data, lazy=False)
+    # check
+    np.testing.assert_array_equal(data_select_indices_lazy, np.array(([1], [2])))
+    np.testing.assert_array_equal(data_select_indices_direct, np.array(([1], [2])))
 
 
 def test_Filter():
