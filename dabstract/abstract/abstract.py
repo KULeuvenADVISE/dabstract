@@ -193,7 +193,7 @@ class DataAbstract(Abstract):
     def __init__(
         self,
         data: Iterable,
-        output_datatype: str = 'auto',
+        output_datatype: str = "auto",
         workers: int = 0,
         buffer_len: int = 3,
         load_memory: bool = False,
@@ -259,16 +259,23 @@ class DataAbstract(Abstract):
                         if k == 0:
                             if return_info:
                                 info_out = [dict()] * len(self._data)
-                            if isinstance(tmp_data, (np.ndarray)) and self._output_datatype in ('numpy','auto'):
+                            if isinstance(
+                                tmp_data, (np.ndarray)
+                            ) and self._output_datatype in ("numpy", "auto"):
                                 data_out = np.zeros((len(_data),) + tmp_data.shape)
                             elif isinstance(
                                 tmp_data, (np.int, np.int64, int, np.float64)
-                            ) and self._output_datatype in ('numpy','auto'):
+                            ) and self._output_datatype in ("numpy", "auto"):
                                 data_out = np.zeros((len(_data), 1))
-                            elif self._output_datatype in ('list','auto'):
+                            elif self._output_datatype in ("list", "auto"):
                                 data_out = [None] * len(_data)
-                        elif self._output_datatype == 'auto' and isinstance(data_out,np.ndarray):
-                            if np.squeeze(data_out[0]).shape != np.squeeze(tmp_data).shape:
+                        elif self._output_datatype == "auto" and isinstance(
+                            data_out, np.ndarray
+                        ):
+                            if (
+                                np.squeeze(data_out[0]).shape
+                                != np.squeeze(tmp_data).shape
+                            ):
                                 tmp_data_out = data_out
                                 data_out = [None] * len(data_out)
                                 for k in range(len(tmp_data_out)):
@@ -1281,7 +1288,7 @@ def Filter(
         # ToDo: replace by a list and np equivalent
         tmp = DataAbstract(
             FilterAbstract(data, filter_fct, *arg, return_none=True, **kwargs),
-            output_datatype='list',
+            output_datatype="list",
             workers=workers,
             buffer_len=buffer_len,
         )[:]
