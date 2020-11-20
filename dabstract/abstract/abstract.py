@@ -193,13 +193,13 @@ class DataAbstract(Abstract):
     def __init__(
         self,
         data: Iterable,
-        single_datatype=True,
+        output_datatype: str = 'auto',
         workers: int = 0,
         buffer_len: int = 3,
         load_memory: bool = False,
     ):
         super().__init__(data)
-        self._single_datatype = single_datatype
+        self._output_datatype = output_datatype
         self._workers = workers
         self._buffer_len = buffer_len
         self._load_memory = load_memory
@@ -259,17 +259,20 @@ class DataAbstract(Abstract):
                         if k == 0:
                             if return_info:
                                 info_out = [dict()] * len(self._data)
-                            if not self._single_datatype:
+                            if isinstance(tmp_data, (np.ndarray)) and self._output_datatype in ('numpy','auto'):
+                                data_out = np.zeros((len(_data),) + tmp_data.shape)
+                            elif isinstance(
+                                tmp_data, (np.int, np.int64, int, np.float64)
+                            ) and self._output_datatype in ('numpy','auto'):
+                                data_out = np.zeros((len(_data), 1))
+                            elif self._output_datatype in ('list','auto'):
                                 data_out = [None] * len(_data)
-                            else:
-                                if isinstance(tmp_data, (np.ndarray)):
-                                    data_out = np.zeros((len(_data),) + tmp_data.shape)
-                                elif isinstance(
-                                    tmp_data, (np.int, np.int64, int, np.float64)
-                                ):
-                                    data_out = np.zeros((len(_data), 1))
-                                else:
-                                    data_out = [None] * len(_data)
+                        elif self._output_datatype == 'auto' and isinstance(data_out,np.ndarray):
+                            if np.squeeze(data_out[0]).shape != np.squeeze(tmp_data).shape:
+                                tmp_data_out = data_out
+                                data_out = [None] * len(data_out)
+                                for k in range(len(tmp_data_out)):
+                                    data_out[k] = tmp_data_out[k]
                         data_out[k] = tmp_data
                         if return_info:
                             info_out[k] = tmp_info
@@ -1005,16 +1008,23 @@ class SelectAbstract(Abstract):
         )
         self._eval_data = data if eval_data is None else eval_data
         self._selector = selector
+        self.set_indices(selector, *args, **kwargs)
+
+    def set_indices(self, selector, *args, **kwargs):
         if callable(selector):
-            if len(inspect.getargspec(selector)[0]) == 1:
+            if len(inspect.getfullargspec(selector).args) == 1:
                 self._indices = selector(self._eval_data, *args, **kwargs)
-            else:
+            elif len(inspect.getfullargspec(selector).args) == 2:
                 self._indices = np.where(
                     [
                         selector(self._eval_data, k, *args, **kwargs)
                         for k in range(len(self._eval_data))
                     ]
                 )[0]
+            else:
+                raise NotImplementedError(
+                    "Selector not supported. Please consult the docstring for options."
+                )
         elif isinstance(selector, slice):
             self._indices = np.arange(
                 (0 if selector.start is None else selector.start),
@@ -1025,10 +1035,9 @@ class SelectAbstract(Abstract):
             self._indices = selector
         elif isinstance(selector, numbers.Integral):
             self._indices = [selector]
-        if self._abstract:
-            if hasattr(self._data, "_lazy"):
-                if not self._data._lazy:
-                    return DataAbstract(self)[:]
+
+    def get_indices(self):
+        return self._indices
 
     def get(
         self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
@@ -1272,7 +1281,7 @@ def Filter(
         # ToDo: replace by a list and np equivalent
         tmp = DataAbstract(
             FilterAbstract(data, filter_fct, *arg, return_none=True, **kwargs),
-            single_datatype=False,
+            output_datatype='list',
             workers=workers,
             buffer_len=buffer_len,
         )[:]
@@ -1451,6 +1460,35 @@ class DictSeqAbstract(Abstract):
 
     def add_map(self, key: str, map_fct: Callable, *arg: List, **kwargs: Dict) -> None:
         self[key] = Map(self[key], map_fct, lazy=self._lazy[key], *arg, **kwargs)
+
+    def add_select(self, selector, *arg, eval_data=None, **kwargs):
+        def iterative_select(data, indices, *arg, lazy=True, **kwargs):
+            if isinstance(data, DictSeqAbstract):
+                data._adjust_mode = True
+                for key in data.keys():
+                    if isinstance(data[key], DictSeqAbstract):
+                        data[key] = iterative_select(
+                            data[key], indices, *arg, lazy=data._lazy[key], **kwargs
+                        )
+                    else:
+                        data[key] = Select(
+                            data[key], indices, *arg, lazy=data._lazy[key], **kwargs
+                        )
+                data._adjust_mode = False
+            else:
+                data = Select(data, indices, *arg, lazy=lazy, **kwargs)
+            return data
+
+        # get indices for all to ensure no discrepancy between items
+        indices = Select(
+            self,
+            selector,
+            *arg,
+            eval_data=(self if eval_data is None else eval_data),
+            **kwargs,
+        ).get_indices()
+        # Add selection
+        iterative_select(self, indices, *arg, **kwargs)
 
     def add_alias(self, key: str, new_key: str) -> None:
         assert new_key not in self.keys(), "alias key already in existing keys."
