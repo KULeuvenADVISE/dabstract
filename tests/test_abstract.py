@@ -4,7 +4,7 @@ from dabstract.utils import *
 def test_Split():
     from dabstract.abstract import Split, DictSeqAbstract
     """Test Split"""
-    ## Checks on list
+    ## Checks on seconds and List
     # data
     data = np.ones((1, 100))
     # split
@@ -14,7 +14,7 @@ def test_Split():
     np.testing.assert_array_equal(data_split_direct, np.ones((2, 50)))
     np.testing.assert_array_equal(data_split_lazy, np.ones((2, 50)))
 
-    ## Checks on a DictSeqAbstract
+    ## Checks on seconds and DictSeqAbstract
     # data
     data = {'test1': np.ones((1, 100))}
     data = DictSeqAbstract().add_dict(data)
@@ -25,7 +25,7 @@ def test_Split():
     np.testing.assert_array_equal(data_split_direct, np.ones((2, 50)))
     np.testing.assert_array_equal(data_split_lazy, np.ones((2, 50)))
 
-    ## Checks on samples
+    ## Checks on samples and List
     # data
     data = np.ones((1, 100))
     # split
@@ -34,6 +34,17 @@ def test_Split():
     # check
     np.testing.assert_array_equal(data_split_direct_samples, np.ones((2, 50)))
     np.testing.assert_array_equal(data_split_lazy_samples, np.ones((2, 50)))
+
+    ## Checks on samples and DictSeqAbstract
+    # data
+    data = {'test1': np.ones((1, 100))}
+    data = DictSeqAbstract().add_dict(data)
+    # split
+    data_split_lazy = Split(data=data, split_size=50, sample_len=len(data.get(0)), sample_period=1, type='samples', lazy=True)
+    data_split_direct = Split(data=data, split_size=50, sample_len=len(data.get(0)), sample_period=1, type='samples', lazy=False)
+    # check
+    np.testing.assert_array_equal(data_split_direct, np.ones((2, 50)))
+    np.testing.assert_array_equal(data_split_lazy, np.ones((2, 50)))
 
     ## Checks on constraint='power2'
     data = np.ones((1, 100))
@@ -52,7 +63,7 @@ def test_Split():
 def test_Select():
     from dabstract.abstract import Select, DictSeqAbstract
     """Test Select"""
-    ## Checks on a DictSeqAbstract
+    ## Checks on a DictSeqAbstract and indices
     # data
     data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
     data = DictSeqAbstract().add_dict(data)
@@ -66,7 +77,7 @@ def test_Select():
     assert data_select_indices_lazy[-1] == {"test1": 1, "test2": 0, "test3": 2}
     assert data_select_indices_direct[-1] == {"test1": 1, "test2": 0, "test3": 2}
 
-    ## Checks on a list
+    ## Checks on a list and indices
     # data
     data = [1, 2, 3, 4]
     indices = np.array([0, 1])
@@ -79,7 +90,7 @@ def test_Select():
     assert data_select_indices_direct[0] == 1
     assert data_select_indices_direct[-1] == 2
 
-    ## Lambda function
+    ## Checks on list and lambda function
     # Data
     data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
     data = DictSeqAbstract().add_dict(data)
@@ -93,22 +104,25 @@ def test_Select():
     assert data_select_lambda_lazy[-1] == {"test1": 1, "test2": 0, "test3": 2}
     assert data_select_lambda_direct[-1] == {"test1": 1, "test2": 0, "test3": 2}
 
-    ## eval_data not None
-    # data
-    data = np.array([1, 2, 3, 4])
-    eval_data = np.array([5, 6, 7])
+    ## Check on list and lambda function with eval_data is not None
+    # Data
+    data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
+    data = DictSeqAbstract().add_dict(data)
+    test3_criterium = np.array([1, 2])
     # select
-    data_select_indices_lazy = Select(data, selector=(np.argwhere((eval_data == 5) | (eval_data == 6))), eval_data=eval_data, lazy=True)
-    data_select_indices_direct = Select(data, selector=(np.argwhere((eval_data == 5) | (eval_data == 6))), eval_data=eval_data, lazy=False)
+    data_select_lambda_lazy = Select(data=data, selector=(lambda x, k: x[k] in test3_criterium), lazy=True, eval_data=data["test3"])
+    data_select_lambda_direct = Select(data=data, selector=(lambda x, k: x[k] in test3_criterium), lazy=False, eval_data=data["test3"])
     # check
-    np.testing.assert_array_equal(data_select_indices_lazy, np.array(([1], [2])))
-    np.testing.assert_array_equal(data_select_indices_direct, np.array(([1], [2])))
+    assert data_select_lambda_lazy[0] == {"test1": 1, "test2": 0, "test3": 1}
+    assert data_select_lambda_direct[0] == {"test1": 1, "test2": 0, "test3": 1}
+    assert data_select_lambda_lazy[-1] == {"test1": 1, "test2": 0, "test3": 2}
+    assert data_select_lambda_direct[-1] == {"test1": 1, "test2": 0, "test3": 2}
 
 
 def test_Filter():
     from dabstract.abstract import Filter, DictSeqAbstract
     """Test Filter"""
-    ## List
+    ## test with List
     # data
     data = [1, 2, 3, 4]
     test3_criterium = [1, 2]
@@ -123,7 +137,7 @@ def test_Filter():
     assert data_filter_lazy_none[0] == 1 and data_filter_lazy_none[1] == 2
     assert data_filter_direct_none == [1, 2, None, None]
 
-    ## DictSeqAbstract
+    ## test with DictSeqAbstract
     # data
     data = {"test1": np.ones(3), "test2": np.zeros(3), "test3": [1, 2, 3]}
     data = DictSeqAbstract().add_dict(data)
