@@ -193,13 +193,13 @@ class DataAbstract(Abstract):
     def __init__(
         self,
         data: Iterable,
-        single_datatype=True,
+        output_datatype: str = 'auto',
         workers: int = 0,
         buffer_len: int = 3,
         load_memory: bool = False,
     ):
         super().__init__(data)
-        self._single_datatype = single_datatype
+        self._output_datatype = output_datatype
         self._workers = workers
         self._buffer_len = buffer_len
         self._load_memory = load_memory
@@ -259,17 +259,20 @@ class DataAbstract(Abstract):
                         if k == 0:
                             if return_info:
                                 info_out = [dict()] * len(self._data)
-                            if not self._single_datatype:
+                            if isinstance(tmp_data, (np.ndarray)) and self._output_datatype in ('numpy','auto'):
+                                data_out = np.zeros((len(_data),) + tmp_data.shape)
+                            elif isinstance(
+                                tmp_data, (np.int, np.int64, int, np.float64)
+                            ) and self._output_datatype in ('numpy','auto'):
+                                data_out = np.zeros((len(_data), 1))
+                            elif self._output_datatype in ('list','auto'):
                                 data_out = [None] * len(_data)
-                            else:
-                                if isinstance(tmp_data, (np.ndarray)):
-                                    data_out = np.zeros((len(_data),) + tmp_data.shape)
-                                elif isinstance(
-                                    tmp_data, (np.int, np.int64, int, np.float64)
-                                ):
-                                    data_out = np.zeros((len(_data), 1))
-                                else:
-                                    data_out = [None] * len(_data)
+                        elif self._output_datatype == 'auto' and isinstance(data_out,np.ndarray):
+                            if np.squeeze(data_out).shape != np.squeeze(tmp_data):
+                                tmp_data_out = data_out
+                                data_out = [None] * len(data_out)
+                                for k in range(len(tmp_data_out)):
+                                    data_out[k] = tmp_data_out[k]
                         data_out[k] = tmp_data
                         if return_info:
                             info_out[k] = tmp_info
