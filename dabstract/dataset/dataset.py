@@ -935,11 +935,11 @@ class Dataset:
             assert fold < self.xval["folds"]
         assert fold is not None
         assert fold < self.xval["folds"]
-        if keys is "all":
+        if keys == "all":
             if set is None:
 
                 def get_xval_set(set=None, keys="all"):
-                    if keys is "all":
+                    if keys == "all":
                         return Select(self._data, self.xval[set][fold])
                     else:
                         return Select(

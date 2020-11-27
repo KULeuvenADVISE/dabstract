@@ -87,7 +87,9 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
     if "split" in config:
         ddataset.add_split(**config["split"])
     if "select" in config:
-        ddataset.add_select(config["select"])
+        if isinstance(config["select"], list):
+            for _select in config["select"]:
+                ddataset.add_select(_select)
     return ddataset
 
 
@@ -175,7 +177,9 @@ def dataset_factory(
         else:
             raise NotImplementedError
     if select is not None:
-        db.add_select(select)
+        if isinstance(select, list):
+            for _select in select:
+                db.add_select(_select)
 
     return db
 
@@ -383,7 +387,7 @@ def get_dir_info(
         with open(os.path.join(path, "file_info.pickle"), "rb") as fp:
             info, example_in = pickle.load(fp)
         info = [info[k] for k in range(len(example)) if example[k] in example_in]
-        assert len(example_in) == len(
+        assert len(info) == len(
             filepath
         ), "info file not of same size as directory"
     return {
