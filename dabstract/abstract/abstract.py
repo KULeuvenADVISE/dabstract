@@ -193,10 +193,12 @@ class DataAbstract(Abstract):
     def __init__(
         self,
         data: Iterable,
+        *args,
         output_datatype: str = "auto",
         workers: int = 0,
         buffer_len: int = 3,
         load_memory: bool = False,
+        **kwargs
     ):
         super().__init__(data)
         self._output_datatype = output_datatype
@@ -207,11 +209,9 @@ class DataAbstract(Abstract):
     def __iter__(self) -> Generator:
         return parallel_op(
             self._data,
-            *self._args,
             workers=self._workers,
             buffer_len=self._buffer_len,
             return_info=False,
-            **self._kwargs,
         )
 
     def get(
@@ -228,7 +228,7 @@ class DataAbstract(Abstract):
         if isinstance(index, numbers.Integral):
             if self._abstract:
                 data, info = self._data.get(
-                    index, return_info=True, *args, **kwargs, **self._kwargs
+                    index, return_info=True, *args, **kwargs
                 )
             else:
                 data, info = self._data[index], {}
