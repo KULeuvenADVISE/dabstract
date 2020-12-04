@@ -278,8 +278,8 @@ class DataAbstract(Abstract):
                             ):
                                 tmp_data_out = data_out
                                 data_out = [None] * len(data_out)
-                                for k in range(len(tmp_data_out)):
-                                    data_out[k] = tmp_data_out[k]
+                                for j in range(0,k):
+                                    data_out[j] = tmp_data_out[j]
                         data_out[k] = tmp_data
                         if return_info:
                             info_out[k] = tmp_info
