@@ -77,6 +77,13 @@ Scaler
    :undoc-members:
    :show-inheritance:
 
+Resample
+-------------
+.. automodule:: dabstract.dataprocessor.processors.processors
+   :members: Resample
+   :undoc-members:
+   :show-inheritance:
+
 
 
 
