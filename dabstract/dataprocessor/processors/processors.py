@@ -10,7 +10,7 @@ import librosa
 from dabstract.utils import listnp_combine, flatten_nested_lst
 from dabstract.dataprocessor import Processor
 
-from typing import Dict
+from typing import Dict, Any
 
 
 class WavDatareader(Processor):
@@ -21,13 +21,20 @@ class WavDatareader(Processor):
         select_channel: int = None,
         fs: int = None,
         read_range: (int, int) = None,
-        dtype=None,
+        dtype: Any = None,
+        resample: bool =  False,
+        resample_axis: int = 0,
+        resample_window: str = 'hann',
         **kwargs
     ):
         self.select_channel = select_channel
         self.fs = fs
         self.read_range = read_range
         self.dtype = dtype
+        self.resample = resample
+        if self.resample:
+            assert fs is not None
+            self.resampler = Resample(target_fs = fs, axis=resample_axis, window=resample_window)
 
     def process(self, file: str, **kwargs) -> (np.ndarray, Dict):
         # get read params
@@ -43,14 +50,19 @@ class WavDatareader(Processor):
 
         # read
         data, fs = read_wav(file, **args)
-        if self.fs is not None:
-            assert (
-                fs == self.fs
-            ), "Input fs and provided fs different. Downsampling not supported currently."
 
         # data selection
         if self.select_channel is not None:
             data = data[:, self.select_channel]
+
+        # resample
+        if self.fs is not None:
+            if self.resample:
+                data = self.resampler.process(data, fs = fs)[0]
+            else:
+                assert (
+                    fs == self.fs
+                ), "Input fs and provided fs different. Downsampling not supported currently."
 
         # updata self info
         return data, {"fs": fs}
@@ -538,7 +550,8 @@ class FIRFilter(Processor):
             )
         elif self.type == "lowpass":
             self.filter = signal.firwin(self.taps, self.f, window=self.window, fs=fs)
-
+        else:
+            raise NotImplementedError
     def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
         if not hasattr(self, "filter"):
             if "fs" in kwargs:
@@ -552,6 +565,27 @@ class FIRFilter(Processor):
         return signal.lfilter(self.filter, 1.0, data, axis=self.axis), {}
 
 
+class Resample(Processor):
+    """Processor to resample data"""
+
+    def __init__(self, target_fs: int = None, fs: int = None, axis = 0, window = 'hann'):
+        self.target_fs = target_fs
+        self.fs = fs
+        self.axis = axis
+        self.window = window
+
+    def process(self, data, **kwargs):
+        if 'fs' in kwargs:
+            fs = kwargs['fs']
+        else:
+            fs = self.fs
+        data = scipy.signal.resample(data,
+                                     int(np.round(self.target_fs/fs * data.shape[self.axis])),
+                                     axis = self.axis,
+                                     window = self.window)
+        return data, {'fs': self.target_fs}
+
+
 class ExpandDims(Processor):
     """Processor to expand the dimensions"""
 
@@ -561,3 +595,6 @@ class ExpandDims(Processor):
     def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
         data = np.expand_dims(data, axis=self.axis)
         return data, {}
+
+class Dummy(Processor):
+    pass

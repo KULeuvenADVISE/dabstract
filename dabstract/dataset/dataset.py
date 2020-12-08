@@ -507,6 +507,10 @@ class Dataset:
         """
         pass
 
+    def pop(self, key: str) -> Any:
+        assert key in self.keys
+        self[key].pop()
+
     def load_memory(
         self,
         key: str,
@@ -661,7 +665,7 @@ class Dataset:
         subdbs = list(np.unique(subdb))
 
         # extract
-        featfilelist, infofilelist = [], []
+        featfilelist, infofilelist = [None] * len(self), [None] * len(self)
         for dataset_id in range(self._nr_datasets):
             if verbose:
                 print("Dataset " + self._param[dataset_id]["name"])
@@ -706,18 +710,13 @@ class Dataset:
                 ):  # if all does not exist
                     output_info = [None] * len(sel_ind)
                     # extract for every example
-                    for k, data_tmp in enumerate(
-                        tqdm(
-                            DataAbstract(data[key]).get(
+                    dataloader = DataAbstract(data[key]).get(
                                 sel_ind,
                                 return_generator=True,
                                 return_info=True,
                                 workers=workers,
-                                buffer_len=buffer_len,
-                            ),
-                            disable=(not verbose),
-                        )
-                    ):  # for every sample
+                                buffer_len=buffer_len)
+                    for k, data_tmp in enumerate(tqdm(dataloader, disable=(not verbose))):  # for every sample
                         data_tmp, info_tmp = data_tmp
                         # save data
                         np.save(tmp_featfilelist[k], data_tmp)
@@ -738,12 +737,15 @@ class Dataset:
                     os.path.join(featpath_base, subdb, "file_info.pickle"), "rb"
                 ) as fp:
                     info_in, example_in = pickle.load(fp)
-                infofilelist += [
+                tmp_infofilelist = [
                     info_in[k]
                     for k in range(len(tmp_example))
                     if tmp_example[k] in example_in
                 ]
-                featfilelist += tmp_featfilelist
+                # reorder
+                for k,j in enumerate(sel_ind):
+                    infofilelist[j] = tmp_infofilelist[k]
+                    featfilelist[j] = tmp_featfilelist[k]
 
         # save chain config
         feconfdir = pathlib.Path(featpath_base, "config.pickle")

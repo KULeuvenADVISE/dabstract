@@ -60,6 +60,9 @@ class Abstract:
     def __call__(self, *args, **kwargs) -> Any:
         return self.get(*args, **kwargs)
 
+    def pop(self) -> Any:
+        return self._data
+
     @property
     def len_defined(self):
         return True
@@ -1590,6 +1593,13 @@ class DictSeqAbstract(Abstract):
     def __repr__(self) -> str:
         return "dict_seq containing: " + str(self.keys())
 
+    def pop(self, key) -> Any:
+        if self._abstract[key]:
+            self[key] = self[key].pop()
+        else:
+            raise NotImplementedError("Can't pop a data object that is not of type Abstract")
+        return self
+
 
 class SeqAbstract(Abstract):
     """Seq base class"""
@@ -1715,6 +1725,9 @@ class SeqAbstract(Abstract):
                 r += "\n[ \t" + repr(data) + "\t]"
             # r += '\n'
         return r
+
+    def pop(self) -> Any:
+        raise NotImplementedError
 
 
 def class_str(data: Callable):
