@@ -16,6 +16,7 @@ def load_yaml_config(
     walk: bool = False,
     verbose: bool = True,
     post_process: Callable = None,
+    post_process_kwargs: Dict = {},
     unpack: bool = False,
     **kwargs
 ) -> Union[str, Union[Dict, Any]]:
@@ -63,6 +64,8 @@ def load_yaml_config(
     post_process : Callable
         Place here a factory function that accepts the yaml input configuration.
         Identical as post_process(load_yaml_config).
+    post_process_kwargs : Dict
+        Any kwargs you want to provide to the postp_process Callable
     unpack : bool
         Whether or not to unpack to yaml configuration dict before applying it to post_process()
     kwargs : dict
@@ -136,9 +139,9 @@ def load_yaml_config(
     # custom post process if needed
     if post_process is not None:
         if unpack:
-            cfg = post_process(**cfg)
+            cfg = post_process(**cfg, **post_process_kwargs)
         else:
-            cfg = post_process(cfg)
+            cfg = post_process(cfg, **post_process_kwargs)
 
     return cfg
 

@@ -82,14 +82,14 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
         else:
             ddataset.concat(tmp_ddataset)
     # add other functionality
-    if "xval" in config:
-        ddataset.set_xval(**config["xval"], overwrite=overwrite_xval)
     if "split" in config:
         ddataset.add_split(**config["split"])
     if "select" in config:
         if isinstance(config["select"], list):
             for _select in config["select"]:
                 ddataset.add_select(_select)
+    if "xval" in config:
+        ddataset.set_xval(**config["xval"], overwrite=overwrite_xval)
     return ddataset
 
 
@@ -167,8 +167,6 @@ def dataset_factory(
             raise ValueError("Class is not a Dataset.")
 
     # add other functionality
-    if xval is not None:
-        db.set_xval(**xval)
     if split is not None:
         if isinstance(split, int):
             db.add_split(split)
@@ -180,6 +178,8 @@ def dataset_factory(
         if isinstance(select, list):
             for _select in select:
                 db.add_select(_select)
+    if xval is not None:
+        db.set_xval(**xval)
 
     return db
 

@@ -1386,7 +1386,7 @@ class DictSeqAbstract(Abstract):
             "Can only use %s it object has __len__" % self.__class__.__name__
         )
         if not self._adjust_mode:
-            if self._nr_keys > 0:
+            if self._nr_keys > 0 and len(self) > 0:
                 assert len(data) == len(self), "len(self) is not the same as len(data)"
         new_key = False if key in self.keys() else True
         if (not lazy) and isinstance(data, Abstract):
