@@ -608,6 +608,58 @@ class Dataset:
         """Placeholder for the dataset. You can add dataset download ops here."""
         pass
 
+    def get_unique(self, key: str, fold: int = None, set: str = None, return_idx = False) -> List[Any]:
+        """returns the unique values and corresponding ids  to the examples that belong to a unique group for a particular key/item.
+
+        If not fold/set is specified, it will return the unique value and ids for all data.
+        If both are specified, i.e. fold = 1 and set = 'test' it will return those associated with that dataset.
+        Note that this only works if xval is initialised in set_xval().
+
+        While get_unique(.., return_idx=False) returns the unique values of a dataset, e.g.::
+
+            $   print(data['example'])
+                    [1,2,3,1]
+            $   print(data.get_unique('example'))
+                    [1,2,3]
+
+        get_unique(.., return_idx=True) also returns the associated indices::
+
+            $   print(data.get_unique('example', return_idx=True))
+                    [[1,2,3], [[0,3],[2],[3]]]
+
+        This is primarily useful for plotting data based on a particular separating variable.
+
+        Parameters
+        ----------
+        key : str
+            key to get unique values from
+        fold : int
+            fold to get unique content of
+        set : str
+            set to get unique content of
+        return_idx: bool
+            returns the idx corresponding to the unique values or not
+
+        Returns
+        -------
+        unique_values : List[np.ndarray]
+            Unique value ids of that key corresponding to the output of .get_unique(...)
+        """
+
+        if fold is None: assert set is None
+        if set is None: assert fold is None
+        if fold is None:
+            data_key = DataAbstract(self[key])[:]
+        else:
+            data_key = DataAbstract(self.get_xval_set(set=set,fold=fold)[key])[:]
+
+        data_unique = np.unique(data_key)
+        data_ids = [None] * len(data_unique)
+        for k in range(len(data_unique)):
+            data_ids[k] = np.where([data_tmp==data_unique[k] for data_tmp in data_key])[0]
+
+        return data_unique, data_ids if return_idx else data_unique
+
     def prepare_feat(
             self,
             key: str,
