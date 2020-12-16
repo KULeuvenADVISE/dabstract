@@ -251,7 +251,9 @@ class Dataset:
             if "test_only" not in self.keys():
                 self.add("test_only", self._param[0]['test_only'] * np.ones(len(self)), lazy=False)
             if "dataset_id" not in self.keys():
-                self.add("dataset_id", np.zeros((len(self),1), np.int), lazy=False)
+                self.add("dataset_id", np.zeros((len(self),1), np.int), lazy=True)
+                # Note that dataset_id and test_only should remain lazy
+                # To ensure that pop dive works in prepare_feat()
 
     def add_split(
             self,
@@ -287,6 +289,10 @@ class Dataset:
         """
 
         from dabstract.dataset.helpers import FolderDictSeqAbstract
+
+        # sanity check
+        if hasattr(self, "xval"):
+            raise NotImplementedError("You can't use .add_split() after you used set_xval() as these indices would be out of sync with the dataset. \n A sync between xval and add_split() is for a future release. \n If you want to split your please use Split() and place it in a new variable OR do it prior to get_xval().")
 
         # get time_step in case of samples
         if type == "samples":
@@ -392,6 +398,7 @@ class Dataset:
                     SampleReplicate(self[key], factor=ref, lazy=self._data._lazy[key]),
                     lazy=self._data._lazy[key],
                 )
+
         # replace existing dataset
         self._data = new_data
 
@@ -444,6 +451,10 @@ class Dataset:
         arg/kwargs:
             additional param to provide to the function if needed
         """
+
+        # sanity check
+        if hasattr(self, "xval"):
+            raise NotImplementedError("You can't use .add_select() after you used set_xval() as these indices would be out of sync with the dataset. \n A sync between xval and add_select() is for a future release. \n If you want to Select your please use Select() and place it in a new variable or do it prior to set_xval().")
 
         # get selector
         if isinstance(selector, dict):
@@ -625,7 +636,7 @@ class Dataset:
         get_unique(.., return_idx=True) also returns the associated indices::
 
             $   print(data.get_unique('example', return_idx=True))
-                    [[1,2,3], [[0,3],[2],[3]]]
+                    [[1,2,3], [[0,3],[2],[3]], [[1,2],[3],[4]]
 
         This is primarily useful for plotting data based on a particular separating variable.
 
@@ -644,8 +655,13 @@ class Dataset:
         -------
         unique_values : List[np.ndarray]
             Unique value ids of that key corresponding to the output of .get_unique(...)
+        data_ids : List[np.ndarray]
+            idx of data matching a particular unique_value (optional if return_idx = True)
+        plot_ids : List[np.ndarray]
+            sequential plot idx for a particular unique_value (optional if return_idx = True)
         """
 
+        # get data
         if fold is None: assert set is None
         if set is None: assert fold is None
         if fold is None:
@@ -653,12 +669,22 @@ class Dataset:
         else:
             data_key = DataAbstract(self.get_xval_set(set=set,fold=fold)[key])[:]
 
+        # get location of ids
         data_unique = np.unique(data_key)
-        data_ids = [None] * len(data_unique)
-        for k in range(len(data_unique)):
-            data_ids[k] = np.where([data_tmp==data_unique[k] for data_tmp in data_key])[0]
 
-        return data_unique, data_ids if return_idx else data_unique
+        # get idx
+        if return_idx:
+            data_ids = [None] * len(data_unique)
+            for k in range(len(data_unique)):
+                data_ids[k] = np.where([data_tmp==data_unique[k] for data_tmp in data_key])[0]
+
+            # get plot ids
+            plot_ids = [np.in1d(np.concatenate(data_ids), data_id).nonzero()[0] for data_id in data_ids]
+
+            return (data_unique, data_ids, plot_ids)
+
+        else:
+            return data_unique
 
     def prepare_feat(
             self,
@@ -667,6 +693,7 @@ class Dataset:
             fe_dp: ProcessingChain,
             new_key: str = None,
             overwrite: bool = False,
+            allow_data_pop: bool = True,
             verbose: bool = True,
             workers: int = 2,
             buffer_len: int = 2,
@@ -707,39 +734,71 @@ class Dataset:
         # checks
         from dabstract.dataset.helpers import FolderDictSeqAbstract
 
-        assert isinstance(self[key], FolderDictSeqAbstract), (
+        # pop diving to search for a FolderDictSeqAbstract
+        # ToDo(gert): think about better option
+        # tbh this is a bit hacky but I think it's the most elegant way to support prepare_feat at any moment
+        # Without pop diving one can only extract features prior to selecting and splitting the dataset. This would
+        # allow a way to this at any moment. There could be cases where this would result in unexpected behaviour tho..
+        # ToDo(gert): add checks such that dataset_id is not adjusted at any time or evaluated
+        data = self[key]
+        dataset_ids = self['dataset_id']
+        if allow_data_pop:
+            data_rec = []
+            if not isinstance(data, FolderDictSeqAbstract):
+                while isinstance(data, (SelectAbstract, SplitAbstract)):
+                    if isinstance(data, SelectAbstract):
+                        data_rec.append([SelectAbstract, data.get_indices()])
+                    elif isinstance(data, SplitAbstract):
+                        data_rec.append([SplitAbstract, data.get_param()])
+                    data = data.pop()
+                    assert hasattr(dataset_ids, 'pop'), "dataset_id and " + key + " do not contain the same operations"
+                    dataset_ids.pop()
+        assert isinstance(data, FolderDictSeqAbstract), (
                 key + " should be of type FolderDictSeqAbstract"
         )
+
         # inits
-        data = copy.deepcopy(self)
-        data.add_map(key, fe_dp)
-        subdb = [subdb for subdb in data[key]["subdb"]]
+        data = copy.deepcopy(data)
+        subdb = [subdb for subdb in data["subdb"]]
         example = [
-            os.path.splitext(example)[0] + ".npy" for example in data[key]["example"]
+            os.path.splitext(example)[0] + ".npy" for example in data["example"]
         ]
         subdbs = list(np.unique(subdb))
 
-        # extract
-        featfilelist, infofilelist = [None] * len(self), [None] * len(self)
+        # Add MapAbstract to data
+        data = MapAbstract(data, fe_dp)
+
+        # extract features for every dataset
+        featfilelist, infofilelist = [None] * len(data), [None] * len(data)
         for dataset_id in range(self._nr_datasets):
+            # print
             if verbose:
                 print("Dataset " + self._param[dataset_id]["name"])
+                print("Feat " + fe_name)
+                #fe_dp.summary()
+
+            # feature location base
             featpath_base = os.path.join(
                 self._param[dataset_id]["paths"]["feat"],
                 self._param[dataset_id]["name"],
                 key,
                 fe_name,
             )
-            for subdb in subdbs:  # for every subdb
+
+            # loop over subdb for feature extraction
+            for subdb in subdbs:
+                # create dirs
                 os.makedirs(os.path.join(featpath_base, subdb), exist_ok=True)
+                # get indices to do for this subdb and dataset
                 sel_ind = np.where(
                     [
                         i == subdb and j == dataset_id
-                        for i, j in zip(data[key]["subdb"], data["dataset_id"])
+                        for i, j in zip(data["subdb"], dataset_ids)
                     ]
                 )[
                     0
                 ]  # get indices
+                # print
                 if verbose:
                     print(
                         "Preparing "
@@ -750,10 +809,13 @@ class Dataset:
                         + subdb
                     )
 
+                # create list of filenames for feat and audio
                 tmp_featfilelist = [
                     os.path.join(featpath_base, example[k]) for k in sel_ind
                 ]
                 tmp_example = [example[k] for k in sel_ind]
+
+                # extract if one is missing
                 if (
                         np.any(
                             [
@@ -762,42 +824,51 @@ class Dataset:
                             ]
                         )
                         or overwrite
-                ):  # if all does not exist
+                ):
+                    # init
                     output_info = [None] * len(sel_ind)
-                    # extract for every example
-                    dataloader = DataAbstract(data[key]).get(
+                    # init dataloader
+                    dataloader = DataAbstract(data).get(
                         sel_ind,
                         return_generator=True,
                         return_info=True,
                         workers=workers,
                         buffer_len=buffer_len)
+                    # loop over the data
                     for k, data_tmp in enumerate(tqdm(dataloader, disable=(not verbose))):  # for every sample
+                        # unpack
                         data_tmp, info_tmp = data_tmp
                         # save data
                         np.save(tmp_featfilelist[k], data_tmp)
                         # keep info
                         output_info[k] = info_tmp
                     # save info
-                    if (
-                            not pathlib.Path(
-                                featpath_base, subdb, "file_info.pickle"
-                            ).is_file()
-                    ) or overwrite:
-                        with open(
-                                os.path.join(featpath_base, subdb, "file_info.pickle"), "wb"
-                        ) as fp:
-                            pickle.dump((output_info, tmp_example), fp)
+                    with open(
+                            os.path.join(featpath_base, subdb, "file_info.pickle"), "wb"
+                    ) as fp:
+                        pickle.dump((output_info, tmp_example), fp)
+                    # if (
+                    #         not pathlib.Path(
+                    #             featpath_base, subdb, "file_info.pickle"
+                    #         ).is_file()
+                    # ) or overwrite:
+                    #     with open(
+                    #             os.path.join(featpath_base, subdb, "file_info.pickle"), "wb"
+                    #     ) as fp:
+                    #         pickle.dump((output_info, tmp_example), fp)
 
+                # load information
                 with open(
                         os.path.join(featpath_base, subdb, "file_info.pickle"), "rb"
                 ) as fp:
                     info_in, example_in = pickle.load(fp)
+                # intersect information with desired samples
                 tmp_infofilelist = [
                     info_in[k]
                     for k in range(len(tmp_example))
                     if tmp_example[k] in example_in
                 ]
-                # reorder
+                # reorder as a sanity check
                 for k, j in enumerate(sel_ind):
                     infofilelist[j] = tmp_infofilelist[k]
                     featfilelist[j] = tmp_featfilelist[k]
@@ -813,25 +884,36 @@ class Dataset:
             # assert fe_dp.summary(verbose=False)==feconf, "Feature configuration in " + str(feconfdir) + " does not match the provided processing chain. Please check."
             # ToDo(gert): check why this check does not work after serialization. Should be identical...
 
-        # adjust features
+        # add features to the dataset
         if new_key is None:
             new_key = key
             self.remove(key)
         if isinstance(key, str):
-            self.add(
-                new_key,
-                FolderDictSeqAbstract(
-                    featpath_base,
-                    filepath=featfilelist,
-                    extension=".npy",
-                    map_fct=ProcessingChain().add(NumpyDatareader()),
-                    info=infofilelist,
-                ),
-            )
+            # retrieve data
+            feat_data = FolderDictSeqAbstract(
+                                            featpath_base,
+                                            filepath=featfilelist,
+                                            extension=".npy",
+                                            map_fct=ProcessingChain().add(NumpyDatareader()),
+                                            info=infofilelist)
+            # apply operations retrieved from popping
+            if allow_data_pop:
+                for data_rec_op in reversed(data_rec):
+                    if data_rec_op[0]==SelectAbstract:
+                        feat_data = data_rec_op[0](feat_data, data_rec_op[1])
+                    elif data_rec_op[0]==SplitAbstract:
+                        sample_len = [info['output_shape'][0] * info['time_step'] for info in feat_data['info']]
+                        sample_period = [info['time_step'] for info in feat_data['info']]
+                        assert np.all([sample_period[0]==_sample_period for _sample_period in sample_period]), "Each example should be of equal time_step"
+                        feat_data = data_rec_op[0](feat_data, **dict(data_rec_op[1], **{'sample_len': sample_len, 'sample_period': sample_period[0]}))
+            # add to dataset
+            self.add(new_key, feat_data)
         else:
             raise Exception(
                 "new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced."
             )
+
+
 
     def set_xval(
             self,

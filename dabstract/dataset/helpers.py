@@ -168,7 +168,7 @@ def dataset_factory(
 
     # add other functionality
     if split is not None:
-        if isinstance(split, int):
+        if isinstance(split, (int, float)):
             db.add_split(split)
         elif isinstance(split, dict):
             db.add_split(**split)

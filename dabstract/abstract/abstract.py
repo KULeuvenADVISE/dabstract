@@ -781,6 +781,13 @@ class SplitAbstract(Abstract):
         self._sample_period = sample_period
         self._init_split()
 
+    def get_param(self):
+        return {'split_size': self._split_size,
+                'type': self._type,
+                'constraint': self._constraint,
+                'sample_len': self._sample_len,
+                'sample_period': self._sample_period}
+
     def _init_split(self):
         # init window_size
         if self._type == "seconds":

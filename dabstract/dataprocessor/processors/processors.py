@@ -583,7 +583,7 @@ class Resample(Processor):
                                      int(np.round(self.target_fs/fs * data.shape[self.axis])),
                                      axis = self.axis,
                                      window = self.window)
-        return data, {'fs': self.target_fs}
+        return data, {'fs': self.target_fs, 'time_step': 1/self.target_fs}
 
 
 class ExpandDims(Processor):
