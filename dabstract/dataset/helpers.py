@@ -80,7 +80,7 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
         if k == 0:
             ddataset = tmp_ddataset
         else:
-            ddataset.concat(tmp_ddataset)
+            ddataset.concat(tmp_ddataset, intersect = True)
     # add other functionality
     if "split" in config:
         ddataset.add_split(**config["split"])

@@ -208,6 +208,7 @@ class DataAbstract(Abstract):
         self._workers = workers
         self._buffer_len = buffer_len
         self._load_memory = load_memory
+        self._kwargs = kwargs
 
     def __iter__(self) -> Generator:
         return parallel_op(
@@ -215,6 +216,7 @@ class DataAbstract(Abstract):
             workers=self._workers,
             buffer_len=self._buffer_len,
             return_info=False,
+            **self._kwargs
         )
 
     def get(
@@ -245,6 +247,7 @@ class DataAbstract(Abstract):
                 workers=workers,
                 buffer_len=buffer_len,
                 return_info=return_info,
+                **self._kwargs,
                 **kwargs,
             )
             # return
@@ -1438,7 +1441,10 @@ class DictSeqAbstract(Abstract):
                     rem_keys = list_difference(data.keys(), self2.keys())
                     # remove ones which are not identical
                     for rem_key in rem_keys:
-                        self2.remove(rem_key)
+                        if rem_key in data.keys():
+                            data.remove(rem_key)
+                        else:
+                            self2.remove(rem_key)
                 for key in keys:
                     if self2._lazy[key]:
                         # make sure that data format is as desired by the base dict
@@ -1605,7 +1611,6 @@ class DictSeqAbstract(Abstract):
             self[key] = self[key].pop()
         else:
             raise NotImplementedError("Can't pop a data object that is not of type Abstract")
-        return self
 
 
 class SeqAbstract(Abstract):

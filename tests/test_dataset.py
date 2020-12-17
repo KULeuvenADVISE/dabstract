@@ -100,12 +100,13 @@ def test__getitem__():
 
     # checks
     assert isinstance(db[0], Dict)
-    assert all([key in ('data', 'binary_anomaly', 'group', 'test_only', 'dataset_id') for key in db[0]])
+    assert all([key in ('data', 'binary_anomaly', 'group', 'test_only', 'dataset_id', 'dataset_str') for key in db[0]])
     assert np.all(db[0]['data'] == db['data'][0])
     assert db[0]['binary_anomaly'] == db['binary_anomaly'][0]
     assert db[0]['group'] == db['group'][0]
     assert db[0]['test_only'] == db['test_only'][0]
     assert db[0]['dataset_id'] == db['dataset_id'][0]
+    assert db[0]['dataset_str'] == db['dataset_str'][0]
 
 
 def test__setitem__():
@@ -178,7 +179,7 @@ def test_add():
     data.add('test2', np.zeros(3))
     data.add('test3', ['1', '2', '3'])
     # checks
-    assert data[0] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'test2': 0.0, 'test3': '1'}
+    assert data[0] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'dataset_str': 'Dataset', 'test2': 0.0, 'test3': '1'}
 
 
 def test_add_dict():
@@ -189,7 +190,7 @@ def test_add_dict():
                  'test3': ['1', '2', '3']}
     data.add_dict(data_dict)
     # checks
-    assert data[0] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'test2': 0.0, 'test3': '1'}
+    assert data[0] == {'test1': 1.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0, 'dataset_str': 'Dataset'}
 
 
 def test_concat():
@@ -215,18 +216,18 @@ def test_concat():
     # checks
     data3 = data.concat(data, adjust_base=False)
     assert len(data3) == 6
-    assert data[0] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'test2': 0.0, 'test3': '1'}
-    assert data[-1] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'test2': 0.0, 'test3': '3'}
+    assert data[0] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'test2': 0.0, 'test3': '1', 'dataset_str': 'Dataset'}
+    assert data[-1] == {'test1': 1.0, 'test_only': 0.0, 'dataset_id': 0, 'test2': 0.0, 'test3': '3', 'dataset_str': 'Dataset'}
 
     data3 = data.concat(data2, intersect=True, adjust_base=False)
     assert len(data3) == 6
-    assert data3[0] == {'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
-    assert data3[-1] == {'test2': 0.0, 'test3': '3', 'test_only': 0.0, 'dataset_id': 1}
+    assert data3[0] == {'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0, 'dataset_str': 'Dataset'}
+    assert data3[-1] == {'test2': 0.0, 'test3': '3', 'test_only': 0.0, 'dataset_id': 1, 'dataset_str': 'Dataset'}
 
     data.concat(data2, intersect=True, adjust_base=True).concat(data2, intersect=True, adjust_base=True)
     assert len(data) == 9
-    assert data[0] == {'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
-    assert data[-1] == {'test2': 0.0, 'test3': '3', 'test_only': 0.0, 'dataset_id': 1}
+    assert data[0] == {'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0, 'dataset_str': 'Dataset'}
+    assert data[-1] == {'test2': 0.0, 'test3': '3', 'test_only': 0.0, 'dataset_id': 2, 'dataset_str': 'Dataset'}
 
 
 def test_remove():
@@ -238,8 +239,8 @@ def test_remove():
     data.add_dict(data_dict)
     # checks
     data.remove('test1')
-    assert all([key in ('test2', 'test3', 'test_only', 'dataset_id') for key in data[0].keys()])
-    assert all([key in ('test2', 'test3', 'test_only', 'dataset_id') for key in data.keys()])
+    assert all([key in ('test2', 'test3', 'test_only', 'dataset_id', 'dataset_str') for key in data[0].keys()])
+    assert all([key in ('test2', 'test3', 'test_only', 'dataset_id', 'dataset_str') for key in data.keys()])
 
 
 def test_add_map():
@@ -265,9 +266,9 @@ def test_add_map():
     dp.add(custom_processor2)
     # checks
     data.add_map('test1', lambda x: x + 1)
-    assert data[0] == {'test1': 2.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
+    assert data[0] == {'test1': 2.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0, 'dataset_str': 'Dataset'}
     data.add_map('test1', dp)
-    assert data[0] == {'test1': 9.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
+    assert data[0] == {'test1': 9.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0, 'dataset_str': 'Dataset'}
 
 
 def test_add_split():
@@ -346,7 +347,7 @@ def test_keys():
                  'test3': ['1', '2', '3']}
     data.add_dict(data_dict)
     # checks
-    assert data.keys() == ['test1', 'test2', 'test3', 'test_only', 'dataset_id']
+    assert data.keys() == ['test1', 'test2', 'test3', 'test_only', 'dataset_id', 'dataset_str']
 
 
 def test_active_keys():
@@ -365,7 +366,7 @@ def test_active_keys():
     assert data[0] == 1.0
 
     data.reset_active_keys()
-    assert data[0] == {'test1': 1.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0}
+    assert data[0] == {'test1': 1.0, 'test2': 0.0, 'test3': '1', 'test_only': 0.0, 'dataset_id': 0, 'dataset_str': 'Dataset'}
 
 
 def test_unpack():

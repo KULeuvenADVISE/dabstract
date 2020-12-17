@@ -153,6 +153,7 @@ class Dataset:
         lazy : bool
             apply lazily or not
         """
+        self._assert_key_name(key)
         self._data.add(key, data, info=info, lazy=lazy, **kwargs)
         self._set_internal_meta()
 
@@ -169,8 +170,14 @@ class Dataset:
         data : dictseq/dict
             dict to add
         """
+        self._assert_key_name(data.keys())
         self._data.add_dict(data, lazy=lazy, **kwargs)
         self._set_internal_meta()
+
+    def _assert_key_name(self, keys: Union[List[str], str]):
+        if isinstance(keys, str): keys = [str]
+        for key in keys:
+            assert not (key in ('xval','test_only','dataset_id','dataset_str')), "%s can't be used as a key as it's already used internally." % key
 
     def concat(
             self, data: tvDataset, intersect: bool = False, adjust_base: bool = True
@@ -194,14 +201,20 @@ class Dataset:
         assert isinstance(
             data, Dataset
         ), "You can only concatenate with a dict_dataset instance"
-        # prep
+        # prep to-add dataset
         data = copy.deepcopy(data)
+        nr_datasets = copy.deepcopy(self._nr_datasets)
+        data['dataset_id'] = MapAbstract(data['dataset_id'], lambda x: x + nr_datasets)
+        # prep base dataset
+        if adjust_base:
+            self2 = self
+        else:
+            self2 = copy.deepcopy(self)
+        # adjust meta
         for par in data._param:
-            self._param.append(par)
-        data["dataset_id"] = MapAbstract(data["dataset_id"], lambda x: x + 1)
-        self._nr_datasets += data._nr_datasets
+            self2._param.append(par)
+        self2._nr_datasets += data._nr_datasets
         # concat
-        self2 = self if adjust_base else copy.deepcopy(self)
         self2._data = self2._data.concat(
             data._data, intersect=intersect, adjust_base=adjust_base
         )
@@ -244,6 +257,20 @@ class Dataset:
         ]
         # ToDo(gert): add additional general summary stats
 
+    def summary(self) -> None:
+        """Print a dataset summary"""
+        summary = {
+            "keys": self._data.keys(),
+            "database": [par["name"] for par in self._param],
+            "test_only": [par["test_only"] for par in self._param],
+            "len": [
+                np.sum([dataset_id == id for dataset_id in self._data["dataset_id"]])
+                for id in range(self._nr_datasets)
+            ],
+        }
+        pprint(summary)
+
+
     def _set_internal_meta(self, test_only: int = False):
         """Internal function to set some internal meta"""
         # Set other database meta
@@ -254,6 +281,8 @@ class Dataset:
                 self.add("dataset_id", np.zeros((len(self),1), np.int), lazy=True)
                 # Note that dataset_id and test_only should remain lazy
                 # To ensure that pop dive works in prepare_feat()
+            if "dataset_str" not in self.keys():
+                self.add("dataset_str", [self.__class__.__name__] * len(self), lazy=True)
 
     def add_split(
             self,
@@ -275,7 +304,7 @@ class Dataset:
         This class basically uses SplitAbstract and SampleReplicateAbstract. Key's including information, will be splitted,
         while keys including only data will be replicated depending on the splitting rate.
 
-        Parameters
+        Parametersx
         ----------
         split_size : float/int
             split size in seconds/samples depending on 'metric'
@@ -289,10 +318,6 @@ class Dataset:
         """
 
         from dabstract.dataset.helpers import FolderDictSeqAbstract
-
-        # sanity check
-        if hasattr(self, "xval"):
-            raise NotImplementedError("You can't use .add_split() after you used set_xval() as these indices would be out of sync with the dataset. \n A sync between xval and add_split() is for a future release. \n If you want to split your please use Split() and place it in a new variable OR do it prior to get_xval().")
 
         # get time_step in case of samples
         if type == "samples":
@@ -452,10 +477,6 @@ class Dataset:
             additional param to provide to the function if needed
         """
 
-        # sanity check
-        if hasattr(self, "xval"):
-            raise NotImplementedError("You can't use .add_select() after you used set_xval() as these indices would be out of sync with the dataset. \n A sync between xval and add_select() is for a future release. \n If you want to Select your please use Select() and place it in a new variable or do it prior to set_xval().")
-
         # get selector
         if isinstance(selector, dict):
             if "parameters" in selector:
@@ -520,9 +541,15 @@ class Dataset:
         """
         pass
 
-    def pop(self, key: str) -> Any:
-        assert key in self.keys()
-        self[key].pop()
+    def pop(self, key: str = None) -> Any:
+        if key is not None:
+            assert key in self.keys()
+            assert hasattr(self[key], 'pop')
+            self[key].pop()
+        else:
+            for key in self.keys():
+                assert hasattr(self[key], 'pop')
+                self[key].pop()
         return self
 
     def load_memory(
@@ -597,19 +624,6 @@ class Dataset:
                 workers=workers,
                 buffer_len=buffer_len,
             )
-
-    def summary(self) -> None:
-        """Print a dataset summary"""
-        summary = {
-            "keys": self._data.keys(),
-            "database": [par["name"] for par in self._param],
-            "test_only": [par["test_only"] for par in self._param],
-            "len": [
-                np.sum([dataset_id == id for dataset_id in self._data["dataset_id"]])
-                for id in range(self._nr_datasets)
-            ],
-        }
-        pprint(summary)
 
     def __repr__(self) -> str:
         """String representation of the class"""
@@ -740,8 +754,8 @@ class Dataset:
         # Without pop diving one can only extract features prior to selecting and splitting the dataset. This would
         # allow a way to this at any moment. There could be cases where this would result in unexpected behaviour tho..
         # ToDo(gert): add checks such that dataset_id is not adjusted at any time or evaluated
-        data = self[key]
-        dataset_ids = self['dataset_id']
+        data = copy.deepcopy(self[key])
+        dataset_ids = copy.deepcopy(self['dataset_id'])
         if allow_data_pop:
             data_rec = []
             if not isinstance(data, FolderDictSeqAbstract):
@@ -758,12 +772,12 @@ class Dataset:
         )
 
         # inits
-        data = copy.deepcopy(data)
-        subdb = [subdb for subdb in data["subdb"]]
+        data_subdb = [subdb for subdb in data["subdb"]]
         example = [
             os.path.splitext(example)[0] + ".npy" for example in data["example"]
         ]
-        subdbs = list(np.unique(subdb))
+        u_subdb = list(np.unique(data_subdb))
+        dataset_ids = DataAbstract(dataset_ids)[:].squeeze()
 
         # Add MapAbstract to data
         data = MapAbstract(data, fe_dp)
@@ -786,14 +800,14 @@ class Dataset:
             )
 
             # loop over subdb for feature extraction
-            for subdb in subdbs:
+            for subdb in u_subdb:
                 # create dirs
                 os.makedirs(os.path.join(featpath_base, subdb), exist_ok=True)
                 # get indices to do for this subdb and dataset
                 sel_ind = np.where(
                     [
                         i == subdb and j == dataset_id
-                        for i, j in zip(data["subdb"], dataset_ids)
+                        for i, j in zip(data_subdb, dataset_ids)
                     ]
                 )[
                     0
@@ -999,40 +1013,55 @@ class Dataset:
             elif isinstance(name, types.FunctionType):
                 func = name
 
-            self.xval = func(self_train)
-            assert "test" in self.xval, "please return a dict with minimally a test key"
+            xval_inds = func(self_train)
+            assert "test" in xval_inds, "please return a dict with minimally a test key"
 
             if save_path is not None:
                 os.makedirs(os.path.split(savefile_xval)[0], exist_ok=True)
                 with open(savefile_xval, "wb") as f:
-                    pickle.dump(self.xval, f)
+                    pickle.dump(xval_inds, f)
         elif save_path is not None:
             with open(savefile_xval, "rb") as f:
-                self.xval = pickle.load(f)  # load
+                xval_inds = pickle.load(f)  # load
 
-        # sanity check
-        keys = list(self.xval.keys())
+        # sanity checks
+        keys = list(xval_inds.keys())
         for key in keys:
             assert isinstance(
-                self.xval[key], list
+                xval_inds[key], list
             ), "Crossvalidation indices should be formatted in a list (for each fold)."
-            assert len(self.xval[keys[0]]) == len(
-                self.xval[key]
+            assert len(xval_inds[keys[0]]) == len(
+                xval_inds[key]
             ), "Amount of folds (items in list) should be the same for each test phase (train/val/test)."
+            assert np.max([np.max(set) for set in xval_inds[key]]) <= len(self), "Crossvalidation indices contain values larger than the dataset. Please check."
 
         # update indices based on sel_vect_train
-        for key in self.xval:
-            for k in range(len(self.xval[key])):
-                self.xval[key][k] = sel_vect_train[self.xval[key][k]]
+        for key in xval_inds:
+            for k in range(len(xval_inds[key])):
+                xval_inds[key][k] = sel_vect_train[xval_inds[key][k]]
 
         # add other test data
-        for k in range(len(self.xval["test"])):
-            self.xval["test"][k] = np.append(self.xval["test"][k], sel_vect_test)
+        for k in range(len(xval_inds["test"])):
+            xval_inds["test"][k] = np.append(xval_inds["test"][k], sel_vect_test)
 
         # add info
-        self.xval["folds"] = len(self.xval["test"])
+        self._folds = len(xval_inds["test"])
 
-        return self.xval
+        # add to dataset
+        xval_dict = DictSeqAbstract()
+        for key in xval_inds:
+            fold_dict = DictSeqAbstract()
+            for fold, fold_ids in enumerate(xval_inds[key]):
+                bool_array = np.zeros(len(self), dtype=bool)
+                bool_array[xval_inds[key][fold]] = True
+                fold_dict.add('fold_' + str(fold), bool_array)
+            xval_dict.add(key, fold_dict)
+        self.add('xval', xval_dict)
+
+    def get_folds(self) -> int:
+        """ get the amount of folds after .set_xval() is done """
+        assert 'xval' in self.keys(), "You have not yet set crossvalidation using set_xval()."
+        return self._folds
 
     def get_xval_set(
             self,
@@ -1063,46 +1092,39 @@ class Dataset:
             used buffer length for multiprocessing in case lazy is false
         """
 
-        # checks
+        # sanity checks
         if set is not None:
-            assert hasattr(self, "xval"), "xval is not set. Please exec self.set_xval()"
+            assert isinstance(set, str), "set should be of type str"
+            assert 'xval' in self.keys(), "Crossvalidation is not initialised. Please execute self.set_xval(..)"
             assert set in list(
-                self.xval.keys()
-            ), "xval_set not in xval sets. Available sets are: " + str(
-                list(self.xval.keys())
+                self['xval'].keys()
+            ), set + " not in xval sets. Available sets are: " + str(
+                list(self['xval'].keys())
             )
-            assert fold < self.xval["folds"]
-        assert fold is not None
-        assert fold < self.xval["folds"]
+        assert fold is not None, "You have to select a fold."
+        assert fold < self.get_folds(), "The fold you've chosen is above the total available folds."
+        kwargs = {'lazy': lazy, 'workers': workers, 'buffer_len': buffer_len}
         if keys == "all":
             if set is None:
 
                 def get_xval_set(set=None, keys="all"):
                     if keys == "all":
-                        return Select(self._data, self.xval[set][fold])
+                        data = self._data
                     else:
-                        return Select(
-                            UnpackAbstract(self._data, keys),
-                            self.xval[set][fold],
-                            lazy=False,
-                            workers=workers,
-                            buffer_len=buffer_len,
-                        )
+                        data = UnpackAbstract(self._data, keys)
+                    return Select(
+                        data,
+                        np.where(self['xval'][set]['fold_' + str(fold)])[0],
+                        **kwargs
+                    )
 
                 return get_xval_set
             else:
-                return Select(
-                    self._data,
-                    self.xval[set][fold],
-                    lazy=lazy,
-                    workers=workers,
-                    buffer_len=buffer_len,
-                )
+                data = self._data
         else:
-            return Select(
-                UnpackAbstract(self._data, keys),
-                self.xval[set][fold],
-                lazy=lazy,
-                workers=workers,
-                buffer_len=buffer_len,
-            )
+            data = UnpackAbstract(self._data, keys)
+        return Select(
+            data,
+            np.where(self['xval'][set]['fold_' + str(fold)])[0],
+            **kwargs
+        )
