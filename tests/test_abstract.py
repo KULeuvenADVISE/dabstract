@@ -180,7 +180,6 @@ def test_Split():
     np.testing.assert_array_equal(data_split_direct_power2_size5, np.ones((12, 8)))
     np.testing.assert_array_equal(data_split_lazy_power2_size5, np.ones((12, 8)))
 
-
 def test_Select():
     from dabstract.abstract import Select, DictSeqAbstract
     """Test Select"""
@@ -239,7 +238,6 @@ def test_Select():
     assert data_select_lambda_lazy[-1] == {"test1": 1, "test2": 0, "test3": 2}
     assert data_select_lambda_direct[-1] == {"test1": 1, "test2": 0, "test3": 2}
 
-
 def test_Filter():
     from dabstract.abstract import Filter, DictSeqAbstract
     """Test Filter"""
@@ -274,6 +272,31 @@ def test_Filter():
     assert data_filter_lazy_none[0] == {"test1": 1, "test2": 0, "test3": 1} and data_filter_lazy_none[1] == {"test1": 1, "test2": 0, "test3": 2}
     assert data_filter_direct_none == [{'test1': 1.0, 'test2': 0.0, 'test3': 1}, {'test1': 1.0, 'test2': 0.0, 'test3': 2}, None]
 
+def test_DataAbstract():
+    from dabstract.abstract import DataAbstract, DictSeqAbstract
+
+    data = ['1', '2', '3', '4']
+    DA = DataAbstract(data)
+
+    assert DA[0] == '1'
+    assert DA[-1] == '4'
+    assert DA[1:3] == ['2', '3']
+    assert DA[:] == ['1', '2', '3', '4']
+
+    DSA = DictSeqAbstract().add_dict({'test1': ['1', '2', '3'], 'test2': np.zeros(3)})
+    DA = DataAbstract(DSA)
+
+    assert DA[0] == {'test1': '1', 'test2': 0.0}
+    assert DA[-1] == {'test1': '3', 'test2': 0.0}
+    assert DA[0:2] == [{'test1': '1', 'test2': 0.0},{'test1': '2', 'test2': 0.0}]
+    assert DA[:] == [{'test1': '1', 'test2': 0.0},{'test1': '2', 'test2': 0.0},{'test1': '3', 'test2': 0.0}]
+
+    DA =  DataAbstract(DSA, workers=2, buffer_len=2)
+
+    assert DA[0] == {'test1': '1', 'test2': 0.0}
+    assert DA[-1] == {'test1': '3', 'test2': 0.0}
+    assert DA[0:2] == [{'test1': '1', 'test2': 0.0},{'test1': '2', 'test2': 0.0}]
+    assert DA[:] == [{'test1': '1', 'test2': 0.0},{'test1': '2', 'test2': 0.0},{'test1': '3', 'test2': 0.0}]
 
 if __name__ == "__main__":
     test_SampleReplicate()
@@ -282,3 +305,4 @@ if __name__ == "__main__":
     test_Split()
     test_Select()
     test_Filter()
+    test_DataAbstract()

@@ -155,6 +155,23 @@ def parallel_op(
     **kwargs: Dict
 ) -> Generator:
     """Apply a multiproc generator to the input sequence"""
+    """Parameters
+        ----------
+        data : Iterable
+            Iterable object to be mapped
+        type : str
+            String that defines whether a threadpool or a processpool will be used  
+        workers : int
+            Amount of workers used for loading the data (default = 1)
+        buffer_len : int
+            Buffer_len of the pool (default = 3)
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+             info contains the information that has been propagated through the chain of operations
+        arg : list
+            additional param to provide to the function if needed
+        kwargs : dict
+            additional param to provide to the function if needed"""
     # check
     assert hasattr(data, "__len__"), "Can only use parallel_op it object has __len__"
 
@@ -193,6 +210,32 @@ def parallel_op(
 class DataAbstract(Abstract):
     """Allow for multi-indexing and multi-processing on a sequence or dictseq"""
 
+    """The DataAbstract contains the following methods::
+
+            .get - return entry from DataAbstract
+            .keys - return attribute keys of data
+
+        The full explanation for each method is provided as a docstring at each method."""
+
+    """Parameters
+    ----------
+    data : Iterable
+        Iterable object
+    workers : int
+        Amount of workers used for loading the data (default = 1)
+    buffer_len : int
+        Buffer_len of the pool (default = 3)
+    load_memory: bool
+        Boolean that defines whether data should be loaded into memory or should be loaded on the fly
+    args : list
+        additional param to provide to the function if needed
+    kwargs : dict
+        additional param to provide to the function if needed
+
+    Returns
+    ----------
+    DataAbstract class"""
+
     def __init__(
         self,
         data: Iterable,
@@ -228,6 +271,32 @@ class DataAbstract(Abstract):
         *args: list,
         **kwargs: Dict
     ) -> Any:
+        """
+        Parameters
+        ----------
+        index : Iterable
+            Indices to retrieve data from
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+            info contains the information that has been propagated through the chain of operations
+        workers : int
+            Amount of workers used for loading the data (default = 1)
+        buffer_len : int
+            Buffer_len of the pool (default = 3)
+        return_generator : bool
+            Return generator object with the data if True or return tuple (data, info) if return_info is True
+            else return data (default = False)
+        verbose : bool
+            If True show progress (default = False)
+        args : List
+            additional param to provide to the function if needed
+        kwargs : Dict
+            additional param to provide to the function if needed
+
+        Returns
+        -------
+        List OR np.ndarray OR Any
+        """
         if isinstance(index, numbers.Integral):
             if self._abstract:
                 data, info = self._data.get(
