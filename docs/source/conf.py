@@ -16,7 +16,7 @@ import sys
 from unittest.mock import MagicMock
 
 # include package
-sys.path.insert(0, os.path.abspath('../dabstract'))
+sys.path.insert(0, os.path.abspath(os.path.join('..','..')))
 
 # Mock module to bypass pip install
 class Mock(MagicMock):

@@ -310,7 +310,7 @@ print(datab)
 # allow for multi indexing, e.g. data[:] or data[0,1]
 # and allow for multiprocessing with the workers and buffer_len flag
 # indexing is paralellized, but also the iterator is
-datab = DataAbstract(datab, fs=1, workers=2, buffer_len=2)
+datab = DataAbstract(datab, workers=2, buffer_len=2)
 print(datab)
 for k,d in enumerate(datab):
     print('Example ' + str(k))
