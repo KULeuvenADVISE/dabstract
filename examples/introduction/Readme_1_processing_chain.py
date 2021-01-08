@@ -305,7 +305,7 @@ dp.fit(DATA, fs=1)
 # you can now access data as with typical indexing
 # e.g. datab[0], data[1]
 # in this way it accesses DATA[0] and DATA[1] respectively with the additional dp
-datab = MapAbstract(DATA,dp)
+datab = MapAbstract(DATA,dp, fs = 1)
 print(datab)
 # allow for multi indexing, e.g. data[:] or data[0,1]
 # and allow for multiprocessing with the workers and buffer_len flag

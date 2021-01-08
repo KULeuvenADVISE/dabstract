@@ -69,6 +69,44 @@ def flow_feature_extraction():
                       workers=args.workers,
                       buffer_len=args.buffer_len)
 
+    import numpy as np
+    data = np.ones((100,1))
+
+    from dabstract.abstract.abstract import SeqAbstract, MapAbstract, DataAbstract
+    seq = SeqAbstract()
+    seq.concat(MapAbstract(data, lambda x: x*0+1))
+    seq.concat(MapAbstract(data, lambda x: x*0+2))
+    seq.concat(MapAbstract(data, lambda x: x*0+3))
+
+    data2 = DataAbstract(seq, workers=5)
+
+    DataGenerator()
+
+    Dataloader(data2, workers=2)
+
+
+    # data.add_select((lambda x,k: x[k]==0))
+    # data.add_split(0.5)
+    #
+    # import copy
+    # data2 = copy.deepcopy(data)
+    # data.add_map('feat', (lambda x: x*0))
+    # data2.add_map('feat', (lambda x: x*1))
+    # data = data + data2
+    #
+    # class Augmenter(ProcessingChain):
+    #     def fit(self, data):
+    #         pass
+    #     def process(self, data, **kwargs):
+    #         # processing steps
+    #         return data, {}
+
+
+
+
+
+
+
 if __name__ == "__main__":
     try:
         sys.exit(flow_feature_extraction())
