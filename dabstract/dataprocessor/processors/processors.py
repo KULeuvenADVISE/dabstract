@@ -10,7 +10,7 @@ import librosa
 from dabstract.utils import listnp_combine, flatten_nested_lst
 from dabstract.dataprocessor import Processor
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 class WavDatareader(Processor):
@@ -316,14 +316,14 @@ class FFT(Processor):
     def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
         # do fft
         if self.nfft == "nextpow2":
-            NFFT = 2 ** np.ceil(np.log2(np.shape(data)[self.axis]))
+            nfft = 2 ** np.ceil(np.log2(np.shape(data)[self.axis]))
         elif self.nfft == "original":
-            NFFT = np.shape(data)[self.axis]
+            nfft = np.shape(data)[self.axis]
 
         if self.type == "real":
-            data = np.fft.rfft(data, n=int(NFFT), axis=self.axis, norm=self.norm)
+            data = np.fft.rfft(data, n=int(nfft), axis=self.axis, norm=self.norm)
         elif self.type == "full":
-            data = np.fft.fft(data, n=int(NFFT), axis=self.axis, norm=self.norm)
+            data = np.fft.fft(data, n=int(nfft), axis=self.axis, norm=self.norm)
 
         # agg complex
         if self.format == "magnitude":
@@ -348,21 +348,22 @@ class FFT(Processor):
             )
             data[sel_tuple] = 0
 
-        return data, {"nfft": NFFT}
+        return data, {"nfft": nfft}
 
 
 class Filterbank(Processor):
     def __init__(
         self,
-        n_bands=40,
-        scale="linear",
-        Nfft="nextpow2",
-        fmin=0,
-        norm=None,
-        fmax=np.Inf,
-        axis=-1,
+        n_bands: int = None,
+        scale: str = "linear",
+        nfft: int = None,
+        fmin: int = 0,
+        norm: str = None,
+        fmax: int = np.Inf,
+        axis: int = -1,
         **kwargs
     ):
+        assert n_bands is not None, "The amount of n_bands should be provided."
         self.n_bands = n_bands
         self.scale = scale
         self.axis = axis
@@ -371,24 +372,26 @@ class Filterbank(Processor):
         self.norm = norm
         if "fs" in kwargs:
             self.fs = kwargs["fs"]
-        self.Nfft = Nfft
+        self.nfft = nfft
 
-    def process(self, data, **kwargs):
+    def process(self, data: np.ndarray, **kwargs):
         # inits
         if "fs" in kwargs:
             fs = kwargs["fs"]
-            if self.fmax == "half_fs":
-                self.fmax = fs / 2
         elif hasattr(self, "fs"):
             fs = self.fs
         else:
             print("No fs given in Filterbank()")
             sys.exit()
 
-        if self.Nfft == "nextpow2":
-            NFFT = np.shape(data)[self.axis] * 2 - 2
-        elif self.Nfft == "original":
-            NFFT = np.shape(data)[self.axis]
+        if 'nfft' in kwargs:
+            nfft = kwargs['nfft']
+            if self.nfft is not None:
+                assert nfft==self.nfft, "The nfft that was set mismatches with the one provided by a previous layer. Please check"
+        elif self.nfft is not None:
+            nfft = self.nfft
+        else:
+            raise NotImplementedError("No nfft provided in Filterbank()")
 
         low_freq = self.fmin
         high_freq = np.min((fs / 2, self.fmax))
@@ -416,8 +419,8 @@ class Filterbank(Processor):
                 stop_freq_hz = hz_points[2:]
 
             # get bins
-            start_bin = np.round(NFFT / fs * start_freq_hz)
-            stop_bin = np.round(NFFT / fs * stop_freq_hz)
+            start_bin = np.round(nfft / fs * start_freq_hz)
+            stop_bin = np.round(nfft / fs * stop_freq_hz)
             # The middle bins of the filters are the start frequencies of the next filter.
             middle_bin = np.append(start_bin[1:], stop_bin[-2])
             # Compute the width of the filters
@@ -425,7 +428,7 @@ class Filterbank(Processor):
             low_len = middle_bin - start_bin + 1
             high_len = tot_len - low_len + 1
             # Allocate the empty filterbank
-            fbank = np.zeros((self.n_bands, int(np.floor(NFFT / 2 + 1))))
+            fbank = np.zeros((self.n_bands, int(np.floor(nfft / 2 + 1))))
             # Compute the filter weights matrix
             for m in range(1, self.n_bands + 1):
                 weights_low = np.arange(1, low_len[m - 1] + 1) / (low_len[m - 1])
@@ -442,7 +445,7 @@ class Filterbank(Processor):
         elif self.scale in ("melLibrosa"):
             fbank = librosa.filters.mel(
                 fs,
-                NFFT,
+                nfft,
                 n_mels=self.n_bands,
                 fmin=low_freq,
                 fmax=high_freq,
@@ -482,7 +485,7 @@ class Aggregation(Processor):
 
     def __init__(
         self,
-        methods: (str, str) = ["mean", "std"],
+        methods: List[str] = ["mean", "std"],
         axis: int = 0,
         combine: str = None,
         combine_axis: int = None,
@@ -527,7 +530,7 @@ class FIRFilter(Processor):
         taps: int = None,
         axis: int = 1,
         fs: int = None,
-        window="hamming",
+        window: str = "hamming",
     ):
         self.type = type
         self.f = f
@@ -552,23 +555,34 @@ class FIRFilter(Processor):
             self.filter = signal.firwin(self.taps, self.f, window=self.window, fs=fs)
         else:
             raise NotImplementedError
+        self.filter_fs = fs
+
     def process(self, data: np.ndarray, **kwargs) -> (np.ndarray, Dict):
+        if "fs" in kwargs:
+            fs = kwargs["fs"]
+        elif hasattr(self, "fs"):
+            fs = self.fs
+        else:
+            raise Exception(
+                "Sampling frequency should be provided to FIR_filter as init or passed on the process()"
+            )
         if not hasattr(self, "filter"):
-            if "fs" in kwargs:
-                self.get_filter(kwargs["fs"])
-            elif hasattr(self, "fs"):
-                self.get_filter(self.fs)
-            else:
-                raise Exception(
-                    "Sampling frequency should be provided to FIR_filter as init or passed on the process()"
-                )
+            self.get_filter(fs)
+        else:
+            if fs != self.filter_fs:
+                self.get_filter(fs)
+
         return signal.lfilter(self.filter, 1.0, data, axis=self.axis), {}
 
 
 class Resample(Processor):
     """Processor to resample data"""
 
-    def __init__(self, target_fs: int = None, fs: int = None, axis = 0, window = 'hann'):
+    def __init__(self,
+                 target_fs: int = None,
+                 fs: int = None,
+                 axis: int = 0,
+                 window: str = 'hann'):
         self.target_fs = target_fs
         self.fs = fs
         self.axis = axis
