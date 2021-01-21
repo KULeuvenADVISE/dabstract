@@ -19,7 +19,7 @@ class WavDatareader(Processor):
     def __init__(
         self,
         select_channel: int = None,
-        fs: int = None,
+        fs: float = None,
         read_range: (int, int) = None,
         dtype: Any = None,
         resample: bool =  False,
@@ -526,10 +526,10 @@ class FIRFilter(Processor):
     def __init__(
         self,
         type: str = type,
-        f: int = None,
+        f: float = None,
         taps: int = None,
         axis: int = 1,
-        fs: int = None,
+        fs: float = None,
         window: str = "hamming",
     ):
         self.type = type
@@ -579,8 +579,8 @@ class Resample(Processor):
     """Processor to resample data"""
 
     def __init__(self,
-                 target_fs: int = None,
-                 fs: int = None,
+                 target_fs: float = None,
+                 fs: float = None,
                  axis: int = 0,
                  window: str = 'hann'):
         self.target_fs = target_fs
