@@ -338,7 +338,7 @@ class DataAbstract(Abstract):
 
     def get(
         self,
-        index: Iterable,
+        index: Iterable = None,
         return_info: bool = False,
         workers: int = 0,
         buffer_len: int = 3,
@@ -442,6 +442,19 @@ class DataAbstract(Abstract):
                 return (data_out, info_out) if return_info else data_out
         elif isinstance(index, str):
             return DataAbstract(KeyAbstract(self, index))
+        elif index is None:
+            if return_generator:
+                gen = parallel_op(
+                    self._data,
+                    *args,
+                    workers=workers,
+                    buffer_len=buffer_len,
+                    return_info=return_info,
+                    **kwargs,
+                )
+                return gen
+            else:
+                raise NotImplementedError
         else:
             raise TypeError(
                 "Index should be a number. Note that a str works too as it does not provide any error but it will only return a \n \
