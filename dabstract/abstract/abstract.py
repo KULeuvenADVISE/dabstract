@@ -154,7 +154,66 @@ def parallel_op(
     *args: list,
     **kwargs: Dict
 ) -> Generator:
-    """Apply a multiproc generator to the input sequence"""
+    """
+    Apply parallelisation to an iterable. This works for any iterable including dabstract functions.
+
+    Consider the following pseudo code as an example::
+
+        $ class IterableToParallize()
+        $   def __init__(data, process_function)
+        $       self.data = data
+        $       self.process_function = process_function
+        $   def __getitem__(k)
+        $       return self.process_function(self.data[k])
+        $
+        $   iterable = IterableToParallize(data, process_function)
+
+    which could also be created using the abstract.MapAbstract as::
+
+        $ iterable = MapAbstract(data, process_function)
+
+    To get the data one could simply loop over the data like::
+
+        $ for example in iterable:
+        $   do something
+
+    However, if this is costly, one would use this function to speed that up::
+
+        $ par_iterable = parallel_op(iterable, workers = 5)
+        $ for example in par_iterable:
+        $   do something
+
+    Parameters
+    ----------
+    data : Iterable
+        Iterable object to be parralelise
+    type : str ['threadpool','processpool']
+        String to select either 'threadpool' or 'processpool'
+    workers : int
+        Amount of parallel workers
+    buffer_len : int
+        The length of the buffer in case of a generator::
+
+            for data in dataset:
+                do_something(data)
+
+        This will cue up buffer_len instances of data while do_something() is busy.
+    return_info : bool
+        Return information that has been propagated through a chain of processors and abstract's.
+        For example, if one has used WavDataReader from dabstract.dataprocessor this will retrieve you the sampling
+        frequency ('fs')
+    args : list
+        additional param to provide to iterable
+    kwargs : dict
+        additional param to provide to iterable
+
+    Returns
+    -------
+    data : Generator
+        The generator will return Union[Generator, Tuple[Generator, Dict]]
+        When return_info is True, it returns a tuple of the exanoke and a Dictionary containing propagated information
+        When return_info is False, it returns the example
+    """
     # check
     assert hasattr(data, "__len__"), "Can only use parallel_op it object has __len__"
 
@@ -191,24 +250,81 @@ def parallel_op(
 
 
 class DataAbstract(Abstract):
-    """Allow for multi-indexing and multi-processing on a sequence or dictseq"""
+    """
+    DataAbstract combines the functionality offered by the function parallel_op to allow parallel processing with arbitrary
+    access of the data. In parallel_op you're only given a Generator, however, you might be interested in more flexibility such
+    as indexing your data in a particular range and still having this parallized. Additionally, as all classes in abstract
+    follow the convention that they can only process one example at a time (i.e., data[0] is possible but not data[0:5]) this
+    function is also used to simply add multi-indexing to any iterable and provide automatic stacking of that data either into a list or np.ndarray if possible.
+
+    This function is reused multiple times throughout the Dataset class and is key to the lazy/eager processing flow in this framework.
+
+    Consider the following case where you have created a ProcessingChain and you use MapAbstract to have a lazy processor of your data::
+
+        $   processor = ProcessingChain().add(some_function).add(another_function)
+        $   lazy_processed_data = MapAbstract(data, processor)
+
+    In this situation you can index lazy_processed_data only one by one. Using DataAbstract, multi-indexing is provided::
+
+        $   lazy_processed_data = DataAbstract(lazy_processed_data)
+        $   lazy_processed_data_subset = lazy_processed_data[0:5]
+
+    By default no multi processing is active. You can keep your same workflow as before and add an argument such as the amount of
+    workers (default=0) and so on. i.e, ::
+
+        $   lazy_multiprocessed_data = DataAbstract(lazy_processed_data, workers=5)
+        $   lazy_multiprocessed_data_subset = lazy_multiprocessed_data[0:5]
+
+    Similarly, you can use it as a Generator::
+
+        $   for example in lazy_multiprocessed_data:
+        $       do_something
+
+    This class has like other abstract classes a .get() method, which enables you to provide additional args and kwargs to your
+    abstract function and whether or not to return propagated information. More information on that can be read in the docstring
+    of that specific method.
+
+    Parameters
+    ----------
+    data : Iterable
+        Iterable object to be parralelise and multi-index
+    output_data_type : str ['auto','numpy','list']
+        When multi-indexing (e.g., data[0:5]) it could be handy to automatically try to stack these examples into a np.ndarray or a list.
+        In case of 'auto' it always tries to stack it in a np.ndarray. If not feasible due to different sizes it will provide a list
+        In case of 'np.ndarray' or 'list' it obviously only tries to go for the former or the latter.
+    type : str ['threadpool','processpool']
+        String to select either 'threadpool' or 'processpool'
+    workers : int
+        Amount of parallel workers
+    buffer_len : int
+        The length of the buffer in case of a generator::
+
+            for data in dataset:
+                do_something(data)
+
+        This will cue up buffer_len instances of data while do_something() is busy.
+
+    Returns
+    -------
+    data : Generator
+        The generator will return Union[Generator, Tuple[Generator, Dict]]
+        When return_info is True, it returns a tuple of the exanoke and a Dictionary containing propagated information
+        When return_info is False, it returns the example
+    """
 
     def __init__(
         self,
         data: Iterable,
-        *args,
         output_datatype: str = "auto",
         workers: int = 0,
         buffer_len: int = 3,
         load_memory: bool = False,
-        **kwargs
     ):
         super().__init__(data)
         self._output_datatype = output_datatype
         self._workers = workers
         self._buffer_len = buffer_len
         self._load_memory = load_memory
-        self._kwargs = kwargs
 
     def __iter__(self) -> Generator:
         return parallel_op(
@@ -216,12 +332,11 @@ class DataAbstract(Abstract):
             workers=self._workers,
             buffer_len=self._buffer_len,
             return_info=False,
-            **self._kwargs
         )
 
     def get(
         self,
-        index: Iterable,
+        index: Iterable = None,
         return_info: bool = False,
         workers: int = 0,
         buffer_len: int = 3,
@@ -230,6 +345,40 @@ class DataAbstract(Abstract):
         *args: list,
         **kwargs: Dict
     ) -> Any:
+        """
+        Parameters
+        ----------
+        index : Iterable
+            Indices to retrieve data from
+        return_info : bool
+            Return information that has been propagated through a chain of processors and abstract's.
+            For example, if one has used WavDataReader from dabstract.dataprocessor this will retrieve you the sampling
+            frequency ('fs')
+        workers : int
+            Amount of workers used for loading the data (default = 1)
+        buffer_len : int
+            Buffer_len of the pool (default = 3)
+        return_generator : bool
+            Return generator object with the data if True or return tuple (data, info) if return_info is True
+            else return data (default = False)
+        verbose : bool
+            If True show progress (default = False)
+        args : List
+            additional param to provide to the function if needed
+        kwargs : Dict
+            additional param to provide to the function if needed
+
+        Returns
+        -------
+        data : Any
+            When iterating if will return a Generator
+            For each sample generator will return Union[Generator, Tuple[Generator, Dict]]
+                When return_info is True, it returns a tuple of the data and a Dictionary containing propagated information
+                When return_info is False, it returns a Generator
+            When indexing the dataset it will return:
+                When return_info is True, it returns a tuple of a List or np.ndarray and a Dictionary containing propagated information
+                When return_info is False, it returns a List or np.ndarray
+        """
         if isinstance(index, numbers.Integral):
             if self._abstract:
                 data, info = self._data.get(
@@ -247,7 +396,6 @@ class DataAbstract(Abstract):
                 workers=workers,
                 buffer_len=buffer_len,
                 return_info=return_info,
-                **self._kwargs,
                 **kwargs,
             )
             # return
@@ -290,6 +438,19 @@ class DataAbstract(Abstract):
                         if return_info:
                             info_out[k] = tmp_info
                 return (data_out, info_out) if return_info else data_out
+        elif index is None:
+            if return_generator:
+                gen = parallel_op(
+                    self._data,
+                    *args,
+                    workers=workers,
+                    buffer_len=buffer_len,
+                    return_info=return_info,
+                    **kwargs,
+                )
+                return gen
+            else:
+                raise NotImplementedError
         elif isinstance(index, str):
             return DataAbstract(KeyAbstract(self, index))
         else:
