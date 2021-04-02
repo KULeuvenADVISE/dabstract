@@ -380,6 +380,8 @@ def any2str(obj: Any) -> str:
         | isinstance(obj, np.ndarray)
         | isinstance(obj, np.int64)
         | isinstance(obj, dict)
+        | isinstance(obj, bool)
+        | isinstance(obj, list)
     ):
         return str(obj)
     elif obj is None:

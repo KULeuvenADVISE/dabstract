@@ -7,7 +7,7 @@ from dabstract.dataprocessor.processors import *
 from dabstract.utils import stringlist2ind
 
 
-class DCASE2020Task1A(Dataset):
+class DCASE2018Task5(Dataset):
     """DCASE2020Task1A dataset
 
     This class downloads the datasets and prepares it in the dabstract format.
@@ -57,32 +57,39 @@ class DCASE2020Task1A(Dataset):
             ),
         )
         # get meta
-        labels = pandas.read_csv(
-            os.path.join(paths["meta"], "meta.csv"), delimiter="\t"
-        )
-        # make sure audio and meta is aligned
-        filenames = labels["filename"].to_list()
-        resort = np.array(
-            [
-                filenames.index("audio/" + filename)
-                for filename in self["audio"]["example"]
-            ]
-        )
-        labels = labels.reindex(resort)
+        if os.path.exists(os.path.join(paths["meta"], "meta_dabstract.txt")):
+            labels = pandas.read_csv(
+                os.path.join(paths["meta"], "meta_dabstract.txt"), delimiter="\t", header=None
+            )
+        else:
+            labels = pandas.read_csv(
+                os.path.join(paths["meta"], "meta.txt"), delimiter="\t", header=None
+            )
+            # make sure audio and meta is aligned
+            filenames = labels[0].to_list()
+            resort = np.array(
+                [
+                    filenames.index("audio/" + filename)
+                    for filename in self["audio"]["example"]
+                ]
+            )
+            labels = labels.reindex(resort)
+            labels.to_csv(os.path.join(paths["meta"], "meta_dabstract.txt"), sep="\t", header = False, index=False)
+
         # add labels
-        self.add("identifier", labels["identifier"].to_list(), lazy=False)
-        self.add("source", labels["source_label"].to_list(), lazy=False)
-        self.add("scene", labels["scene_label"].to_list(), lazy=False)
+        self.add("identifier", labels[2].to_list(), lazy=False)
+        #self.add("source", [filename for filename in filenames], lazy=False)
+        self.add("scene", labels[1].to_list(), lazy=False)
         self.add(
-            "scene_id", stringlist2ind(labels["scene_label"].to_list()), lazy=False
+            "scene_id", stringlist2ind(self['scene']), lazy=False
         )
-        self.add("group", stringlist2ind(labels["identifier"].to_list()), lazy=False)
+        self.add("group", stringlist2ind(self['identifier']), lazy=False)
         return self
 
     def prepare(self, paths):
-        """Prepare the data"""
-
-        dcase_util.datasets.dataset_factory(
-            dataset_class_name="TAUUrbanAcousticScenes_2020_Mobile_DevelopmentSet",
-            data_path=os.path.split(os.path.split(paths["data"])[0])[0],
-        ).initialize()
+        pass
+        # """Prepare the data"""
+        # dcase_util.datasets.dataset_factory(
+        #     dataset_class_name="DCASE2018_Task5_DevelopmentSet",
+        #     data_path=os.path.split(os.path.split(paths["data"])[0])[0],
+        # ).initialize()

@@ -367,8 +367,8 @@ def get_dir_info(
                 filepath += tmp
 
     example = [os.path.relpath(file, path) for file in filepath if extension in file]
-    filename = [os.path.split(file)[1] for file in example if extension in file]
-    subdb = [os.path.split(file)[0] for file in example if extension in file]
+    filename = [os.path.split(file)[1] for file in example]
+    subdb = [os.path.split(file)[0] for file in example]
 
     if file_info_save_path is not None:
         path = file_info_save_path
@@ -386,7 +386,8 @@ def get_dir_info(
     else:
         with open(os.path.join(path, "file_info.pickle"), "rb") as fp:
             info, example_in = pickle.load(fp)
-        info = [info[k] for k in range(len(example)) if example[k] in example_in]
+        if example != example_in:
+            info = [info[k] for k in range(len(example)) if example[k] in example_in]
         assert len(info) == len(
             filepath
         ), "info file not of same size as directory"

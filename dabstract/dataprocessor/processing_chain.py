@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 import os
+import pickle
 from pprint import pprint
 
 from dabstract.utils import safe_import_module
@@ -169,6 +170,23 @@ class ProcessingChain:
                 # keep processor of previous stages (to be used for recursion if fit is needed)
                 init_processor.add(chain)
         return self
+
+    def save(self, filepath: str = None, ext = '.pickle'):
+        """Save processor from filepath"""
+        assert isinstance(filepath,str)
+        with open(filepath + ext, 'wb') as f:
+            pickle.dump(self.__dict__, f)  # save
+
+    def load(self, filepath: str = None, ext = '.pickle'):
+        """Load processor from filepath"""
+        assert isinstance(filepath,str)
+        with open(filepath + ext, "rb") as f:
+            tmp = pickle.load(f)  # load
+            self.__dict__.update(tmp)
+
+    def exists(self, filepath: str = None, ext = '.pickle'):
+        assert isinstance(filepath,str)
+        return os.path.isfile(filepath + ext)
 
     def summary(self, verbose: bool = True) -> None:
         """Summary of processor"""
