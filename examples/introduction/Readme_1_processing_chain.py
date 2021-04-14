@@ -287,7 +287,7 @@ dp.fit(DATA, fs=1)
 datab = MapAbstract(DATA,dp, fs=1)
 print(datab)
 # allow for multi indexing, e.g. data[:] or data[0,1]
-datab = DataAbstract(datab, fs=1)
+datab = DataAbstract(datab)
 print(datab)
 
 print('\n\n\n')

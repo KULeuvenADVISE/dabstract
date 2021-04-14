@@ -23,6 +23,9 @@ class Processor:
     def inv_process(self, data: Iterable, **kwargs) -> Iterable:
         return data
 
+    def __call__(self, data: Iterable, return_info: bool = False, **kwargs) -> Iterable:
+        tmp = self.process(data, **kwargs)
+        return tmp if return_info else tmp[0]
 
 class ExternalProcessor(Processor):
     """base class for an external function"""
@@ -33,7 +36,6 @@ class ExternalProcessor(Processor):
 
     def process(self, data, **kwargs) -> (Iterable, Dict):
         return self.fct(data), {}
-
 
 class ProcessingChain:
     """Processing chain"""
