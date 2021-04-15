@@ -298,7 +298,7 @@ class Dataset:
         want examples of 1s but you do not want to reformat your entire dataset. This functionality does it
         in a lazy manner, e.g. splitting is only performed when needed. For this it needs apriori information on the
         output_shape of each example and the sampling frequency. This is automatically available IF you use
-        FolderDictSeqAbstract data structure, as this creates DictSeq to your dataset containing filepath, filename, .. and info.
+        FolderAbstract data structure, as this creates DictSeq to your dataset containing filepath, filename, .. and info.
         The info entry contains the output_shape, sampling rate of your data. This work for folders containing .wav files
         AND for extracted features in the numpy format when this was performed using self.prepare_feat in this class.
         This class basically uses SplitAbstract and SampleReplicateAbstract. Key's including information, will be splitted,
@@ -317,64 +317,39 @@ class Dataset:
             time_step information from.
         """
 
-        from dabstract.dataset.helpers import FolderDictSeqAbstract
+        from dabstract.dataset.wrappers import WavFolderContainer, FeatureFolderContainer, MetaContainer
+
+        def is_splittable(sample_len, sample_period):
+            return (sample_len is not None) and (sample_period is not None) and all(sample_period==sample_period[0])
+
+        # get sample information
+        sample_len, sample_period, sample_duration = dict(), dict(), dict()
+        for key in self.keys():
+            # check if info available
+            if isinstance(self[key], (WavFolderContainer, FeatureFolderContainer)):
+                sample_duration[key] = self[key].get_duration()
+                sample_len[key] = self[key].get_samples()
+                sample_period[key] = self[key].get_time_step()
+                assert is_splittable(sample_len[key],sample_period[key]), "WavFolderContainer %s is not splittable. Make sure it contains output_shape and uniform time_step." % key
+                continue
+            #elif isinstance(self[key], MetaContainer):
+
+            sample_len[key], sample_period[key], sample_duration[key] = None, None, None
 
         # get time_step in case of samples
         if type == "samples":
             assert (
                     reference_key is not None
             ), "When choosing for samples, you should select a reference key."
-            assert isinstance(reference_key, str), "reference_key should be a str"
-            assert isinstance(self[reference_key], FolderDictSeqAbstract)
-            assert (
-                    "time_step" in self[reference_key]["info"][0]
-            ), "time_step should be a key in self[reference_key]['info'][..]. Splitting is currently only supported when that information is available"
-            assert (
-                    "output_shape" in self[reference_key]["info"][0]
-            ), "output_shape should be a key in self[reference_key]['info'][..]. Splitting is currently only supported when that information is available"
+            assert isinstance(reference_key, str), \
+                "reference_key should be a str"
+            assert isinstance(self[reference_key], (WavFolderContainer, FeatureFolderContainer)), \
+                "reference set should be of type WavFolderContainer/FeatureFolderContainer"
+            assert is_splittable(sample_len[reference_key], sample_period[reference_key]), \
+                "%s is not usable to extract split_size reference from. Make sure it contains output_shape and uniform time_step." % key
+            split_size = self[reference_key].get_time_step(0) * split_size
             type = "seconds"
-            split_size = (
-                    np.unique(
-                        np.array(
-                            [info["time_step"] for info in self[reference_key]["info"]]
-                        )
-                    )
-                    * split_size
-            )
-            assert (
-                    len(split_size) == 1
-            ), "can only do splitting when the time_steps in each example of your dataset/key are uniform."
 
-        # prep sample lengths
-        sample_len, sample_period, sample_duration = dict(), dict(), dict()
-        for key in self.keys():
-            # check if info available
-            if isinstance(self[key], FolderDictSeqAbstract):
-                if all(
-                        [
-                            (("output_shape" in info) and ("time_step" in info))
-                            for info in self[key]["info"]
-                        ]
-                ):
-                    sample_duration[key] = np.array(
-                        [
-                            info["output_shape"][0] * info["time_step"]
-                            for info in self[key]["info"]
-                        ]
-                    )
-                    sample_len[key] = np.array(
-                        [info["output_shape"][0] for info in self[key]["info"]]
-                    )
-                    sample_period[key] = np.array(
-                        [info["time_step"] for info in self[key]["info"]]
-                    )
-                    assert [
-                        sample_period[key][0] == time_step
-                        for time_step in sample_period[key]
-                    ], "sample_period should be uniform"
-                    sample_period[key] = sample_period[key][0]
-                    continue
-            sample_len[key], sample_period[key], sample_duration[key] = None, None, None
         # adjust sample_len based on minimum covered duration (e.g. framing at edges vs raw audio)
         min_duration = np.min(
             np.array(
@@ -400,7 +375,7 @@ class Dataset:
                         self[key],
                         split_size=split_size,
                         sample_len=sample_len[key],
-                        sample_period=sample_period[key],
+                        sample_period=sample_period[key][0],
                         type=type,
                         constraint=constraint,
                         lazy=self._data._lazy[key],
@@ -746,9 +721,9 @@ class Dataset:
             buffer_len of the pool
         """
         # checks
-        from dabstract.dataset.helpers import FolderDictSeqAbstract
+        from dabstract.dataset.helpers import FolderAbstract
 
-        # pop diving to search for a FolderDictSeqAbstract
+        # pop diving to search for a FolderAbstract
         # ToDo(gert): think about better option
         # tbh this is a bit hacky but I think it's the most elegant way to support prepare_feat at any moment
         # Without pop diving one can only extract features prior to selecting and splitting the dataset. This would
@@ -758,7 +733,7 @@ class Dataset:
         dataset_ids = copy.deepcopy(self['dataset_id'])
         if allow_data_pop:
             data_rec = []
-            if not isinstance(data, FolderDictSeqAbstract):
+            if not isinstance(data, FolderAbstract):
                 while isinstance(data, (SelectAbstract, SplitAbstract)):
                     if isinstance(data, SelectAbstract):
                         data_rec.append([SelectAbstract, data.get_indices()])
@@ -767,8 +742,8 @@ class Dataset:
                     data = data.pop()
                     assert hasattr(dataset_ids, 'pop'), "dataset_id and " + key + " do not contain the same operations"
                     dataset_ids.pop()
-        assert isinstance(data, FolderDictSeqAbstract), (
-                key + " should be of type FolderDictSeqAbstract"
+        assert isinstance(data, FolderAbstract), (
+                key + " should be of type FolderAbstract"
         )
 
         # inits
@@ -904,12 +879,12 @@ class Dataset:
             self.remove(key)
         if isinstance(key, str):
             # retrieve data
-            feat_data = FolderDictSeqAbstract(
-                                            featpath_base,
+            from dabstract.dataset.wrappers import FeatureFolderWrapper
+            feat_data = FeatureFolderWrapper(featpath_base,
                                             filepath=featfilelist,
-                                            extension=".npy",
                                             map_fct=ProcessingChain().add(NumpyDatareader()),
                                             info=infofilelist)
+
             # apply operations retrieved from popping
             if allow_data_pop:
                 for data_rec_op in reversed(data_rec):
@@ -920,14 +895,13 @@ class Dataset:
                         sample_period = [info['time_step'] for info in feat_data['info']]
                         assert np.all([sample_period[0]==_sample_period for _sample_period in sample_period]), "Each example should be of equal time_step"
                         feat_data = data_rec_op[0](feat_data, **dict(data_rec_op[1], **{'sample_len': sample_len, 'sample_period': sample_period[0]}))
+
             # add to dataset
             self.add(new_key, feat_data)
         else:
             raise Exception(
                 "new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced."
             )
-
-
 
     def set_xval(
             self,

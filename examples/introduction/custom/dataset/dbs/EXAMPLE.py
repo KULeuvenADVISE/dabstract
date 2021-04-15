@@ -17,9 +17,9 @@ class EXAMPLE(Dataset):
     def set_data(self, paths):
         # audio
         chain = ProcessingChain().add(WavDatareader())
-        from dabstract.dataset.helpers import FolderDictSeqAbstract
+        from dabstract.dataset.helpers import FolderAbstract
         #self.add_subdict_from_folder('data', paths['data'], map_fct=chain, save_path=paths['data'])
-        tmp = FolderDictSeqAbstract(paths['data'], map_fct=chain, save_path=paths['data'])
+        tmp = FolderAbstract(paths['data'], map_fct=chain, save_path=paths['data'])
         self.add('data', tmp)
         # add labels
         self.add('binary_anomaly',self._get_binary_anomaly(paths), lazy=False)

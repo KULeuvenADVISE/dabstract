@@ -1023,7 +1023,7 @@ class SplitAbstract(Abstract):
                             read_range=read_range,
                             **kwargs,
                         )
-                        if len(data) != np.diff(read_range)[0]:
+                        if 'read_ranged' not in info:
                             data = data[read_range[0] : read_range[1]]
                     else:
                         data, info = self._data[k][read_range[0] : read_range[1]], {}
@@ -1580,8 +1580,6 @@ class DictSeqAbstract(Abstract):
     def concat(
         self, data: Iterable, intersect: bool = False, adjust_base: bool = True
     ) -> None:
-        from dabstract.dataset.helpers import FolderDictSeqAbstract
-
         if isinstance(data, list):
             for d in data:
                 self.concat(d, intersect=intersect)
@@ -1611,7 +1609,7 @@ class DictSeqAbstract(Abstract):
                         # make sure that data format is as desired by the base dict
                         if not isinstance(
                             self2[key],
-                            (SeqAbstract, DictSeqAbstract, FolderDictSeqAbstract),
+                            (SeqAbstract, DictSeqAbstract),
                         ):
                             self2[key] = SeqAbstract().concat(self2[key])
                         # concatenate SeqAbstract

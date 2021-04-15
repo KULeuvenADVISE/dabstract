@@ -15,9 +15,6 @@ def test_WavDatareader():
     data = amplitude * np.sin(2. * np.pi * fs * t)
     wav_write("tmp.wav", samplerate, data.astype(np.int16))
 
-
-
-
 def test_Normalizer():
     """Test Normalizer"""
     from dabstract.dataprocessor.processors import Normalizer

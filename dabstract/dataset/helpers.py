@@ -5,6 +5,7 @@ import soundfile as sf
 from dabstract.utils import safe_import_module
 from dabstract.abstract.abstract import *
 from dabstract.dataset import dbs
+from dabstract.dataset.wrappers import FolderWrapper
 
 from typing import Any, List, Optional, TypeVar, Callable, Dict
 
@@ -91,7 +92,6 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
     if "xval" in config:
         ddataset.set_xval(**config["xval"], overwrite=overwrite_xval)
     return ddataset
-
 
 def dataset_factory(
     name: (str, tvDataset, type) = None,
@@ -183,54 +183,11 @@ def dataset_factory(
 
     return db
 
-
-class FolderDictSeqAbstract(DictSeqAbstract):
-    """Get meta information of the files in a directory and place them in a DictSeq
-
-    This function gets meta information (e.g. sampling frequency, length) of files in your provided directory.
-    It return a FolderDictSeq with the filenames/information/subfolders.
-    A FolderDictSeq is inherited from DictSeq and has similar functionality. However,
-    for a FolderDictSeq the active_keys are fixed to 'data'. In essence FolderDictSeq is a
-    data container showing information of a walk through a folder.
-    Additionally, this format keeps track of relevant information to either wav or numpy files.
-    prepare_feat and add_split only work on data fields that have this structure.
-
-    Parameters
-    ----------
-    path : str
-        path to the directory to check
-    extension : str
-        only evaluate files with that extension
-    map_fct : Callable
-        add a mapping function y = f(x) to the 'data'
-    filepath : str
-        in case you already have the files you want to obtain information from,
-        the dir tree search is not done and this is used instead
-    file_info_save_path: : str
-        save the information to this location
-        this function can be costly, so saving is useful
-    overwrite_file_info : bool
-        overwrite file info file
-
-    Returns
-    -------
-    DictSeqAbstract : DictSeqAbstract
-        dictseq containing file information as a list,
-        formatted as::
-            output['filepath'] = list of paths to files
-            output['example'] = example string (i.e. filename without extension)
-            output['filename'] = filename
-            output['subdb'] = relative subdirectory (starting from 'path') to file
-            output['info'][file_id] = { 'output_shape': .., #output shape of the wav file
-                                        'fs': .., # sampling frequency
-                                        'time_step' ..: # sample period
-                                        }
-    """
-
+class FolderDictSeqAbstract(FolderWrapper):
     def __init__(
         self,
         path: str,
-        extension: str = ".wav",
+        extension: str = 'wav',
         map_fct: Callable = None,
         file_info_save_path: bool = None,
         filepath: str = None,
@@ -238,56 +195,16 @@ class FolderDictSeqAbstract(DictSeqAbstract):
         info: List[Dict] = None,
         **kwargs
     ):
-        super().__init__()
-        if "save_path" in kwargs:
-            file_info_save_path = kwargs["save_path"]
-            warnings.warn(
-                "save_path is deprecated in dataset.py/dict_from_folder(). Change to 'file_info_save_path'",
-                DeprecationWarning,
-            )
-        # get info
-        fileinfo = get_dir_info(
-            path,
-            extension=extension,
-            file_info_save_path=file_info_save_path,
-            filepath=filepath,
-            overwrite_file_info=overwrite_file_info,
-        )
-        # overwrite file info
-        if info is not None:
-            fileinfo["info"] = info
-        # add data
-        self.add("data", fileinfo["filepath"], info=fileinfo["info"])
-        self.add_dict(fileinfo, lazy=False)
-        # add map
-        if map_fct is not None:
-            self["data"] = MapAbstract(self["data"], map_fct=map_fct)
-        # set active key
-        self._set_active_keys("data")
-
-    def set_active_keys(self, keys: List[str]) -> None:
-        """Disables set of active keys"""
-        raise Exception(
-            "A FolderDictSeqAbstract should always have data as the only active key. Setting not possible. Please use DictSeqAbstract if other functionality is needed."
-        )
-
-    def reset_active_keys(self) -> None:
-        """Disables reset of active keys"""
-        raise Exception(
-            "A FolderDictSeqAbstract should always have data as the only active key. Resetting not possible. Please use DictSeqAbstract if other functionality is needed."
-        )
-
-    def __setitem__(self, k: int, v: Any) -> None:
-        if isinstance(k, str):
-            self._data[k] = v
-        elif isinstance(k, numbers.Integral):
-            self._data["data"][k] = v
-        else:
-            raise NotImplementedError
-
-    def __repr__(self) -> str:
-        """string print representation of function"""
-        return "folder_dict_seq containing: " + str(self.keys())
+        print('helpers.FolderDictSeqAbstract is deprecated and will be removed in the next version, please use wrapper.FolderWrapper instead. \
+                If using wav files, one can also use WavFolderWrapper which provides additional functionality for wav specificly.')
+        super().__init__(path=path,
+                         extension=extension,
+                         map_fct = map_fct,
+                         file_info_save_path=file_info_save_path,
+                         filepath=filepath,
+                         overwrite_file_info=overwrite_file_info,
+                         info=info,
+                         **kwargs)
 
 
 def get_dir_info(
@@ -339,10 +256,11 @@ def get_dir_info(
     """
 
     def _get_dir_info(filepath: str, extension: str) -> List[Dict]:
-        info = [dict()] * len(filepath)
+        info = [dict() for k in range(len(filepath))]
         if extension == ".wav":
             # import soundfile as sf
             for k in range(len(filepath)):
+                info[k] = dict()
                 f = sf.SoundFile(filepath[k])
                 info[k]["output_shape"] = np.array([len(f), f.channels])
                 info[k]["fs"] = f.samplerate

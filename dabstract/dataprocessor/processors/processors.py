@@ -119,11 +119,14 @@ class WavDatareader(Processor):
             containing 'fs' with a float
         """
 
-        # get read params
         args = dict()
+        info = dict()
+
+        # get read params
         if self.read_range is not None:
             args.update({"start": self.read_range[0], "stop": self.read_range[1]})
         if "read_range" in kwargs:
+            info.update({'read_ranged': True})
             args.update(
                 {"start": kwargs["read_range"][0], "stop": kwargs["read_range"][1]}
             )
@@ -132,6 +135,7 @@ class WavDatareader(Processor):
 
         # read
         data, fs = read_wav(file, **args)
+        info.update({'fs': fs})
 
         # data selection
         if self.select_channel is not None:
@@ -141,14 +145,14 @@ class WavDatareader(Processor):
         if self.fs is not None:
             if self.resample:
                 data = self.resampler.process(data, fs = fs)[0]
+                info.update({'fs': self.fs})
             else:
                 assert (
                     fs == self.fs
                 ), "Input fs and provided fs different. Downsampling not supported currently."
 
         # updata self info
-        return data, {"fs": fs}
-
+        return data, info
 
 class NumpyDatareader(Processor):
     """
@@ -211,19 +215,23 @@ class NumpyDatareader(Processor):
             containing 'fs' with a float
         """
 
-        # get read params
         args = dict()
+        info = dict()
+
+        # get read params
         if self.read_range is not None:
             args.update({"read_range": self.read_range})
-        if "range" in kwargs:
+        if "read_range" in kwargs:
             args.update({"read_range": kwargs["read_range"]})
 
-        if "range" in args:
+        if "read_range" in args:
             data = np.load(file, mmap_mode="r")
             data = data[args["read_range"][0] : args["read_range"][1], :]
+            info.update({'read_ranged': True})
         else:
             data = np.load(file)
-        return data, {}
+
+        return data, info
 
 
 class Normalizer(Processor):

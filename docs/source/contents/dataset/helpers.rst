@@ -1,9 +1,9 @@
 Helpers
 =============
-FolderDictSeqAbstract
+FolderAbstract
 ---------------------
 .. automodule:: dabstract.dataset.helpers
-   :members: FolderDictSeqAbstract
+   :members: FolderAbstract
    :undoc-members:
    :show-inheritance:
 

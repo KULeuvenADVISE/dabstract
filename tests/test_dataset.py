@@ -25,8 +25,8 @@ def get_dataset():
         def set_data(self, paths):
             # audio
             chain = ProcessingChain().add(WavDatareader())
-            from dabstract.dataset.helpers import FolderDictSeqAbstract
-            tmp = FolderDictSeqAbstract(paths['data'], map_fct=chain, file_info_save_path=paths['data'])
+            from dabstract.dataset.wrappers import WavFolderContainer
+            tmp = WavFolderContainer(paths['data'], map_fct=chain, file_info_save_path=paths['data'])
             self.add('data', tmp)
             # add labels
             self.add('binary_anomaly', self._get_binary_anomaly(paths), lazy=False)
@@ -83,7 +83,7 @@ def test_EXAMPLE_dataset():
 
     # checks
     assert len(db) == 40
-    assert isinstance(db['data'], FolderDictSeqAbstract)
+    assert isinstance(db['data'], FolderAbstract)
     assert isinstance(db['binary_anomaly'], np.ndarray)
     assert isinstance(db['group'], List)
     assert isinstance(db['group'][0], str)

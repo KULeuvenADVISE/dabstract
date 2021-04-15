@@ -2,7 +2,7 @@ from pylab import plot, imshow, show
 
 from dabstract.dataprocessor.processing_chain import ProcessingChain
 from dabstract.dataset.dataset import Dataset
-from dabstract.dataset.helpers import FolderDictSeqAbstract
+from dabstract.dataset.helpers import FolderAbstract
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import listnp_combine
 
@@ -20,7 +20,7 @@ class EXAMPLE(Dataset):
     def set_data(self, paths):
         # audio
         chain = ProcessingChain().add(WavDatareader())
-        self.add('data', FolderDictSeqAbstract(paths['data'], file_info_save_path=paths['feat'], map_fct=chain))
+        self.add('data', FolderAbstract(paths['data'], file_info_save_path=paths['feat'], map_fct=chain))
         # add labels
         self.add('binary_anomaly',self._get_binary_anomaly(paths))
         self.add('group', self['data']['subdb'])
