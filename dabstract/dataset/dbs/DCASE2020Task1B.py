@@ -50,7 +50,7 @@ class DCASE2020Task1B(Dataset):
             FolderDictSeqAbstract(
                 paths["data"],
                 map_fct=chain,
-                save_path=os.path.join(
+                file_info_save_path=os.path.join(
                     paths["feat"], self.__class__.__name__, "audio", "raw"
                 ),
             ),
@@ -79,8 +79,9 @@ class DCASE2020Task1B(Dataset):
         return self
 
     def prepare(self, paths):
-        """Prepare the data"""
-        dcase_util.datasets.dataset_factory(
-            dataset_class_name="TAUUrbanAcousticScenes_2020_3Class_DevelopmentSet",
-            data_path=os.path.split(os.path.split(paths["data"])[0])[0],
-        ).initialize()
+        pass
+        # """Prepare the data"""
+        # dcase_util.datasets.dataset_factory(
+        #     dataset_class_name="TAUUrbanAcousticScenes_2020_3Class_DevelopmentSet",
+        #     data_path=os.path.split(os.path.split(paths["data"])[0])[0],
+        # ).initialize()

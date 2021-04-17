@@ -19,7 +19,7 @@ for k,D in enumerate(DATA):
 
 # -------------------------------------------------------------------------
 ### Example of a dabstract Sequential object
-from dabstract.abstract.abstract import SeqAbstract
+from dabstract.abstract import SeqAbstract
 
 # standard usage
 # you can basically concatenate any sequential data
@@ -39,7 +39,7 @@ print(len(SA))
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Same example, different syntax
-from dabstract.abstract.abstract import SeqAbstract
+from dabstract.abstract import SeqAbstract
 
 # standard usage
 # you can basically concatenate any sequential data
@@ -60,7 +60,7 @@ print('\n\n\n')
 ### Similar to dictionary as you can use index by key
 ### However, each entry contains a sequential object of equal length
 ### Additionally you can index it using integers such that you get a dictionary for each example
-from dabstract.abstract.abstract import DictSeqAbstract
+from dabstract.abstract import DictSeqAbstract
 
 # create a dictseqabstract object and fill it with two keys
 DSA = DictSeqAbstract()
@@ -77,7 +77,7 @@ DSA = DSA.concat(DSA) # concat two dictseq's
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Example of a DictSeq is a sequential dictionary
-from dabstract.abstract.abstract import DictSeqAbstract
+from dabstract.abstract import DictSeqAbstract
 
 # Create the dictseq
 DSA = DictSeqAbstract()
@@ -107,7 +107,7 @@ print(DSA['filepath'][0])
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Add a mapping to your data using MapAbstract
-from dabstract.abstract.abstract import SeqAbstract, MapAbstract
+from dabstract.abstract import SeqAbstract, MapAbstract
 
 # create seq abstract
 SA = SeqAbstract()
@@ -130,7 +130,7 @@ SA.concat(wavfiles)
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Again an example of MapAbstract, but this time with the processing_chain
-from dabstract.abstract.abstract import SeqAbstract, MapAbstract
+from dabstract.abstract import SeqAbstract, MapAbstract
 from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
@@ -150,7 +150,7 @@ print(SA[0]-SA[10])
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Again an example of MapAbstract, but this time with the processing_chain and DICTSEQ
-from dabstract.abstract.abstract import MapAbstract
+from dabstract.abstract import MapAbstract
 from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 
@@ -178,7 +178,7 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Another example to show how you could play aroud with a DictSeq
 ### Also shows how to use the SelectAbstract for subsetting datasets
-from dabstract.abstract.abstract import SelectAbstract
+from dabstract.abstract import SelectAbstract
 
 # chain
 processor = ProcessingChain().add(Framing(windowsize=10, stepsize=10))
@@ -266,7 +266,7 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### SplitAbstract
 ### Allows to split your data in a lazy way such that it's processed only when indexing
-from dabstract.abstract.abstract import SplitAbstract
+from dabstract.abstract import SplitAbstract
 
 SA_split = SplitAbstract(DATA,split_size=1000,sample_len=DATA.shape[1],sample_period=1)
 SA_split[-1]
@@ -278,7 +278,7 @@ print('\n\n\n')
 ### SplitAbstract from disk with info
 ### Allows to split your data in a lazy way from disk
 ### note that you always need to know apriori what the size is of the loaded data
-from dabstract.abstract.abstract import SplitAbstract
+from dabstract.abstract import SplitAbstract
 from dabstract.dataset.helpers import get_dir_info
 from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
@@ -301,7 +301,7 @@ print(SA_split[0].shape)
 print('\n\n\n')
 # -------------------------------------------------------------------------
 ### Add multi indexing to the data
-from dabstract.abstract.abstract import DataAbstract
+from dabstract.abstract import DataAbstract
 
 # create dictseq
 fileinfodict = get_dir_info(datafolder, extension='.wav')
@@ -334,7 +334,7 @@ print('\n\n\n')
 # -------------------------------------------------------------------------
 ### For some data entries like labels it might be interesting to avoid to Abstract() overhead
 ### and directly operate on numpy or lists. For this we've added the lazy=True/False flag
-from dabstract.abstract.abstract import DictSeqAbstract
+from dabstract.abstract import DictSeqAbstract
 
 # create a dictseqabstract object and fill it with two keys
 DSA = DictSeqAbstract()

@@ -25,7 +25,7 @@ def get_dataset():
         def set_data(self, paths):
             # audio
             chain = ProcessingChain().add(WavDatareader())
-            from dabstract.dataset.wrappers import WavFolderContainer
+            from dabstract.dataset.containers import WavFolderContainer
             tmp = WavFolderContainer(paths['data'], map_fct=chain, file_info_save_path=paths['data'])
             self.add('data', tmp)
             # add labels
@@ -75,6 +75,8 @@ def get_dataset():
 
 
 def test_EXAMPLE_dataset():
+    from dabstract.dataset.containers import FolderContainer
+
     """Test dataset loading"""
     # db init
     EXAMPLE = get_dataset()
@@ -83,7 +85,7 @@ def test_EXAMPLE_dataset():
 
     # checks
     assert len(db) == 40
-    assert isinstance(db['data'], FolderAbstract)
+    assert isinstance(db['data'], FolderContainer)
     assert isinstance(db['binary_anomaly'], np.ndarray)
     assert isinstance(db['group'], List)
     assert isinstance(db['group'][0], str)
@@ -286,14 +288,10 @@ def test_add_split():
     db_split['example_id'][0] == db_split['example_id'][int(60 / 5 - 1)]
 
     db_split = copy.deepcopy(db)
-    db_split.add_split(reference_key='data', split_size=16000, type='samples')
+    db_split.add_split(reference_key='data', split_value=16000, type='samples')
     assert len(db) * 60 == len(db_split)
     assert all(db_split['data'][0] == db['data'][0][0:16000])
     db_split['example_id'][0] == db_split['example_id'][59]
-
-    db_split = copy.deepcopy(db)
-    db_split.add_split(reference_key='data', split_size=16000, type='samples', constraint='power2')
-    assert all(db_split['data'][0] == db['data'][0][0:2 ** 14])
 
 
 def test_add_select():

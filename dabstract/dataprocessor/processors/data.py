@@ -9,12 +9,12 @@ import librosa
 import numbers
 
 from dabstract.utils import listnp_combine, flatten_nested_lst
-from dabstract.dataprocessor import Processor
+from dabstract.dataprocessor.processors import base
 
 from typing import Dict, Any, List, Union, Callable
 
 
-class WavDatareader(Processor):
+class WavDatareader(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -126,9 +126,9 @@ class WavDatareader(Processor):
         if self.read_range is not None:
             args.update({"start": self.read_range[0], "stop": self.read_range[1]})
         if "read_range" in kwargs:
-            info.update({'read_ranged': True})
+            #info.update({'read_ranged': True})
             args.update(
-                {"start": kwargs["read_range"][0], "stop": kwargs["read_range"][1]}
+                {"start": int(kwargs["read_range"][0]), "stop": int(kwargs["read_range"][1])}
             )
         if hasattr(self, "dtype"):
             args.update({"dtype": self.dtype})
@@ -154,7 +154,7 @@ class WavDatareader(Processor):
         # updata self info
         return data, info
 
-class NumpyDatareader(Processor):
+class NumpyDatareader(base.Processor):
     """
     This processor class simply reads a numpy ndarray with an optional memory mapping in case a specific
     range of samples is desired.
@@ -234,7 +234,7 @@ class NumpyDatareader(Processor):
         return data, info
 
 
-class Normalizer(Processor):
+class Normalizer(base.Processor):
     """
     This processor class applies a normalisation operation on an input array. It currently support minmax and standard
     normalisation. Once can also specify the axis to normalise over. For example, consider a set of matrices such that we have a
@@ -386,6 +386,7 @@ class Normalizer(Processor):
 
         return self._scale_data(data, self.scaler.transform), {}
 
+
     def inv_process(self, data: np.ndarray, **kwargs):
         """
         Process method for Normalizer in a backward fashion.
@@ -424,7 +425,10 @@ class Normalizer(Processor):
 
         return data[0,:]
 
-class Scaler(Processor):
+    def is_fitted(self):
+        return hasattr(self, 'scaler')
+
+class Scaler(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -534,7 +538,7 @@ class Scaler(Processor):
         return data
 
 
-class Framing(Processor):
+class Framing(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -680,7 +684,7 @@ class Framing(Processor):
         return frames, {"time_step": self.stepsize} if axis == 0 else dict()
 
 
-class Windowing(Processor):
+class Windowing(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -794,7 +798,7 @@ class Windowing(Processor):
         return data, dict()
 
 
-class FFT(Processor):
+class FFT(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -932,7 +936,7 @@ class FFT(Processor):
         return data, {"nfft": nfft}
 
 
-class Filterbank(Processor):
+class Filterbank(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -1124,7 +1128,7 @@ class Filterbank(Processor):
         return filter_banks, {}
 
 
-class Logarithm(Processor):
+class Logarithm(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -1223,7 +1227,7 @@ class Logarithm(Processor):
             return np.exp(data), {}
 
 
-class Aggregation(Processor):
+class Aggregation(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -1343,7 +1347,7 @@ class Aggregation(Processor):
         return output, {"time_step": 0} if self.axis == 0 else dict()
 
 
-class FIRFilter(Processor):
+class FIRFilter(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -1478,7 +1482,7 @@ class FIRFilter(Processor):
         return signal.lfilter(self.filter, 1.0, data, axis=self.axis), {}
 
 
-class Resample(Processor):
+class Resample(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -1583,7 +1587,7 @@ class Resample(Processor):
         return data, {'fs': self.target_fs, 'time_step': 1/self.target_fs}
 
 
-class ExpandDims(Processor):
+class ExpandDims(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
     For reading it uses the read_wav function from the soundfile package.
@@ -1672,68 +1676,3 @@ class ExpandDims(Processor):
 
         data = np.expand_dims(data, axis=self.axis)
         return data, {}
-
-class Dummy(Processor):
-    """
-    This processor class reads waveform data file and adds optional resampling if desired.
-    For reading it uses the read_wav function from the soundfile package.
-
-    For example consider the following usage with ProcessingChain class::
-
-        $ dp = ProcessingChain()
-        $ dp.add(WavDatareader())
-        $ wavdata = dp("path/to/test.wav")
-        $ print(wavdata)
-        $ [-0.0859375 -0.078125  -0.078125  ...  0.         0.         0.       ]
-
-    which reads the file located at path/to/test.wav. If the file contains multiple channels one can only specify
-    which channel(s) to read as by adding the select_channel argument to WavDatareader()::
-
-        WavDatareader(select_channel=0) or WavDatareader(select_channel=[0,1])
-
-    Similarly one can read a specific range of the file::
-
-        WavDatareader(read_range=[start_sample,end_sample])
-
-    If a sampling frequency is specified (fs: float) then this is used to compare it with the sampling frequency of the
-    actual wav file that has been read. In case it differs it either gives an error OR resamples the data based on the
-    resample flat (resample: bool).
-
-    Once can also directly use this processor without using ProcessingChain as::
-
-        $ wr = WavDatareader()
-        $ wavdata = wr("path/to/test.wav")
-        $ print(wavdata)
-        $ [-0.0859375 -0.078125  -0.078125  ...  0.         0.         0.       ]
-
-    Parameters
-    ----------
-    select_channel : int or None: None
-        Select which channel(s) must be read from the waveform file. By default all channels are read (default = None)
-    fs : float or None
-        Defines the sampling frequency of the waveform file.
-    read_range : (int, int) or None
-        Defines the sample range that must be readed from the waveform file.
-        (default = None -> reads the entire range).
-    dtype : str = 'float64'
-        Data type of the returned array, by default 'float64'.
-        Floating point audio data is typically in the range from -1.0 to 1.0.
-        Integer data is in the range from -2**15 to 2**15-1 for 'int16' and from -2**31 to 2**31-1 for 'int32'
-    resample : bool = False
-        Defines whether a resampling on the loaded waveform data must be performed or not.
-        (default = False)
-    resample_axis : int = 0
-        The axis over which the resampling should be done.
-        (default = 0)
-    resample_window : str = 'hann
-        The window type that is used to do the resampling. See scipy.signal.resample for a list of valid window types.
-        (Default = "hann")
-
-    Returns
-    ----------
-    WavDatareader instance
-
-    Check .process() method for what it returns when using this instance.
-
-    """
-    pass

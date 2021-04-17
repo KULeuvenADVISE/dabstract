@@ -274,7 +274,7 @@ print('\n\n\n')
 from dabstract.dataprocessor import ProcessingChain
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import load_yaml_config
-from dabstract.abstract.abstract import MapAbstract, DataAbstract
+from dabstract.abstract import MapAbstract, DataAbstract
 
 # get yaml configuration and process with ProcessingChain()
 dp = load_yaml_config(filename='Readme_1_dp_config', path=os.path.join('configs','dp'),post_process=ProcessingChain)

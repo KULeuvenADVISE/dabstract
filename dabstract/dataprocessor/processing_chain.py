@@ -5,37 +5,11 @@ import pickle
 from pprint import pprint
 
 from dabstract.utils import safe_import_module
+from dabstract.dataprocessor.processors import base as base
 
 from typing import Union, List, Optional, TypeVar, Callable, Dict, Iterable
 
 tvProcessingChain = TypeVar("ProcessingChain")
-
-
-class Processor:
-    """base class for processor"""
-
-    def __init__(self):
-        pass
-
-    def process(self, data: Iterable, **kwargs) -> (Iterable, Dict):
-        return data, {}
-
-    def inv_process(self, data: Iterable, **kwargs) -> Iterable:
-        return data
-
-    def __call__(self, data: Iterable, return_info: bool = False, **kwargs) -> Iterable:
-        tmp = self.process(data, **kwargs)
-        return tmp if return_info else tmp[0]
-
-class ExternalProcessor(Processor):
-    """base class for an external function"""
-
-    def __init__(self, fct: Callable):
-        self.fct = fct
-        self.__class__.__name__ = fct.__name__
-
-    def process(self, data, **kwargs) -> (Iterable, Dict):
-        return self.fct(data), {}
 
 class ProcessingChain:
     """Processing chain"""
@@ -50,11 +24,11 @@ class ProcessingChain:
             self.fit(data=data)
 
     def add(
-        self, name: Union[Processor, Dict, List, str], parameters: Dict = dict()
+        self, name: Union[base.Processor, Dict, List, str], parameters: Dict = dict()
     ) -> tvProcessingChain:
         """Add to chain"""
         # Add new processor
-        if isinstance(name, Processor):
+        if isinstance(name, base.Processor):
             # if it's a dabstract processor, directly use
             self._info.append(
                 {"name": name.__class__.__name__, "parameters": name.__dict__}
@@ -86,7 +60,7 @@ class ProcessingChain:
                 self.add(name(**parameters))
             else:
                 # if it is some function which does y = f(x), wrap it in a dabstract processor
-                self.add(ExternalProcessor(name, **parameters))
+                self.add(base.ExternalProcessor(name, **parameters))
         elif name is None:
             # add None
             pass
@@ -130,7 +104,7 @@ class ProcessingChain:
         **kwargs
     ) -> tvProcessingChain:
         """fit parameters"""
-        from dabstract.abstract.abstract import (
+        from dabstract.abstract import (
             SelectAbstract,
             MapAbstract,
             DataAbstract,

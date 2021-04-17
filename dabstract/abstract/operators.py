@@ -28,47 +28,11 @@ from typing import (
 tvDictSeqAbstract = TypeVar("DictSeqAbstract")
 tvSeqAbstract = TypeVar("SeqAbstract")
 
-from dabstract.utils import list_intersection, list_difference
+from dabstract.abstract import base as base
 from dabstract.dataprocessor import ProcessingChain
 
 
-class Abstract:
-    def __init__(self, data):
-        self._data = data
-        self._abstract = True if isinstance(data, Abstract) else False
-        if self._abstract:
-            assert self._data.len_defined, (
-                "Can only use %s it data has __len__" % self.__class__.__name__
-            )
-        else:
-            assert hasattr(self._data, "__len__"), (
-                "Can only use %s it data has __len__" % self.__class__.__name__
-            )
-
-    def __iter__(self) -> Any:
-        for k in range(len(self)):
-            yield self[k]
-
-    def __getitem__(self, index: int) -> Any:
-        return self.get(index)
-
-    def __setitem__(self, k, v):
-        raise NotImplementedError(
-            "%s does not support item assignment." % self.__class__.__name__
-        )
-
-    def __call__(self, *args, **kwargs) -> Any:
-        return self.get(*args, **kwargs)
-
-    def pop(self) -> Any:
-        return self._data
-
-    @property
-    def len_defined(self):
-        return True
-
-
-class UnpackAbstract(Abstract):
+class UnpackAbstract(base.Abstract):
     """
     The class is an abstract wrapper around a dictionary or DictSeqAbstract to unpack this dictionary in a lazy manner.
     Unpacking refers to copying the content of the dictionary into a list.
@@ -146,13 +110,13 @@ class UnpackAbstract(Abstract):
 
 
 def parallel_op(
-    data: Iterable,
-    type: str = "threadpool",
-    workers: int = 0,
-    buffer_len: int = 3,
-    return_info: bool = False,
-    *args: list,
-    **kwargs: Dict
+        data: Iterable,
+        type: str = "threadpool",
+        workers: int = 0,
+        buffer_len: int = 3,
+        return_info: bool = False,
+        *args: list,
+        **kwargs: Dict
 ) -> Generator:
     """
     Apply parallelisation to an iterable. This works for any iterable including dabstract functions.
@@ -218,7 +182,7 @@ def parallel_op(
     assert hasattr(data, "__len__"), "Can only use parallel_op it object has __len__"
 
     # define function to evaluate
-    if isinstance(data, Abstract):
+    if isinstance(data, base.Abstract):
 
         def func(index):
             return data.get(index, *args, return_info=return_info, **kwargs)
@@ -249,7 +213,7 @@ def parallel_op(
             yield func(k)
 
 
-class DataAbstract(Abstract):
+class DataAbstract(base.Abstract):
     """
     DataAbstract combines the functionality offered by the function parallel_op to allow parallel processing with arbitrary
     access of the data. In parallel_op you're only given a Generator, however, you might be interested in more flexibility such
@@ -313,12 +277,12 @@ class DataAbstract(Abstract):
     """
 
     def __init__(
-        self,
-        data: Iterable,
-        output_datatype: str = "auto",
-        workers: int = 0,
-        buffer_len: int = 3,
-        load_memory: bool = False,
+            self,
+            data: Iterable,
+            output_datatype: str = "auto",
+            workers: int = 0,
+            buffer_len: int = 3,
+            load_memory: bool = False,
     ):
         super().__init__(data)
         self._output_datatype = output_datatype
@@ -335,15 +299,15 @@ class DataAbstract(Abstract):
         )
 
     def get(
-        self,
-        index: Iterable = None,
-        return_info: bool = False,
-        workers: int = 0,
-        buffer_len: int = 3,
-        return_generator: bool = False,
-        verbose: bool = False,
-        *args: list,
-        **kwargs: Dict
+            self,
+            index: Iterable = None,
+            return_info: bool = False,
+            workers: int = 0,
+            buffer_len: int = 3,
+            return_generator: bool = False,
+            verbose: bool = False,
+            *args: list,
+            **kwargs: Dict
     ) -> Any:
         """
         Parameters
@@ -414,25 +378,25 @@ class DataAbstract(Abstract):
                             if return_info:
                                 info_out = [dict()] * len(self._data)
                             if isinstance(
-                                tmp_data, (np.ndarray)
+                                    tmp_data, (np.ndarray)
                             ) and self._output_datatype in ("numpy", "auto"):
                                 data_out = np.zeros((len(_data),) + tmp_data.shape)
                             elif isinstance(
-                                tmp_data, (np.int, np.int64, int, np.float64)
+                                    tmp_data, (np.int, np.int64, int, np.float64)
                             ) and self._output_datatype in ("numpy", "auto"):
                                 data_out = np.zeros((len(_data), 1))
                             elif self._output_datatype in ("list", "auto"):
                                 data_out = [None] * len(_data)
                         elif self._output_datatype == "auto" and isinstance(
-                            data_out, np.ndarray
+                                data_out, np.ndarray
                         ):
                             if (
-                                np.squeeze(data_out[0]).shape
-                                != np.squeeze(tmp_data).shape
+                                    np.squeeze(data_out[0]).shape
+                                    != np.squeeze(tmp_data).shape
                             ):
                                 tmp_data_out = data_out
                                 data_out = [None] * len(data_out)
-                                for j in range(0,k):
+                                for j in range(0, k):
                                     data_out[j] = tmp_data_out[j]
                         data_out[k] = tmp_data
                         if return_info:
@@ -466,13 +430,13 @@ class DataAbstract(Abstract):
 
     def __repr__(self) -> str:
         return (
-            class_str(self._data)
-            + "\n data abstract: multi_processing "
-            + str((True if self._workers > 0 else False))
+                class_str(self._data)
+                + "\n data abstract: multi_processing "
+                + str((True if self._workers > 0 else False))
         )
 
 
-class MapAbstract(Abstract):
+class MapAbstract(base.Abstract):
     """
     The class applies a mapping to data in a lazy manner.
 
@@ -565,12 +529,12 @@ class MapAbstract(Abstract):
     """
 
     def __init__(
-        self,
-        data: Iterable,
-        map_fct: Callable,
-        info: List[Dict] = None,
-        *args: list,
-        **kwargs: Dict
+            self,
+            data: Iterable,
+            map_fct: Callable,
+            info: List[Dict] = None,
+            *args: list,
+            **kwargs: Dict
     ):
         super().__init__(data)
         assert callable(map_fct), map_fct
@@ -581,7 +545,7 @@ class MapAbstract(Abstract):
         self._kwargs = kwargs
 
     def get(
-        self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
 
@@ -639,14 +603,14 @@ class MapAbstract(Abstract):
 
 
 def Map(
-    data,
-    map_fct: Callable,
-    info: List[Dict] = None,
-    lazy: bool = True,
-    workers: int = 1,
-    buffer_len: int = 3,
-    *arg: list,
-    **kwargs: Dict
+        data,
+        map_fct: Callable,
+        info: List[Dict] = None,
+        lazy: bool = True,
+        workers: int = 1,
+        buffer_len: int = 3,
+        *arg: list,
+        **kwargs: Dict
 ) -> Union[MapAbstract, DataAbstract, np.ndarray, list]:
     """
     Factory function to allow for choice between lazy and direct mapping.
@@ -743,7 +707,7 @@ def Map(
 #             self._factor) + ' ' + self._type
 
 
-class SampleReplicateAbstract(Abstract):
+class SampleReplicateAbstract(base.Abstract):
     """
     Replicate data on sample-by-sample basis.
 
@@ -783,7 +747,7 @@ class SampleReplicateAbstract(Abstract):
             self._factor = self._factor * np.ones(len(data))
 
     def get(
-        self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
         Parameters
@@ -826,22 +790,22 @@ class SampleReplicateAbstract(Abstract):
 
     def __repr__(self) -> str:
         return (
-            self._data.__repr__()
-            + "\n replicate: "
-            + str(self._factor.min())
-            + " - "
-            + str(self._factor.max())
+                self._data.__repr__()
+                + "\n replicate: "
+                + str(self._factor.min())
+                + " - "
+                + str(self._factor.max())
         )
 
 
 def SampleReplicate(
-    data: Iterable,
-    factor: int,
-    lazy: bool = True,
-    workers: int = 1,
-    buffer_len: int = 3,
-    *arg: List,
-    **kwargs: Dict
+        data: Iterable,
+        factor: int,
+        lazy: bool = True,
+        workers: int = 1,
+        buffer_len: int = 3,
+        *arg: List,
+        **kwargs: Dict
 ) -> Union[SampleReplicateAbstract, DataAbstract, np.ndarray, list]:
     """
     Factory function to allow for choice between lazy and direct sample replication.
@@ -883,7 +847,7 @@ def SampleReplicate(
         )[:]
 
 
-class SplitAbstract(Abstract):
+class SplitAbstract(base.Abstract):
     """
     The class is an abstract wrapper around an iterable to split this iterable in a lazy manner. Splitting refers
     to dividing the a particular example in multiple chunks, i.e. 60s examples are divided into 1s segments.
@@ -926,43 +890,32 @@ class SplitAbstract(Abstract):
     """
 
     def __init__(
-        self,
-        data: Iterable,
-        split_size: int = None,
-        constraint: str = None,
-        sample_len: Union[int, List[int]] = None,
-        sample_period: int = None,
-        type: str = "seconds",
+            self,
+            data: Iterable,
+            split_len: int = None,
+            sample_len: Union[int, List[int]] = None,
+            type: str = "seconds",
     ):
         super().__init__(data)
-        assert split_size is not None, "Please provide a split in " + type
-        self._type = type
-        self._split_size = split_size
-        self._constraint = constraint
+        assert split_len is not None, "Please provide a split in " + type
+        self._split_len = split_len
         self._sample_len = sample_len
+        if isinstance(self._split_len, numbers.Integral):
+            self._split_len = self._split_len * np.ones(len(data))
         if isinstance(self._sample_len, numbers.Integral):
             self._sample_len = self._sample_len * np.ones(len(data))
-        self._sample_period = sample_period
         self._init_split()
 
     def get_param(self):
-        return {'split_size': self._split_size,
+        return {'split_len': self._split_len,
                 'type': self._type,
                 'constraint': self._constraint,
-                'sample_len': self._sample_len,
-                'sample_period': self._sample_period}
+                'sample_len': self._sample_len}
 
     def _init_split(self):
-        # init window_size
-        if self._type == "seconds":
-            self._window_size = int(self._split_size / self._sample_period)
-        elif self._type == "samples":
-            self._window_size = int(self._split_size)
-        if self._constraint == "power2":
-            self._window_size = int(2 ** np.ceil(np.log2(self._window_size)))
-        assert self._window_size > 0
+        assert all(self._split_len > 0)
         # prepare splits
-        self._split_range, self._split_len = [None] * len(self._data), np.zeros(
+        self._split_range, self._splits = [None] * len(self._data), np.zeros(
             len(self._data), dtype=int
         )
         for j in range(len(self._data)):
@@ -971,23 +924,23 @@ class SplitAbstract(Abstract):
                 int(
                     np.floor(
                         (
-                            (self._sample_len[j] - (self._window_size - 1) - 1)
-                            / self._window_size
+                                (self._sample_len[j] - (self._split_len[j] - 1) - 1)
+                                / self._split_len[j]
                         )
                         + 1
                     )
                 ),
             )
             self._split_range[j] = np.tile(
-                np.array([0, self._window_size]), (num_frames, 1)
+                np.array([0, self._split_len[j]]), (num_frames, 1)
             ) + np.tile(
-                np.transpose(np.array([np.arange(num_frames) * self._window_size])),
+                np.transpose(np.array([np.arange(num_frames) * self._split_len[j]])),
                 (1, 2),
             )
-            self._split_len[j] = num_frames
+            self._splits[j] = num_frames
 
     def get(
-        self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
         Parameters
@@ -1009,24 +962,28 @@ class SplitAbstract(Abstract):
             assert index < len(self)
             if index < 0:
                 index = index % len(self)
-            for k, split_len in enumerate(self._split_len):
+            for k, split_len in enumerate(self._splits):
                 if split_len <= index:
                     index -= split_len
                 else:
                     read_range = self._split_range[k][int(index)]
                     # get data
                     if self._abstract:
+                        splittable = self._data.is_splittable()
                         data, info = self._data.get(
                             k,
                             *args,
                             return_info=True,
-                            read_range=read_range,
                             **kwargs,
+                            **({'read_range': read_range} if splittable else {})
                         )
-                        if 'read_ranged' not in info:
-                            data = data[read_range[0] : read_range[1]]
+                        if not splittable:
+                            try:
+                                data = data[int(read_range[0]): int(read_range[1])]
+                            except:
+                                raise ValueError("data is not splittable.")
                     else:
-                        data, info = self._data[k][read_range[0] : read_range[1]], {}
+                        data, info = self._data[k][int(read_range[0]): int(read_range[1])], {}
                     return (data, info) if return_info else data
         elif isinstance(index, str):
             return KeyAbstract(self, index)
@@ -1034,30 +991,24 @@ class SplitAbstract(Abstract):
             raise TypeError("Index should be a str or number")
 
     def __len__(self) -> int:
-        return int(np.sum(self._split_len))
+        return int(np.sum(self._splits))
 
     def __repr__(self):
-        return (
-            self._data.__repr__()
-            + "\n split: "
-            + str(self._window_size * self._sample_period)
-            + " "
-            + self._type
-        )
+        split_ratios = self._split_len/self._sample_len
+        return "%s\n\tsplit: %.2f (mean relative length), %d to %d" % (self._data.__repr__(),
+                                                                       split_ratios.mean(),
+                                                                       len(self._data),
+                                                                       len(self))
 
 
 def Split(
-    data: Iterable,
-    split_size: int = None,
-    constraint: str = None,
-    sample_len: int = None,
-    sample_period: int = None,
-    type: str = "seconds",
-    lazy: bool = True,
-    workers: bool = 1,
-    buffer_len: int = 3,
-    *args: List,
-    **kwargs: Dict
+        data: Iterable,
+        split_len: float = None,
+        sample_len: float = None,
+        type: str = "seconds",
+        lazy: bool = True,
+        workers: bool = 1,
+        buffer_len: int = 3
 ) -> Union[SplitAbstract, DataAbstract, np.ndarray, list]:
     """
     Factory function to allow for choice between lazy and direct example splitting.
@@ -1099,10 +1050,8 @@ def Split(
     if lazy:
         return SplitAbstract(
             data,
-            split_size=split_size,
-            constraint=constraint,
+            split_len=split_len,
             sample_len=sample_len,
-            sample_period=sample_period,
             type=type,
         )
     else:
@@ -1110,10 +1059,8 @@ def Split(
         return DataAbstract(
             SplitAbstract(
                 data,
-                split_size=split_size,
-                constraint=constraint,
+                split_len=split_len,
                 sample_len=sample_len,
-                sample_period=sample_period,
                 type=type,
             ),
             workers=workers,
@@ -1121,7 +1068,7 @@ def Split(
         )[:]
 
 
-class SelectAbstract(Abstract):
+class SelectAbstract(base.Abstract):
     """
     Select a subset of your input sequence.
 
@@ -1176,16 +1123,16 @@ class SelectAbstract(Abstract):
     """
 
     def __init__(
-        self,
-        data: Iterable,
-        selector: Union[List[int], Callable, numbers.Integral],
-        eval_data: Any = None,
-        *args,
-        **kwargs: Dict
+            self,
+            data: Iterable,
+            selector: Union[List[int], Callable, numbers.Integral],
+            eval_data: Any = None,
+            *args,
+            **kwargs: Dict
     ):
         super().__init__(data)
         assert hasattr(self._data, "__len__"), (
-            "Can only use %s it object has __len__" % self.__class__.__name__
+                "Can only use %s it object has __len__" % self.__class__.__name__
         )
         self._eval_data = data if eval_data is None else eval_data
         self._selector = selector
@@ -1221,7 +1168,7 @@ class SelectAbstract(Abstract):
         return self._indices
 
     def get(
-        self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
         Parameters
@@ -1261,14 +1208,14 @@ class SelectAbstract(Abstract):
 
 
 def Select(
-    data,
-    selector: Union[List[int], Callable, numbers.Integral],
-    eval_data: Any = None,
-    lazy: bool = True,
-    workers: int = 1,
-    buffer_len: int = 3,
-    *args: List,
-    **kwargs: Dict
+        data,
+        selector: Union[List[int], Callable, numbers.Integral],
+        eval_data: Any = None,
+        lazy: bool = True,
+        workers: int = 1,
+        buffer_len: int = 3,
+        *args: List,
+        **kwargs: Dict
 ) -> Union[SelectAbstract, DataAbstract, np.ndarray, list]:
     """
     Factory function to allow for choice between lazy and direct example selection.
@@ -1310,7 +1257,7 @@ def Select(
         )[:]
 
 
-class FilterAbstract(Abstract):
+class FilterAbstract(base.Abstract):
     """
     Filter on the fly. Interesting when the variable to filter on takes long to compute.
 
@@ -1342,12 +1289,12 @@ class FilterAbstract(Abstract):
     """
 
     def __init__(
-        self,
-        data: Iterable,
-        filter_fct: Callable,
-        return_none: bool = False,
-        *args,
-        **kwargs
+            self,
+            data: Iterable,
+            filter_fct: Callable,
+            return_none: bool = False,
+            *args,
+            **kwargs
     ):
         super().__init__(data)
         assert callable(filter_fct), filter_fct
@@ -1362,7 +1309,7 @@ class FilterAbstract(Abstract):
                 yield data
 
     def get(
-        self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         """
         Parameters
@@ -1415,14 +1362,14 @@ class FilterAbstract(Abstract):
 
 
 def Filter(
-    data: Iterable,
-    filter_fct: Callable,
-    return_none: bool = True,
-    lazy: bool = True,
-    workers: int = 1,
-    buffer_len: int = 3,
-    *arg: List,
-    **kwargs: Dict
+        data: Iterable,
+        filter_fct: Callable,
+        return_none: bool = True,
+        lazy: bool = True,
+        workers: int = 1,
+        buffer_len: int = 3,
+        *arg: List,
+        **kwargs: Dict
 ) -> Union[FilterAbstract, DataAbstract, np.ndarray, List]:
     """
     Factory function to allow for choice between lazy and direct example selection.
@@ -1476,7 +1423,7 @@ def Filter(
             )[:]
 
 
-class KeyAbstract(Abstract):
+class KeyAbstract(base.Abstract):
     """Error handling wrapper for a concatenated sequence where one might have a dictseq and the other doesnt.
     This will allow for key/index indexing even if the particular index does not have a key.
     """
@@ -1486,7 +1433,7 @@ class KeyAbstract(Abstract):
         self._key = key
 
     def get(
-        self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
+            self, index: int, return_info: bool = False, *arg: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         if isinstance(index, numbers.Integral):
             assert index < len(self)
@@ -1527,382 +1474,8 @@ class KeyAbstract(Abstract):
         return "key_abstract of key " + self._key + " on " + str(self._data)
 
 
-class DictSeqAbstract(Abstract):
-    """DictSeq base class"""
-
-    def __init__(self, name: str = ""):
-        self._nr_keys = 0
-        self._name = name
-        self._data = dict()
-        self._active_keys = []
-        self._lazy = dict()
-        self._abstract = dict()
-        self._adjust_mode = False
-
-    def add(
-        self,
-        key: str,
-        data: Iterable,
-        lazy: bool = True,
-        info: List[Dict] = None,
-        **kwargs: Dict
-    ) -> None:
-        assert hasattr(
-            data, "__getitem__"
-        ), "provided data instance must have __getitem__ method."
-        assert (
-            key != "all"
-        ), "The name 'all' is reserved for referring to all keys when applying a transform."
-        assert hasattr(data, "__len__"), (
-            "Can only use %s it object has __len__" % self.__class__.__name__
-        )
-        if not self._adjust_mode:
-            if self._nr_keys > 0 and len(self) > 0:
-                assert len(data) == len(self), "len(self) is not the same as len(data)"
-        new_key = False if key in self.keys() else True
-        if (not lazy) and isinstance(data, Abstract):
-            data = DataAbstract(data)[:]
-        elif info is not None:
-            data = SeqAbstract().concat(data, info=info)
-        self._data.update({key: data})
-        self._lazy.update({key: lazy})
-        self._abstract.update({key: isinstance(data, Abstract)})
-        if new_key:
-            self._reset_active_keys()
-            self._nr_keys += 1
-        return self
-
-    def add_dict(self, dct: Dict, lazy: bool = True) -> None:
-        for key in dct:
-            self.add(key, dct[key], lazy=lazy)
-        return self
-
-    def concat(
-        self, data: Iterable, intersect: bool = False, adjust_base: bool = True
-    ) -> None:
-        if isinstance(data, list):
-            for d in data:
-                self.concat(d, intersect=intersect)
-        else:
-            self2 = self if adjust_base else copy.deepcopy(self)
-            self2._adjust_mode = True
-            data = copy.deepcopy(data)
-            assert isinstance(data, DictSeqAbstract)
-            if self2._nr_keys != 0:
-                if not intersect:
-                    assert (
-                        data.keys() == self2.keys()
-                    ), "keys do not match. Set intersect=True for keeping common keys."
-                    keys = data.keys()
-                else:
-                    # get diff
-                    keys = list_intersection(data.keys(), self2.keys())
-                    rem_keys = list_difference(data.keys(), self2.keys())
-                    # remove ones which are not identical
-                    for rem_key in rem_keys:
-                        if rem_key in data.keys():
-                            data.remove(rem_key)
-                        else:
-                            self2.remove(rem_key)
-                for key in keys:
-                    if self2._lazy[key]:
-                        # make sure that data format is as desired by the base dict
-                        if not isinstance(
-                            self2[key],
-                            (SeqAbstract, DictSeqAbstract),
-                        ):
-                            self2[key] = SeqAbstract().concat(self2[key])
-                        # concatenate SeqAbstract
-                        if isinstance(
-                            data[key], SeqAbstract
-                        ):  # if already a SeqAbstract, concat cleaner to avoid overhead
-                            for _data in data[key]._data:
-                                self2[key].concat(_data)
-                        else:  # if not just concat at once
-                            self2[key].concat(data[key])
-                    else:
-                        assert (
-                            self2[key].__class__ == data[key].__class__
-                        ), "When using lazy=False, datatypes should be same in case of concatenation."
-                        if isinstance(self2[key], list):
-                            self2[key] = self2[key] + data[key]
-                        elif isinstance(self2[key], np.ndarray):
-                            self2[key] = np.concatenate((self2[key], data[key]))
-                self2._adjust_mode = False
-            else:
-                self2.__dict__.update(data.__dict__)
-
-            return self2
-
-    def remove(self, key: str) -> None:
-        del self._data[key]
-        self.reset_active_keys()
-        self._nr_keys -= 1
-        return self
-
-    def add_map(self, key: str, map_fct: Callable, *arg: List, **kwargs: Dict) -> None:
-        self[key] = Map(self[key], map_fct, lazy=self._lazy[key], *arg, **kwargs)
-
-    def add_select(self, selector, *arg, eval_data=None, **kwargs):
-        def iterative_select(data, indices, *arg, lazy=True, **kwargs):
-            if isinstance(data, DictSeqAbstract):
-                data._adjust_mode = True
-                for key in data.keys():
-                    if isinstance(data[key], DictSeqAbstract):
-                        data[key] = iterative_select(
-                            data[key], indices, *arg, lazy=data._lazy[key], **kwargs
-                        )
-                    else:
-                        data[key] = Select(
-                            data[key], indices, *arg, lazy=data._lazy[key], **kwargs
-                        )
-                data._adjust_mode = False
-            else:
-                data = Select(data, indices, *arg, lazy=lazy, **kwargs)
-            return data
-
-        # get indices for all to ensure no discrepancy between items
-        indices = Select(
-            self,
-            selector,
-            *arg,
-            eval_data=(self if eval_data is None else eval_data),
-            **kwargs,
-        ).get_indices()
-        # Add selection
-        iterative_select(self, indices, *arg, **kwargs)
-
-    def add_alias(self, key: str, new_key: str) -> None:
-        assert new_key not in self.keys(), "alias key already in existing keys."
-        self.add(new_key, self[key])
-
-    def set_active_keys(self, keys: Union[List[str], str]) -> None:
-        self._set_active_keys(keys)
-
-    def reset_active_key(self) -> None:
-        warnings.warn(
-            "reset_active_key() in DictSeqAbstract is deprecated. Please use reset_active_keys()"
-        )
-        self._reset_active_keys()
-
-    def reset_active_keys(self) -> None:
-        self._reset_active_keys()
-
-    def _set_active_keys(self, keys: Union[List[str], str]) -> None:
-        if isinstance(keys, list):
-            for key in keys:
-                assert key in self.keys(), "key " + key + " does not exists."
-            self._active_keys = keys
-        else:
-            assert keys in self.keys(), "key " + keys + " does not exists."
-            self._active_keys = [keys]
-
-    def _reset_active_keys(self) -> None:
-        self._active_keys = self.keys()
-
-    def get_active_keys(self) -> List[str]:
-        return self._active_keys
-
-    def __len__(self) -> int:
-        nr_examples = [len(self._data[key]) for key in self._data]
-        assert all([nr_example == nr_examples[0] for nr_example in nr_examples])
-        return nr_examples[0] if len(nr_examples) > 0 else 0
-
-    def __add__(self, other: Iterable) -> None:
-        assert isinstance(other, DictSeqAbstract)
-        return self.concat(other, adjust_base=False)
-
-    def __setitem__(self, k: str, v: Any) -> None:
-        assert isinstance(k, str), "Assignment only possible by key (str)."
-        new_key = False if k in self.keys() else True
-        lazy = True if new_key else self._lazy[k]  # make sure that lazy is kept
-        self.add(k, v, lazy=lazy)
-
-    def get(
-        self,
-        index: int,
-        key: str = None,
-        return_info: bool = False,
-        *arg: List,
-        **kwargs: Dict
-    ) -> Union[List, np.ndarray, Any]:
-        if isinstance(index, str):
-            assert key is None
-            return self._data[index]
-        elif isinstance(index, numbers.Integral):
-            if key is None:
-                data, info = dict(), dict()
-                for k, key in enumerate(self._active_keys):
-                    if self._abstract[key]:
-                        data[key], info[key] = self._data[key].get(
-                            index=index, return_info=True, **kwargs
-                        )
-                    else:
-                        data[key], info[key] = self._data[key][index], dict()
-                if len(self._active_keys) == 1:
-                    data, info = data[key], info[key]
-            else:
-                assert isinstance(key, str)
-                data, info = self._data[key].get(
-                    index=index, return_info=True, **kwargs
-                )
-            return (data, info) if return_info else data
-        else:
-            raise IndexError("index should be a number or str")
-
-    def unpack(self, keys: List[str]) -> UnpackAbstract:
-        return UnpackAbstract(self._data, keys)
-
-    def keys(self) -> List[str]:
-        return list(self._data.keys())
-
-    def summary(self) -> Dict:
-        summary = dict()
-        for name, data in zip(self.keys(), self._data):
-            summary[name] = data.summary()
-        return summary
-
-    def __repr__(self) -> str:
-        return "dict_seq containing: " + str(self.keys())
-
-    def pop(self, key) -> Any:
-        if self._abstract[key]:
-            self[key] = self[key].pop()
-        else:
-            raise NotImplementedError("Can't pop a data object that is not of type Abstract")
-
-
-class SeqAbstract(Abstract):
-    """Seq base class"""
-
-    def __init__(self, data: Iterable = None, name: str = "seq"):
-        self._nr_sources = 0
-        self._data = []
-        self._info = []
-        self._kwargs = []
-        self._name = name
-        if data is not None:
-            if isinstance(data, list):
-                for _data in data:
-                    self.concat(_data)
-            else:
-                raise AssertionError("Input data should be a list")
-
-    def concat(self, data: Iterable, info: List[Dict] = None, **kwargs: Dict) -> None:
-        # Check
-        assert hasattr(
-            data, "__getitem__"
-        ), "provided data instance must have __getitem__ method."
-        if isinstance(data, DictSeqAbstract):
-            assert (
-                len(data._active_keys) == 1
-            ), "You can only add a dict_abstract in case there is only one active key."
-        assert hasattr(self._data, "__len__"), (
-            "Can only use %s it object has __len__" % self.__class__.__name__
-        )
-        # Add
-        data = copy.deepcopy(data)
-        if isinstance(data, SeqAbstract):
-            for _data in data._data:
-                self.concat(_data)
-        else:
-            self._data.append(data)
-        self._nr_sources += 1
-        # Information to propagate to transforms or use for split
-        if info is not None:
-            assert isinstance(info, list), "info should be a list"
-            assert isinstance(
-                info[0], dict
-            ), "The items in info should contain a dict()"
-            assert len(info) == len(
-                data
-            ), "info should be a list with len(info)==len(data)"
-        self._info.append(info)
-        self._kwargs.append(kwargs)
-        return self
-
-    def __len__(self) -> int:
-        return np.sum([len(data) for data in self._data])
-
-    def __setitem__(self, index: int, value: Iterable):
-        if isinstance(index, numbers.Integral):
-            if index < 0:
-                index = index % len(self)
-            for k, data in enumerate(self._data):
-                if len(data) <= index:
-                    index -= len(data)
-                else:
-                    data[index] = value
-                return None
-            raise IndexError("Index should be lower than len(dataset)")
-        elif isinstance(index, str):
-            return KeyAbstract(self, index)
-        else:
-            raise IndexError(
-                "index should be a number (or key in case of a nested dict_seq)."
-            )
-
-    def __add__(self, other: Union[tvSeqAbstract, Iterable]):
-        # assert isinstance(other)
-        return self.concat(other)
-
-    def get(
-        self,
-        index: int,
-        key: str = None,
-        return_info: bool = False,
-        *arg: List,
-        **kwargs: Dict
-    ) -> Union[List, np.ndarray, Any]:
-        if isinstance(index, numbers.Integral):
-            if index < 0:
-                index = index % len(self)
-            for k, data in enumerate(self._data):
-                if len(data) <= index:
-                    index -= len(data)
-                else:
-                    info = dict() if self._info[k] is None else self._info[k][index]
-                    # get
-                    if isinstance(self._data[k], Abstract):
-                        data, info = data.get(
-                            index,
-                            *arg,
-                            return_info=True,
-                            **(info if key is None else dict(info, key=key)),
-                            **kwargs,
-                        )
-                    else:
-                        assert key is None
-                        data, info = data[index], dict(**info, **kwargs)
-                    # return
-                    return (data, info) if return_info else data
-            raise IndexError("Index should be lower than len(dataset)")
-        elif isinstance(index, str):
-            return KeyAbstract(self, index)
-        else:
-            raise IndexError(
-                "index should be a number (or key in case of a nested dict_seq)."
-            )
-
-    def summary(self) -> Dict:
-        return {"nr_examples": self.nr_examples, "name": self._name}
-
-    def __repr__(self):
-        r = "seq containing:"
-        for data in self._data:
-            if not isinstance(data, (Abstract)):
-                r += "\n[ \t" + str(type(data)) + "\t]"
-            else:
-                r += "\n[ \t" + repr(data) + "\t]"
-            # r += '\n'
-        return r
-
-    def pop(self) -> Any:
-        raise NotImplementedError
-
-
 def class_str(data: Callable):
-    if isinstance(data, Abstract):
+    if isinstance(data, base.Abstract):
         return repr(data)
     else:
         return str(data.__class__)

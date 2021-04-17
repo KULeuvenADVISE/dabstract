@@ -1,149 +1,121 @@
 import numpy as np
 import numbers
+import warnings
 
-from dabstract.abstract.abstract import DictSeqAbstract, SeqAbstract, MapAbstract, Abstract
+from dabstract.abstract import  DictSeqAbstract, SeqAbstract, MapAbstract, Abstract
 from dabstract.dataset.helpers import get_dir_info
 
 from typing import Any, List, Optional, TypeVar, Callable, Dict, Iterable, Union
 tvDataset = TypeVar("Dataset")
 
-class MetaWrapper(Abstract):
-    time_input_types = ('multi_time_label','multi_endtime_label')
+class Container():
+    pass
 
-    # ToDo: add summaries related to meta
+class MetaContainer(Container, Abstract):
+    time_meta_types = ('multi_time_label')
+
     def __init__(self,
                  data: Iterable = None,
-                 input_type: str = 'auto',
-                 output_type: str = 'as_is',
-                 sample_length: int = None,
+                 meta_type: str = 'auto',
+                 duration: Union[int, List[int]] = None,
+                 time_step: Union[int, List[int]] = None,
         ):
         # init
-        super().__init__()
-        self._data
-        self.input_type = input_type
-        self.output_type = output_type
-        self.sample_length = sample_length
-        if self.sample_length is not None:
-            assert input_type in self.time_input_types, \
+        super().__init__(data=data)
+        self.meta_type = meta_type
+        self.duration = duration
+        self.time_step = time_step
+        if (self.duration is not None) or (self.time_step is not None):
+            assert meta_type in self.time_meta_types, \
                 "You should not specify a duration when input type does not have time dependency"
-            if isinstance(self.sample_length, numbers.Integral):
-                self.sample_length = self.sample_length * np.ones(len(data))
+        if meta_type in self.time_meta_types:
+            assert (self.duration is not None) or (self.time_step is not None), \
+                "You should specify a duration when input type does has time dependency"
+            if isinstance(self.duration, numbers.Integral):
+                self.duration = self.duration * np.ones(len(data))
             else:
-                assert len(self.sample_length) == len(self)
+                assert len(self.duration) == len(self)
+            if isinstance(self.time_step, numbers.Integral):
+                self.time_step = self.time_step * np.ones(len(data))
+            else:
+                assert len(self.time_step) == len(self)
 
         # checks
-        if self.input_type == 'auto':
-            raise NotImplementedError("Please manually select an input type. Don't be lazy.")
+        if self.meta_type == 'auto':
+            raise NotImplementedError("Please manually select an input type. Don't be lazy. ;)")
 
-        elif self.input_type == 'single_label':
-            assert self.output_type == 'as_is', "Only output_type as_is is supported with single_label"
+        elif self.meta_type == 'single_label':
             assert isinstance(data, Iterable)
 
-        elif self.input_type == 'multi_label':
-            assert self.output_type in ('as_is','multi_label','majority','random_tie_majority'), \
-                "Only output_type as_is, multi_label and majority is supported with input_type multi_label"
+        elif self.meta_type == 'multi_label':
             assert isinstance(data, Iterable), \
                 "data should be a nested np.arrray or list in case its input_type is multi_label"
             assert isinstance(data[0], Iterable), \
                 "data should be a nested np.arrray or list in case its input_type is multi_label"
 
-        elif self.input_type == 'multi_endtime_label':
-            assert isinstance(data, Iterable), \
-                "data should be a np.arrray or list in case its input_type is multi_endtime_label"
-            assert isinstance(data[0], np.ndarray), \
-                "data[k] should be a np.ndarray in case its input_type is multi_endtime_label"
-            assert len(data[0].shape), \
-                "data[k] should be a np.ndarray matrix in case its input_type is multi_endtime_label"
-
-        elif self.input_type == 'multi_time_label':
+        elif self.meta_type == 'multi_time_label':
             assert isinstance(data, Iterable), \
                 "data should be a np.arrray or list in case its input_type is multi_time_label"
             assert isinstance(data[0], np.ndarray), \
                 "data[k] should be a np.ndarray in case its input_type is multi_time_label"
             assert len(data[0].shape), \
                 "data[k] should be a np.ndarray matrix in case its input_type is multi_time_label"
+
         else:
-            raise NotImplementedError("%s is not a valid input type." % self.input_type)
+            raise NotImplementedError("%s is not a valid input type." % self.meta_type)
 
     def get(
         self,
         index: int,
         return_info: bool = False,
+        read_range = None,
         **kwargs
     ) -> Union[List, np.ndarray, Any]:
         # get data
-        data = self._data[index]
-
-        if return_info:
-            data, info = data
+        if self._abstract:
+            data, info = self._data.get(index, return_info=True)
         else:
-            info = {}
+            data, info = self._data[index], {}
 
         # reformat meta
-        if self.input_type == 'auto':
-            raise NotImplementedError("Please manually select an input type. Don't be lazy.")
-
-        elif self.input_type == 'single_label':
-            pass
-
-        elif self.input_type == 'multi_label':
-
-            if self.output_type == 'majority':
-                values, counts = np.unique(data, return_counts=True)
-                return values[np.argmax(counts)]
-
-            elif self.output_type == 'random_tie_majority':
-                values, counts = np.unique(data, return_counts=True)
-                return values[np.argmax(np.random.random(len(counts)) * (counts == counts.max()))]
-
-        elif self.input_type == 'multi_endtime_label':
-            # update data if different range is required
-            if 'read_range' in kwargs:
-                pass
-
-            if self.output_type == 'multi_label':
-                pass
-
-            elif self.output_type == 'majority':
-                values, counts = np.unique(data[:,1], return_counts=True)
-                return values[np.argmax(counts)]
-
-            elif self.output_type == 'random_tie_majority':
-                values, counts = np.unique(data[:,1], return_counts=True)
-                return values[np.argmax(np.random.random(len(counts)) * (counts == counts.max()))]
-
-            elif self.output_type == 'first':
-                return data[:, 1][0]
-
-            elif self.output_type == 'center':
-                mid_idx = data[:, 0].max()/2
-                return data[:, 1][np.where(data[:, 0]>mid_idx)[0][0]]
-
-            elif self.output_type == 'last':
-                return data[:, 1][-1]
-
-
-        else:
-            raise NotImplementedError("%s is not a valid input type." % self.input_type)
+        if read_range is not None:
+            if self.meta_type == 'multi_time_label':
+                start_idx = np.where(data[:,1]>read_range[0])[0]
+                stop_idx = np.where(data[:,2]<read_range[1])[0]
+                if len(start_idx) > 0 and len(stop_idx) > 0:
+                    data = data[np.max([start_idx[0]-1,0]):np.min([stop_idx[-1]+1,data.shape[0]])]
+                    data[0,1:] = read_range[0], read_range[1]
+                elif len(start_idx) == 0:
+                    data = data[None,0,:]
+                    data[0,1] = read_range[0]
+                elif len(stop_idx) == 0:
+                    data = data[None,0,:]
+                    data[0,2] = read_range[1]
+            else:
+                raise NotImplementedError("%s is not a valid input type to cope but read_range input. Something is going wrong. Please check." % self.input_type)
 
         return (data, info) if return_info else data
 
-    def get_fs(self, index: int = None):
-        return 1 if self.input_type in self.time_input_types else None
-
-    def get_output_shape(self, index: int = None):
-        return None
-
-    def get_samples(self, index: int = None):
-        return self.sample_length if self.input_type in self.time_input_types else None
-
     def get_duration(self, index: int = None):
-        return self.sample_length if self.input_type in self.time_input_types else None
+        if index is None:
+            return self.duration if self.meta_type in self.time_meta_types else None
+        else:
+            return self.duration[index] if self.meta_type in self.time_meta_types else None
 
     def get_time_step(self, index: int = None):
-        return 1
+        if index is None:
+            return self.time_step if self.meta_type in self.time_meta_types else None
+        else:
+            return self.time_step[index] if self.meta_type in self.time_meta_types else None
 
-class FolderWrapper(DictSeqAbstract):
+    def get_split_len(self, index: int = None):
+        return self.get_duration(index=index)
+
+    def is_splittable(self):
+        return self.meta_type in self.time_meta_types
+
+
+class FolderContainer(Container, DictSeqAbstract):
     """Get meta information of the files in a directory and place them in a DictSeq
 
     This function gets meta information (e.g. sampling frequency, length) of files in your provided directory.
@@ -246,9 +218,32 @@ class FolderWrapper(DictSeqAbstract):
 
     def __repr__(self) -> str:
         """string print representation of function"""
-        return "FolderWrapper containing: " + str(self.keys())
+        return "%s containing: %s" % (self.__class__.__name__, str(self.keys()))
 
-class WavFolderWrapper(FolderWrapper):
+    def _get_info(self, key: str, index: int = None):
+        assert key in self['info'][0], '%s not available in %s instance' % (key, self.__class__.__name__)
+        if index is None:
+            return np.array([tmp[key] for tmp in self['info']])
+        else:
+            return self['info'][index][key]
+        return
+
+    def get_info(self, index: int = None):
+        if index is None:
+            return self['info']
+        else:
+            return self['info'][index]
+
+    def is_splittable(self):
+        # assumes that this is the case for ALL info
+        # should we do a check on everything or assume this is always the case?
+        return 'time_step' in self['info'][0] and 'output_shape' in self['info'][0]
+
+    def get_split_len(self, index: int = None):
+        return self.get_samples(index=index)
+
+
+class WavFolderContainer(FolderContainer):
     # ToDo: add summaries related to the wav folder
     def __init__(
         self,
@@ -269,20 +264,6 @@ class WavFolderWrapper(FolderWrapper):
                          info=info,
                          **kwargs)
 
-    def _get_info(self, key: str, index: int = None):
-        assert key in self['info'][0], '%s not available in %s instance' % (key, self.__class__.__name__)
-        if index is None:
-            return np.array([tmp[key] for tmp in self['info']])
-        else:
-            return self['info'][index][key]
-        return
-
-    def get_info(self, index: int = None):
-        if index is None:
-            self['info']
-        else:
-            return self['info'][index]
-
     def get_fs(self, index: int = None):
         return self._get_info(key='fs', index=index)
 
@@ -299,7 +280,7 @@ class WavFolderWrapper(FolderWrapper):
     def get_time_step(self, index: int = None):
         return self._get_info(key='time_step', index=index)
 
-class FeatureFolderWrapper(FolderWrapper):
+class FeatureFolderContainer(FolderContainer):
     # ToDo: add summaries related to the feature folder
     def __init__(
         self,
@@ -319,20 +300,6 @@ class FeatureFolderWrapper(FolderWrapper):
                          overwrite_file_info=overwrite_file_info,
                          info=info,
                          **kwargs)
-
-    def _get_info(self, key: str, index: int = None):
-        assert key in self['info'][0], '%s not available in %s instance' % (key, self.__class__.__name__)
-        if index is None:
-            return np.array([tmp[key] for tmp in self['info']])
-        else:
-            return self['info'][index][key]
-        return
-
-    def get_info(self, index: int = None):
-        if index is None:
-            self['info']
-        else:
-            return self['info'][index]
 
     def get_fs(self, index: int = None):
         return self._get_info(key='fs', index=index)

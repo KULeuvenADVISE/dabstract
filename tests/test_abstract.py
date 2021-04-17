@@ -1,4 +1,4 @@
-from dabstract.dataprocessor.processing_chain import *
+from dabstract.dataprocessor import *
 from dabstract.utils import *
 
 def test_SampleReplicate():
@@ -129,8 +129,8 @@ def test_Split():
     # data
     data = np.ones((1, 100))
     # split
-    data_split_lazy = Split(data=data, split_size=50, sample_len=data.shape[1], sample_period=1, type='seconds', lazy=True)
-    data_split_direct = Split(data=data, split_size=50, sample_len=data.shape[1], sample_period=1, type='seconds', lazy=False)
+    data_split_lazy = Split(data=data, split_len=50, sample_len=data.shape[1], lazy=True)
+    data_split_direct = Split(data=data, split_len=50, sample_len=data.shape[1], lazy=False)
     # check
     np.testing.assert_array_equal(data_split_direct, np.ones((2, 50)))
     np.testing.assert_array_equal(data_split_lazy, np.ones((2, 50)))
@@ -140,8 +140,8 @@ def test_Split():
     data = {'test1': np.ones((1, 100))}
     data = DictSeqAbstract().add_dict(data)
     # split
-    data_split_lazy = Split(data=data, split_size=50, sample_len=len(data.get(0)), sample_period=1, type='seconds', lazy=True)
-    data_split_direct = Split(data=data, split_size=50, sample_len=len(data.get(0)), sample_period=1, type='seconds', lazy=False)
+    data_split_lazy = Split(data=data, split_len=50, sample_len=len(data.get(0)), lazy=True)
+    data_split_direct = Split(data=data, split_len=50, sample_len=len(data.get(0)), lazy=False)
     # check
     np.testing.assert_array_equal(data_split_direct, np.ones((2, 50)))
     np.testing.assert_array_equal(data_split_lazy, np.ones((2, 50)))
@@ -150,8 +150,8 @@ def test_Split():
     # data
     data = np.ones((1, 100))
     # split
-    data_split_lazy_samples = Split(data=data, split_size=50, sample_len=data.shape[1], sample_period=1, type='samples', lazy=True)
-    data_split_direct_samples = Split(data=data, split_size=50, sample_len=data.shape[1], sample_period=1, type='samples', lazy=False)
+    data_split_lazy_samples = Split(data=data, split_len=50, sample_len=data.shape[1], lazy=True)
+    data_split_direct_samples = Split(data=data, split_len=50, sample_len=data.shape[1], lazy=False)
     # check
     np.testing.assert_array_equal(data_split_direct_samples, np.ones((2, 50)))
     np.testing.assert_array_equal(data_split_lazy_samples, np.ones((2, 50)))
@@ -161,24 +161,12 @@ def test_Split():
     data = {'test1': np.ones((1, 100))}
     data = DictSeqAbstract().add_dict(data)
     # split
-    data_split_lazy = Split(data=data, split_size=50, sample_len=len(data.get(0)), sample_period=1, type='samples', lazy=True)
-    data_split_direct = Split(data=data, split_size=50, sample_len=len(data.get(0)), sample_period=1, type='samples', lazy=False)
+    data_split_lazy = Split(data=data, split_len=50, sample_len=len(data.get(0)), lazy=True)
+    data_split_direct = Split(data=data, split_len=50, sample_len=len(data.get(0)), lazy=False)
     # check
     np.testing.assert_array_equal(data_split_direct, np.ones((2, 50)))
     np.testing.assert_array_equal(data_split_lazy, np.ones((2, 50)))
 
-    ## Checks on constraint='power2'
-    data = np.ones((1, 100))
-    # split
-    data_split_lazy_power2_size4 = Split(data=data, split_size=4, sample_len=data.shape[1], sample_period=1, constraint='power2', lazy=True)
-    data_split_direct_power2_size4 = Split(data=data, split_size=4, sample_len=data.shape[1], sample_period=1, constraint='power2', lazy=False)
-    data_split_lazy_power2_size5 = Split(data=data, split_size=5, sample_len=data.shape[1], sample_period=1, constraint='power2', lazy=True)
-    data_split_direct_power2_size5 = Split(data=data, split_size=5, sample_len=data.shape[1], sample_period=1, constraint='power2', lazy=False)
-    # check
-    np.testing.assert_array_equal(data_split_direct_power2_size4, np.ones((25, 4)))
-    np.testing.assert_array_equal(data_split_lazy_power2_size4, np.ones((25, 4)))
-    np.testing.assert_array_equal(data_split_direct_power2_size5, np.ones((12, 8)))
-    np.testing.assert_array_equal(data_split_lazy_power2_size5, np.ones((12, 8)))
 
 def test_Select():
     from dabstract.abstract import Select, DictSeqAbstract
@@ -274,7 +262,7 @@ def test_Filter():
 
 def test_DataAbstract():
     from dabstract.abstract import DataAbstract, DictSeqAbstract, MapAbstract
-    from dabstract.dataprocessor.processing_chain import Processor, ProcessingChain
+    from dabstract.dataprocessor import Processor, ProcessingChain
 
     # check for multi-indexing on a List
     data = ['1', '2', '3', '4']

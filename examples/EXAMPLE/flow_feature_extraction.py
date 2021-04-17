@@ -72,7 +72,7 @@ def flow_feature_extraction():
     import numpy as np
     data = np.ones((100,1))
 
-    from dabstract.abstract.abstract import SeqAbstract, MapAbstract, DataAbstract
+    from dabstract.abstract import SeqAbstract, MapAbstract, DataAbstract
     seq = SeqAbstract()
     seq.concat(MapAbstract(data, lambda x: x*0+1))
     seq.concat(MapAbstract(data, lambda x: x*0+2))

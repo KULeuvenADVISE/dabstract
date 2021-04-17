@@ -3,9 +3,8 @@ import pickle
 import soundfile as sf
 
 from dabstract.utils import safe_import_module
-from dabstract.abstract.abstract import *
+from dabstract.abstract import *
 from dabstract.dataset import dbs
-from dabstract.dataset.wrappers import FolderWrapper
 
 from typing import Any, List, Optional, TypeVar, Callable, Dict
 
@@ -183,28 +182,28 @@ def dataset_factory(
 
     return db
 
-class FolderDictSeqAbstract(FolderWrapper):
-    def __init__(
-        self,
-        path: str,
-        extension: str = 'wav',
-        map_fct: Callable = None,
-        file_info_save_path: bool = None,
-        filepath: str = None,
-        overwrite_file_info: bool = False,
-        info: List[Dict] = None,
-        **kwargs
-    ):
-        print('helpers.FolderDictSeqAbstract is deprecated and will be removed in the next version, please use wrapper.FolderWrapper instead. \
-                If using wav files, one can also use WavFolderWrapper which provides additional functionality for wav specificly.')
-        super().__init__(path=path,
-                         extension=extension,
-                         map_fct = map_fct,
-                         file_info_save_path=file_info_save_path,
-                         filepath=filepath,
-                         overwrite_file_info=overwrite_file_info,
-                         info=info,
-                         **kwargs)
+# class FolderDictSeqAbstract(FolderContainer):
+#     def __init__(
+#         self,
+#         path: str,
+#         extension: str = 'wav',
+#         map_fct: Callable = None,
+#         file_info_save_path: bool = None,
+#         filepath: str = None,
+#         overwrite_file_info: bool = False,
+#         info: List[Dict] = None,
+#         **kwargs
+#     ):
+#         print('helpers.FolderDictSeqAbstract is deprecated and will be removed in the next version, please use wrapper.FolderContainer instead. \
+#                 If using wav files, one can also use WavFolderContainer which provides additional functionality for wav specificly.')
+#         super().__init__(path=path,
+#                          extension=extension,
+#                          map_fct = map_fct,
+#                          file_info_save_path=file_info_save_path,
+#                          filepath=filepath,
+#                          overwrite_file_info=overwrite_file_info,
+#                          info=info,
+#                          **kwargs)
 
 
 def get_dir_info(
