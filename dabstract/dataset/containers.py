@@ -94,7 +94,8 @@ class MetaContainer(Container, Abstract):
                 start_idx = np.where(data[:,2]>read_range[0])[0]
                 stop_idx = np.where(data[:,1]>read_range[1])[0]
                 data = data[np.max([start_idx[0],0]):np.min([stop_idx[0],data.shape[0]])]
-                data[0,1] = np.max([read_range[0],data[0,1]])
+                data[:,[1,2]] -= read_range[0]
+                data[0,1] = np.max([0,data[0,1]])
                 data[-1,2] = np.min([read_range[1],data[-1,2]])
             else:
                 raise NotImplementedError("%s is not a valid input type to cope but read_range input. Something is going wrong. Please check." % self.input_type)

@@ -47,13 +47,12 @@ class DetectionDataset(Dataset):
                                duration = self['data'].get_duration(),
                                time_step = self['data'].get_time_step()),
                  lazy=True)
-
         self.add('group', self['data']['subdb'], lazy=False)
 
         self.add_split(20)
-        print(self['time_anomaly'][0])
+        print(self['time_anomaly'][1])
         print('\n')
-        print(self['time_anomaly_label'][0])
+        print(self['time_anomaly_label'][1])
         print('\n')
         print(self['time_anomaly']._data[0])
 
