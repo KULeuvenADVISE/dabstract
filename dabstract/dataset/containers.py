@@ -82,21 +82,20 @@ class MetaContainer(Container, Abstract):
         # reformat meta
         if read_range is not None:
             if self.meta_type == 'multi_time_label':
-                print(data)
-                start_idx = np.where(data[:,1]>read_range[0])[0]
-                stop_idx = np.where(data[:,2]<read_range[1])[0]
-                if len(start_idx) > 0 and len(stop_idx) > 0:
-                    data = data[np.max([start_idx[0]-1,0]):np.min([stop_idx[-1]+2,data.shape[0]])]
-                    data[0,1] = read_range[0]
-                    data[-1,2] = read_range[1]
-                elif len(start_idx) == 0:
-                    data = data[None,0,:]
-                    data[0,1] = read_range[0]
-                elif len(stop_idx) == 0:
-                    data = data[None,0,:]
-                    data[0,2] = read_range[1]
-                else:
-                    pass
+                start_idx = np.where(data[:,2]>read_range[0])[0]
+                stop_idx = np.where(data[:,1]>read_range[1])[0]
+                #if len(start_idx) > 0 and len(stop_idx) > 0:
+                data = data[np.max([start_idx[0],0]):np.min([stop_idx[0],data.shape[0]])]
+                data[0,1] = np.max([read_range[0],data[0,1]])
+                data[-1,2] = np.min([read_range[1],data[-1,2]])
+                # elif len(start_idx) == 0:
+                #     data = data[None,0,:]
+                #     data[0,1] = read_range[0]
+                # elif len(stop_idx) == 0:
+                #     data = data[None,0,:]
+                #     data[0,2] = read_range[1]
+                # else:
+                #     pass
             else:
                 raise NotImplementedError("%s is not a valid input type to cope but read_range input. Something is going wrong. Please check." % self.input_type)
 
