@@ -33,18 +33,29 @@ class DetectionDataset(Dataset):
                  MetaContainer(self._get_binary_anomaly(paths),
                                meta_type='single_label'),
                  lazy=True)
+        labels = self._get_time_anomaly(paths)
         self.add('time_anomaly',
-                 MetaContainer(self._get_time_anomaly(paths),
+                 MetaContainer(labels,
                                meta_type='multi_time_label',
                                duration = self['data'].get_duration(),
                                time_step = self['data'].get_time_step()),
                  lazy=True)
+        self.add('time_anomaly_label',
+                 MetaContainer(labels,
+                               meta_type='multi_time_label',
+                               output_meta_type = 'multi_label',
+                               duration = self['data'].get_duration(),
+                               time_step = self['data'].get_time_step()),
+                 lazy=True)
+
+        self.add('group', self['data']['subdb'], lazy=False)
+
         self.add_split(20)
         print(self['time_anomaly'][0])
         print('\n')
+        print(self['time_anomaly_label'][0])
+        print('\n')
         print(self['time_anomaly']._data[0])
-
-        self.add('group', self['data']['subdb'], lazy=False)
 
         return self
 

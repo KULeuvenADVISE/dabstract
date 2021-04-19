@@ -18,12 +18,14 @@ class MetaContainer(Container, Abstract):
     def __init__(self,
                  data: Iterable = None,
                  meta_type: str = 'auto',
+                 output_meta_type: str = 'as_is',
                  duration: Union[int, List[int]] = None,
                  time_step: Union[int, List[int]] = None,
         ):
         # init
         super().__init__(data=data)
         self.meta_type = meta_type
+        self.output_meta_type = output_meta_type
         self.duration = duration
         self.time_step = time_step
         if (self.duration is not None) or (self.time_step is not None):
@@ -65,6 +67,13 @@ class MetaContainer(Container, Abstract):
         else:
             raise NotImplementedError("%s is not a valid input type." % self.meta_type)
 
+        if self.output_meta_type == 'as_is':
+            pass
+        elif self.output_meta_type == 'multi_label':
+            assert self.meta_type in ('multi_label', 'multi_time_label')
+        else:
+            raise NotImplementedError("%s is not a valid output type." % self.output_meta_type)
+
     def get(
         self,
         index: int,
@@ -84,20 +93,16 @@ class MetaContainer(Container, Abstract):
             if self.meta_type == 'multi_time_label':
                 start_idx = np.where(data[:,2]>read_range[0])[0]
                 stop_idx = np.where(data[:,1]>read_range[1])[0]
-                #if len(start_idx) > 0 and len(stop_idx) > 0:
                 data = data[np.max([start_idx[0],0]):np.min([stop_idx[0],data.shape[0]])]
                 data[0,1] = np.max([read_range[0],data[0,1]])
                 data[-1,2] = np.min([read_range[1],data[-1,2]])
-                # elif len(start_idx) == 0:
-                #     data = data[None,0,:]
-                #     data[0,1] = read_range[0]
-                # elif len(stop_idx) == 0:
-                #     data = data[None,0,:]
-                #     data[0,2] = read_range[1]
-                # else:
-                #     pass
             else:
                 raise NotImplementedError("%s is not a valid input type to cope but read_range input. Something is going wrong. Please check." % self.input_type)
+
+        # reformat output
+        if self.meta_type == 'multi_time_label':
+            if self.output_meta_type == 'multi_label':
+                data = data[None,:,0]
 
         return (data, info) if return_info else data
 
