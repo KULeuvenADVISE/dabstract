@@ -287,7 +287,6 @@ class Dataset:
     def add_split(
             self,
             split_value: Union[float, int] = None,
-            constraint: Optional[str] = None,
             type: str = "seconds",
             reference_key: str = None,
             **kwargs
@@ -308,8 +307,6 @@ class Dataset:
         ----------
         split_size : float/int
             split size in seconds/samples depending on 'metric'
-        constraint : None/str
-            Option 'power2' creates sizes with a order of 2 (used for autoencoders)
         type : str
             split_size type ('seconds','samples')
         reference_key : str
@@ -380,17 +377,18 @@ class Dataset:
         # Apply split for the ones with sample_len information
         new_data = DictSeqAbstract()
         for key in self.keys():
-            if sample_len[key] is not None:
-                try:
-                    tmp = Split(
-                        self[key],
-                        split_len=split_len[key],
-                        sample_len=sample_len[key],
-                        lazy=self._data._lazy[key],
-                    )
-                    new_data[key] = tmp
-                except:
-                    sample_len[key] = None
+            if isinstance(self[key], Container):
+                if self[key].is_splittable():
+                    try:
+                        tmp = Split(
+                            self[key],
+                            split_len=split_len[key],
+                            sample_len=sample_len[key],
+                            lazy=self._data._lazy[key],
+                        )
+                        new_data[key] = tmp
+                    except:
+                        sample_len[key] = None
         # check split lengths
         for k, key in enumerate(new_data.keys()):
             if k == 0:

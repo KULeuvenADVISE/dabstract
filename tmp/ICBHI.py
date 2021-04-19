@@ -5,7 +5,7 @@ import librosa as lb
 
 from dabstract.dataprocessor.processing_chain import ProcessingChain
 from dabstract.dataset.dataset import Dataset
-from dabstract.abstract.abstract import *
+from dabstract.abstract import *
 from dabstract.dataprocessor.processors import *
 from dabstract.utils import stringlist2ind, str_in_list
 
@@ -22,7 +22,7 @@ class ICBHI(Dataset):
         reads in the meta information (labels, training/test set, etc.) and places all this information in the
         corresponding column. 
         """
-        from dabstract.dataset.wrappers import WavFolderContainer
+        from dabstract.dataset.containers import WavFolderContainer
         
         # 1) Read in the original audio and place it under 'audio_original'.
         # Add WavDatareader to new processing chain and set it to mono. Resampling of the audio isn't done here ('fs=None').
@@ -36,23 +36,10 @@ class ICBHI(Dataset):
         )
         self.add(key='data', data=data_temp)
 
+        self.add(MetaContainer)
+
         self.add_split(5)
-            
-        # self.add(key='audio_original', data=data_temp) # Add key 'audio' to dataset, data=data_temp
-        #
-        # # 2) add labels
-        # # The statement "self['audio_original']['filename'][:]" contains the filenames in their respective order.
-        # self._add_meta(dataframe=meta, order=self['audio_original']['filename'][:])
-        #
-        #
-        # # 3) Check if 'audio_original' and the meta data have the same order
-        # try:
-        #     self._check_dataset() # Check if the dataset is correct
-        #     return
-        # except ValueError('Error: The files are not in the correct order.'):
-        #     print('Error: The files are not in the correct order.')
-        #     raise ValueError
-        
+
         
     def _check_dataset(self):
         """
@@ -164,36 +151,3 @@ class ICBHI(Dataset):
                 overwrite_download=False,
                 verbose=True
             )
-
-        # # The demographic information will not be used nor downloaded. However, it is available on the ICBHI2017 website.
-        #
-        # # 3) Process all downloaded files to create the meta data (labels).
-        # # 3.1) Create empty DataFrame 'weak_labels' and fill it.
-        # weak_labels = pd.DataFrame(
-        #     columns=['filename_segment', 'start_segment_seconds', 'stop_segment_seconds']
-        # )
-        # weak_labels2 = self._set_weak_labels(weak_labels, paths, split)
-        #
-        # # 3.2) Add extra columns to DataFrame 'weak_labels'. Fill these columns.
-        # weak_labels2['normal'] = 0
-        # weak_labels2['crackle'] = 0
-        # weak_labels2['wheeze'] = 0
-        # weak_labels2['number_of_crackles'] = 0
-        # weak_labels2['number_of_wheezes'] = 0
-        # weak_labels3 = self._set_new_columns(weak_labels2, paths)
-        #
-        # # 3.3) Add training/test info and diagnosis as well.
-        # train_test = pd.read_csv(os.path.join(paths['data'], 'ICBHI_challenge_train_test.txt'), index_col=None, names=['filename', 'set'], sep='\t')
-        # diagnoses = pd.read_csv(os.path.join(paths['data'], 'ICBHI_Challenge_diagnosis.txt'), index_col=None, names=['patientID', 'diagnosis'], sep='\t')
-        # weak_labels4 = weak_labels3.merge(train_test, left_on='filename_original', right_on='filename', how='inner')
-        # weak_labels5 = weak_labels4.merge(diagnoses, left_on='patientID', right_on='patientID', how='inner')
-        #
-        # # 4) Save 'weak_labels' to disk.
-        # if(not os.path.exists( os.path.join(paths['meta'], 'weak_labels.csv') )):
-        #     # 'weak_labels.csv' file does not yet exist.
-        #     if(not os.path.exists(paths['meta'])):
-        #         # Paths['meta'] does not yet exist, so we create this directory.
-        #         os.mkdir(paths['meta'])
-        #
-        #     # Finally, let's save the 'weak_labels' DataFrame to disk.
-        #     weak_labels5.to_csv(os.path.join(paths['meta'], 'weak_labels.csv'), header=True, index=False)

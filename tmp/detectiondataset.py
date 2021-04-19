@@ -6,9 +6,8 @@ from dabstract.dataset.helpers import *
 from dabstract.dataprocessor.processors import *
 from dabstract.dataprocessor.processing_chain import *
 from dabstract.utils import *
-from dabstract.dataset.helpers import FolderAbstract
 
-from dabstract.dataset.wrappers import MetaContainer, WavFolderContainer, FolderContainer
+from dabstract.dataset.containers import MetaContainer, WavFolderContainer
 
 class DetectionDataset(Dataset):
     def __init__(self,
@@ -25,22 +24,24 @@ class DetectionDataset(Dataset):
         # audio
         chain = ProcessingChain().add(WavDatareader())
         tmp = WavFolderContainer(paths['data'],
-                                 map_fct=chain,
-                                 file_info_save_path=paths['data'])
+                               map_fct=chain,
+                               file_info_save_path=paths['data'])
         self.add('data', tmp)
-
-        # split
-        self.add_split(10)
 
         # add labels
         self.add('binary_anomaly',
-                 MetaContainer(self._get_binary_anomaly(paths), input_type='single_label'),
+                 MetaContainer(self._get_binary_anomaly(paths),
+                               meta_type='single_label'),
                  lazy=True)
         self.add('time_anomaly',
-                 MetaContainer(self._get_time_anomaly(paths), input_type='multi_endtime_label', output_type = 'multi_label'),
+                 MetaContainer(self._get_time_anomaly(paths),
+                               meta_type='multi_time_label',
+                               duration = self['data'].get_duration(),
+                               time_step = self['data'].get_time_step()),
                  lazy=True)
 
         self.add('group', self['data']['subdb'], lazy=False)
+
         return self
 
     def prepare(self, paths):
@@ -79,7 +80,7 @@ class DetectionDataset(Dataset):
                                 for filename in \
                                 [self['data']['filename'][k] for k in subdb_id]])
             labels[k] = np.load(os.path.join(paths['meta'], subdb + '_labels.npy'))[reorder]
-        return listnp_combine(labels)
+        return listnp_combine(labels).reshape(-1,1)
 
     def _get_time_anomaly(self, paths):
         labels = self._get_binary_anomaly(paths)
@@ -89,6 +90,8 @@ class DetectionDataset(Dataset):
             total_samples = self['data'].get_samples(k)
             sample_idx = np.sort(np.random.randint(0,total_samples, 5))
             sample_idx = sample_idx + (total_samples - sample_idx.max())
+            end_time = sample_idx / self['data'].get_fs(k)
+            start_time = np.concatenate((np.array([0]),end_time[0:-1]))
             sample_label = np.random.binomial(2, probability * labels[k] + (1-probability) * (1 - labels[k]), 5) - 1
-            time_label.append(np.stack((sample_idx, sample_label),axis=1))
+            time_label.append(np.stack((sample_label, start_time, end_time),axis=1))
         return time_label
