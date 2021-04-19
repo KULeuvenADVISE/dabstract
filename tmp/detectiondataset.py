@@ -39,6 +39,9 @@ class DetectionDataset(Dataset):
                                duration = self['data'].get_duration(),
                                time_step = self['data'].get_time_step()),
                  lazy=True)
+        self.add_split(20)
+        print(self['time_anomaly'][0])
+        print(self['time_anomaly']._data[0])
 
         self.add('group', self['data']['subdb'], lazy=False)
 
@@ -92,6 +95,6 @@ class DetectionDataset(Dataset):
             sample_idx = sample_idx + (total_samples - sample_idx.max())
             end_time = sample_idx / self['data'].get_fs(k)
             start_time = np.concatenate((np.array([0]),end_time[0:-1]))
-            sample_label = np.random.binomial(2, probability * labels[k] + (1-probability) * (1 - labels[k]), 5) - 1
+            sample_label = np.random.binomial(1, probability * labels[k] + (1-probability) * (1 - labels[k]), 5)
             time_label.append(np.stack((sample_label, start_time, end_time),axis=1))
         return time_label
