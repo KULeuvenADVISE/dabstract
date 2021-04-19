@@ -23,6 +23,26 @@ class MultiLabelFilter(base.Processor):
         else:
             raise NotImplementedError
 
+class MultiTimeLabelFilter(base.Processor):
+    def __init__(self, filter_type: str = 'majority'):
+        self.filter_type = filter_type
+
+    def process(self, data: Iterable, **kwargs) -> np.ndarray:
+        # filter
+        if self.filter_type in 'majority':
+            values, counts = np.unique(data[None,:,0], return_counts=True)
+            return values[np.argmax(counts)], {}
+
+        elif self.filter_type == 'random_tie_majority':
+            values, counts = np.unique(data[None,:,0], return_counts=True)
+            return values[np.argmax(np.random.random(len(counts)) * (counts == counts.max()))], {}
+
+        elif self.filter_type == 'multi_label':
+            return data[None,:,0], {}
+
+        else:
+            raise NotImplementedError
+
 class OneHotEncoder(base.Processor):
     def __init__(self, classes: Union[List, np.ndarray] = None):
         self.classes = classes
