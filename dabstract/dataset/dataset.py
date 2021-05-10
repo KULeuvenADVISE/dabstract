@@ -897,10 +897,10 @@ class Dataset:
                     if data_rec_op[0]==SelectAbstract:
                         feat_data = data_rec_op[0](feat_data, data_rec_op[1])
                     elif data_rec_op[0]==SplitAbstract:
-                        sample_len = [info['output_shape'][0] * info['time_step'] for info in feat_data['info']]
-                        sample_period = [info['time_step'] for info in feat_data['info']]
-                        assert np.all([sample_period[0]==_sample_period for _sample_period in sample_period]), "Each example should be of equal time_step"
-                        feat_data = data_rec_op[0](feat_data, **dict(data_rec_op[1], **{'sample_len': sample_len, 'sample_period': sample_period[0]}))
+                        #sample_len = [info['output_shape'][0] * info['time_step'] for info in feat_data['info']]
+                        #sample_period = [info['time_step'] for info in feat_data['info']]
+                        #assert np.all([sample_period[0]==_sample_period for _sample_period in sample_period]), "Each example should be of equal time_step"
+                        feat_data = data_rec_op[0](feat_data, **data_rec_op[1])
 
             # add to dataset
             self.add(new_key, feat_data)
