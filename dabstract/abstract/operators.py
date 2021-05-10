@@ -894,10 +894,8 @@ class SplitAbstract(base.Abstract):
             data: Iterable,
             split_len: int = None,
             sample_len: Union[int, List[int]] = None,
-            type: str = "seconds",
     ):
         super().__init__(data)
-        assert split_len is not None, "Please provide a split in " + type
         self._split_len = split_len
         self._sample_len = sample_len
         if isinstance(self._split_len, numbers.Integral):
@@ -908,8 +906,6 @@ class SplitAbstract(base.Abstract):
 
     def get_param(self):
         return {'split_len': self._split_len,
-                'type': self._type,
-                'constraint': self._constraint,
                 'sample_len': self._sample_len}
 
     def _init_split(self):
@@ -1005,7 +1001,6 @@ def Split(
         data: Iterable,
         split_len: float = None,
         sample_len: float = None,
-        type: str = "seconds",
         lazy: bool = True,
         workers: bool = 1,
         buffer_len: int = 3
@@ -1052,7 +1047,6 @@ def Split(
             data,
             split_len=split_len,
             sample_len=sample_len,
-            type=type,
         )
     else:
         # ToDo: replace by a list and np equivalent
@@ -1061,7 +1055,6 @@ def Split(
                 data,
                 split_len=split_len,
                 sample_len=sample_len,
-                type=type,
             ),
             workers=workers,
             buffer_len=buffer_len,
