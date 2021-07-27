@@ -1,6 +1,7 @@
+from abc import ABC, abstractmethod
 from typing import Any
 
-class Abstract:
+class Abstract(ABC):
     def __init__(self, data: Any):
         self._data = data
         self._abstract = True if isinstance(data, Abstract) else False
@@ -19,9 +20,6 @@ class Abstract:
 
     def __getitem__(self, index: int) -> Any:
         return self.get(index)
-
-    def get(self, *arg, **kwargs):
-        raise NotImplementedError
 
     def get(
             self,

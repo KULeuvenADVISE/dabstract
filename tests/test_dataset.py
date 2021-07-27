@@ -7,6 +7,7 @@ from dabstract.dataprocessor.processors import *
 from dabstract.dataprocessor.processing_chain import *
 from dabstract.utils import *
 
+from general import prepare_anomaly_audio_data
 
 def get_dataset():
     """Get dataset class"""
@@ -19,14 +20,15 @@ def get_dataset():
             # init dict abstract
             super().__init__(name=self.__class__.__name__,
                              paths=paths,
-                             test_only=test_only)
+                             test_only=test_only,
+                             **kwargs)
 
         # Data: get data
         def set_data(self, paths):
             # audio
             chain = ProcessingChain().add(WavDatareader())
-            from dabstract.dataset.containers import WavFolderContainer
-            tmp = WavFolderContainer(paths['data'], map_fct=chain, file_info_save_path=paths['data'])
+            from dabstract.dataset.containers import AudioFolderContainer
+            tmp = AudioFolderContainer(paths['data'], map_fct=chain, file_info_save_path=paths['data'])
             self.add('data', tmp)
             # add labels
             self.add('binary_anomaly', self._get_binary_anomaly(paths), lazy=False)
@@ -34,31 +36,7 @@ def get_dataset():
             return self
 
         def prepare(self, paths):
-            if not os.path.isdir(paths['data']):
-                from scipy.io.wavfile import write
-                # normal class
-                files = 20
-                duration = 60
-                sampling_rate = 16000
-                subdb = 'normal'
-                for k in range(files):
-                    os.makedirs(os.path.join(paths['data'], subdb), exist_ok=True)
-                    write(os.path.join(paths['data'], subdb, str(k) + '.wav'), sampling_rate,
-                          0.1 * np.random.rand(duration * 16000))
-                labels = np.zeros(files)
-                np.save(os.path.join(paths['data'], subdb + '_labels.npy'), labels)
-
-                # abnormal class
-                files = 20
-                duration = 60
-                sampling_rate = 16000
-                subdb = 'abnormal'
-                for k in range(files):
-                    os.makedirs(os.path.join(paths['data'], subdb), exist_ok=True)
-                    write(os.path.join(paths['data'], subdb, str(k) + '.wav'), sampling_rate,
-                          np.random.rand(duration * 16000))
-                labels = np.ones(files)
-                np.save(os.path.join(paths['data'], subdb + '_labels.npy'), labels)
+            prepare_anomaly_audio_data(paths['data'])
 
         def _get_binary_anomaly(self, paths):
             subdbs = np.unique(self['data']['subdb'])
@@ -80,8 +58,8 @@ def test_EXAMPLE_dataset():
     """Test dataset loading"""
     # db init
     EXAMPLE = get_dataset()
-    db = EXAMPLE(paths={'data': os.path.join('data', 'data'),
-                        'meta': os.path.join('data', 'data')})
+    db = EXAMPLE(paths={'data': os.path.join('data', 'anomaly_audio'),
+                        'meta': os.path.join('data', 'anomaly_audio')})
 
     # checks
     assert len(db) == 40
@@ -97,8 +75,8 @@ def test__getitem__():
     """Test __get_item__"""
     # db init
     EXAMPLE = get_dataset()
-    db = EXAMPLE(paths={'data': os.path.join('data', 'data'),
-                        'meta': os.path.join('data', 'data')})
+    db = EXAMPLE(paths={'data': os.path.join('data', 'anomaly_audio'),
+                        'meta': os.path.join('data', 'anomaly_audio')})
 
     # checks
     assert isinstance(db[0], Dict)
@@ -115,11 +93,11 @@ def test__setitem__():
     """Test __get_item__"""
     # db init
     EXAMPLE = get_dataset()
-    db = EXAMPLE(paths={'data': os.path.join('data', 'data'),
-                        'meta': os.path.join('data', 'data')})
+    db = EXAMPLE(paths={'data': os.path.join('data', 'anomaly_audio'),
+                        'meta': os.path.join('data', 'anomaly_audio')})
     EXAMPLE = get_dataset()
-    db2 = EXAMPLE(paths={'data': os.path.join('data', 'data'),
-                         'meta': os.path.join('data', 'data')})
+    db2 = EXAMPLE(paths={'data': os.path.join('data', 'anomaly_audio'),
+                         'meta': os.path.join('data', 'anomaly_audio')})
 
     # checks
     db['data'] = db2['data']
@@ -142,11 +120,11 @@ def test__add__():
     """Test __get_item__"""
     # db init
     EXAMPLE = get_dataset()
-    db = EXAMPLE(paths={'data': os.path.join('data', 'data'),
-                        'meta': os.path.join('data', 'data')})
+    db = EXAMPLE(paths={'data': os.path.join('data', 'anomaly_audio'),
+                        'meta': os.path.join('data', 'anomaly_audio')})
     EXAMPLE = get_dataset()
-    db2 = EXAMPLE(paths={'data': os.path.join('data', 'data'),
-                         'meta': os.path.join('data', 'data')})
+    db2 = EXAMPLE(paths={'data': os.path.join('data', 'anomaly_audio'),
+                         'meta': os.path.join('data', 'anomaly_audio')})
 
     # checks
     db3 = db + db2
@@ -160,11 +138,11 @@ def test_add():
     """Test __get_item__"""
     # db init
     EXAMPLE = get_dataset()
-    db = EXAMPLE(paths={'data': os.path.join('data', 'data'),
-                        'meta': os.path.join('data', 'data')})
+    db = EXAMPLE(paths={'data': os.path.join('data', 'anomaly_audio'),
+                        'meta': os.path.join('data', 'anomaly_audio')})
     EXAMPLE = get_dataset()
-    db2 = EXAMPLE(paths={'data': os.path.join('data', 'data'),
-                         'meta': os.path.join('data', 'data')})
+    db2 = EXAMPLE(paths={'data': os.path.join('data', 'anomaly_audio'),
+                         'meta': os.path.join('data', 'anomaly_audio')})
 
     # checks
     db3 = db + db2

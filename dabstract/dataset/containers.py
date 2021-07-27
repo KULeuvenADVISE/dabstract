@@ -2,9 +2,14 @@ import numpy as np
 import numbers
 import warnings
 import copy
+import cv2 as cv
 
-from dabstract.abstract import  DictSeqAbstract, SeqAbstract, MapAbstract, Abstract
+import datetime as dt
+
+from dabstract.abstract import DictSeqAbstract, SeqAbstract, MapAbstract, Abstract
+from dabstract.dataprocessor import ProcessingChain, Processor
 from dabstract.dataset.helpers import get_dir_info
+from dabstract.utils import listdictnp_combine
 
 from typing import Any, List, Optional, TypeVar, Callable, Dict, Iterable, Union
 tvDataset = TypeVar("Dataset")
@@ -125,7 +130,6 @@ class MetaContainer(Container, Abstract):
     def is_splittable(self):
         return self.meta_type in self.time_meta_types
 
-
 class FolderContainer(Container, DictSeqAbstract):
     """Get meta information of the files in a directory and place them in a DictSeq
 
@@ -172,7 +176,8 @@ class FolderContainer(Container, DictSeqAbstract):
     def __init__(
         self,
         path: str,
-        extension: str = ".wav",
+        type = None,
+        extension: str = '.ts',
         map_fct: Callable = None,
         file_info_save_path: bool = None,
         filepath: str = None,
@@ -190,6 +195,7 @@ class FolderContainer(Container, DictSeqAbstract):
         # get info
         fileinfo = get_dir_info(
             path,
+            type=type,
             extension=extension,
             file_info_save_path=file_info_save_path,
             filepath=filepath,
@@ -253,12 +259,12 @@ class FolderContainer(Container, DictSeqAbstract):
     def get_split_len(self, index: int = None):
         return self.get_samples(index=index)
 
-
-class WavFolderContainer(FolderContainer):
+class AudioFolderContainer(FolderContainer):
     # ToDo: add summaries related to the wav folder
     def __init__(
         self,
         path: str,
+        extension: str = '.wav',
         map_fct: Callable = None,
         file_info_save_path: bool = None,
         filepath: str = None,
@@ -267,13 +273,15 @@ class WavFolderContainer(FolderContainer):
         **kwargs
     ):
         super().__init__(path=path,
-                         extension='.wav',
+                         type='audio',
+                         extension=extension,
                          map_fct = map_fct,
                          file_info_save_path=file_info_save_path,
                          filepath=filepath,
                          overwrite_file_info=overwrite_file_info,
                          info=info,
                          **kwargs)
+
 
     def get_fs(self, index: int = None):
         return self._get_info(key='fs', index=index)
@@ -290,6 +298,268 @@ class WavFolderContainer(FolderContainer):
 
     def get_time_step(self, index: int = None):
         return self._get_info(key='time_step', index=index)
+
+class WavFolderContainer(AudioFolderContainer):
+    # ToDo: add summaries related to the wav folder
+    def __init__(
+        self,
+        path: str,
+        extension: str = '.wav',
+        map_fct: Callable = None,
+        file_info_save_path: bool = None,
+        filepath: str = None,
+        overwrite_file_info: bool = False,
+        info: List[Dict] = None,
+        **kwargs
+    ):
+        super().__init__(path=path,
+                         extension=extension,
+                         map_fct = map_fct,
+                         file_info_save_path=file_info_save_path,
+                         filepath=filepath,
+                         overwrite_file_info=overwrite_file_info,
+                         info=info,
+                         **kwargs)
+        print("WavFolderContainer is deprecated. Please switch to AudioFolderContainer.")
+
+class CameraFolderContainer(FolderContainer):
+    # ToDo: add summaries related to the camera folder
+    def __init__(
+        self,
+        path: str,
+        extension: str = None,
+        map_fct: Callable = None,
+        file_info_save_path: bool = None,
+        filepath: str = None,
+        overwrite_file_info: bool = False,
+        info: List[Dict] = None,
+        **kwargs
+    ):
+        super().__init__(path=path,
+                         type = 'camera',
+                         extension = extension,
+                         map_fct = map_fct,
+                         file_info_save_path=file_info_save_path,
+                         filepath=filepath,
+                         overwrite_file_info=overwrite_file_info,
+                         info=info,
+                         **kwargs)
+
+
+    def get_fs(self, index: int = None):
+        return self._get_info(key='fs', index=index)
+
+    def get_output_shape(self, index: int = None):
+        return self._get_info(key='output_shape', index=index)
+
+    def get_samples(self, index: int = None):
+        return self._get_info(key='length', index=index)
+
+    def get_duration(self, index: int = None):
+        return self.get_samples(index=index)/self.get_fs(index=index)
+
+    def get_time_step(self, index: int = None):
+        return 1 / self._get_info(key='fs', index=index)
+
+class AsyncCameraFolderContainer(CameraFolderContainer):
+    # ToDo: add summaries related to the camera folder
+    def __init__(
+        self,
+        path: str,
+        duration: Any,
+        timestamp_ref_input: str = 'external',
+        timestamp_new_input: str = 'external',
+        timestamps_ref: Union[List[Any], str] = None,
+        timestamps_new: Union[List[Any], str] = None,
+        error_margin: float = 0,
+        extension: str = None,
+        map_fct: Callable = None,
+        file_info_save_path: bool = None,
+        filepath: str = None,
+        overwrite_file_info: bool = False,
+        info: List[Dict] = None,
+        **kwargs
+    ):
+        # get default shizzle
+        super().__init__(path=path,
+                         extension = extension,
+                         map_fct = map_fct,
+                         file_info_save_path=file_info_save_path,
+                         filepath=filepath,
+                         overwrite_file_info=overwrite_file_info,
+                         info=info,
+                         **kwargs)
+
+        # get ref timestamps
+        if timestamp_ref_input == 'external':
+            assert timestamps_ref is not None
+            assert isinstance(timestamps_ref, list)
+        elif timestamp_ref_input == 'strftime':
+            assert isinstance(timestamps_ref, str)
+            timestamps_ref = np.array([dt.datetime.strptime(tmp, timestamps_ref).timestamp() for tmp in self['filename']])
+        else:
+            raise NotImplementedError("timestamp_ref_input should be either external or strftime.")
+
+        # get new timestamps
+        if timestamp_new_input == 'external':
+            assert timestamps_new is not None
+            assert isinstance(timestamps_new, list)
+            assert np.all(timestamps_new<=timestamps_ref.min())
+        elif timestamp_new_input == 'minmax':
+            assert timestamps_new is None
+            timestamps_new = np.arange(timestamps_ref.min(),
+                                       timestamps_ref.max() - duration,
+                                       duration)
+        else:
+            raise NotImplementedError("timestamp_new_input should be either external or minmax.")
+
+        # update self._data
+        self._prep_sync(timestamps_ref=timestamps_ref,
+                        timestamps_new=timestamps_new,
+                        duration=duration,
+                        error_margin=error_margin)
+        # remove methods which should not be available after init
+        del self._prep_sync
+        del self._new_info_handler
+        del self._new_data_handler
+
+    def _prep_sync(self,
+                   timestamps_ref: List[Any],
+                   timestamps_new: List[Any],
+                   duration: float,
+                   error_margin: float,
+                   fixed_output_shape: bool = True):
+        # init
+        new_data = dict()
+        for key in self.keys():
+            if key != 'data':
+                new_data[key] = [None] * len(timestamps_new)
+        # update meta info
+        for k, timestamp_new in enumerate(timestamps_new):
+            frameidx, fileidx = self.get_read_info(timestamps_ref,
+                                                   timestamp_new,
+                                                   duration,
+                                                   error_margin,
+                                                   fixed_output_shape)
+
+            # prep meta
+            for key in self.keys():
+                if key == 'info':
+                    new_data['info'][k] = self._new_info_handler(frameidx, fileidx)
+                elif key == 'data':
+                    pass
+                else:
+                    new_data[key][k] = [self[key][file_id] for file_id in np.unique(fileidx)]
+        # apply a data wrapper to the reader
+        new_data['data'] = MapAbstract( self['timestamp'],
+                                        ProcessingChain().add(self.CCTVreader(**self._acc_info,
+                                                                         observation_window=self.observation_window,
+                                                                         error_margin=5,
+                                                                         id=id)))
+        pass
+
+    def get_read_info(self,
+                      timestamps_ref,
+                      timestamp_new,
+                      duration,
+                      error_margin,
+                      fixed_output_shape):
+        file_idx_geq = np.where((timestamps_ref >= timestamp_new))[0]
+        file_idx_leq = np.where((timestamps_ref <= timestamp_new + duration + error_margin))[0]
+        file_idx = np.intersect1d(file_idx_geq - 1,
+                                  file_idx_leq)
+
+        # prep range to read from which file
+        files_fs = np.array([self['info'][file_id]['fs'] for file_id in file_idx])
+        files_lengths = np.array([self['info'][file_id]['length'] for file_id in file_idx])
+        files_timestamps = np.linspace(timestamps_ref[file_idx[0]],
+                                       timestamps_ref[file_idx[-1] + 1],
+                                       files_lengths.sum() + 1)[:-1]
+        # ToDo Fix issue with length
+        if fixed_output_shape:
+            start = np.where((files_timestamps >= timestamp_new))[0][0]
+            assert np.all(files_fs[0] == files_fs)
+            idx = np.arange(start, start + duration * files_fs[0], dtype=int)
+        else:
+            idx = np.where((files_timestamps >= timestamp_new) & (files_timestamps < (timestamp_new + duration)))[0]
+
+        files_frameidx = np.concatenate([np.arange(file_length) for file_length in files_lengths])
+        files_fileidx = np.concatenate(
+            [file_id * np.ones(file_length, dtype=int) for file_id, file_length in
+             zip(file_idx, files_lengths)])
+
+        return files_frameidx[idx], files_fileidx[idx]
+
+    class CCTVreader(Processor):
+        def __init__(self,
+                     filepaths: List[str],
+                     timestamps: List[float],
+                     observation_window: int,
+                     error_margin: int,
+                     fixed_output_shape = 0):
+            assert id in [1, 2], "camera_id should be 1 or 2"
+            self.id = id
+            self.error_margin = error_margin
+            self.observation_window = observation_window
+            self.filepaths = filepaths
+            self.timestamps = timestamps
+            self.fixed_output_shape = fixed_output_shape
+
+        def process(self, timestamp):
+            frameidx, fileidx = self.get_read_info(self.timestamps,
+                                                   timestamp,
+                                                   self.duration,
+                                                   self.error_margin,
+                                                   self.fixed_output_shape)
+
+            # get readers and info
+            vid, info = [None] * len(fileidx), [None] * len(fileidx)
+            for k, file_id in enumerate(fileidx):
+                vid[k] = cv.VideoCapture(self.filepaths[file_id])
+                info[k] = {'width': int(vid[k].get(cv.CAP_PROP_FRAME_WIDTH)),
+                           'height': int(vid[k].get(cv.CAP_PROP_FRAME_HEIGHT)),
+                           'fs': vid[k].get(cv.CAP_PROP_FPS),
+                           'length': int(vid[k].get(cv.CAP_PROP_FRAME_COUNT))}
+                info[k].update({'duration': 1 / info[k]['fs'] * info[k]['length']})
+
+            # get feed
+            frames = [None] * len(frameidx)
+            for k, frameid in enumerate(frameidx):
+                vid[files_fileidx[frameid]].set(cv.CAP_PROP_POS_FRAMES, files_frameidx[frameid])
+                ret, frames[k] = vid[files_fileidx[frameid]].read()
+
+            # return
+            return np.array(frames), {'width': 640,
+                                      'height': 400,
+                                      'fs': 25.0}
+
+    def _new_info_handler(self,
+                             frameidx,
+                             fileidx):
+        info = [self['info'][k] for k in np.unique(fileidx)]
+        info = listdictnp_combine(info, method='stack')
+        new_info = dict()
+        for key in info:
+            if key=='output_shape':
+                assert np.all(info[key][:, 1])
+                assert np.all(info[key][:, 2])
+                new_info['output_shape'] = np.array([len(frameidx), info[key][0][1], info[key][0][2]])
+            elif key=='duration':
+                new_info['duration'] = len(frameidx) / info['fs']
+            elif key=='length':
+                new_info['length'] = len(frameidx)
+            else:
+                assert np.all(info[key])
+                new_info[key] = info[key][0]
+        return new_info
+
+    @property
+    def is_splittable(self):
+        # assumes that this is the case for ALL info
+        # should we do a check on everything or assume this is always the case?
+        return 'time_step' in self['info'][0] and 'output_shape' in self['info'][0]
+
+
 
 class FeatureFolderContainer(FolderContainer):
     # ToDo: add summaries related to the feature folder

@@ -1,6 +1,7 @@
 import pathlib
 import pickle
 import soundfile as sf
+import cv2 as cv
 
 from dabstract.utils import safe_import_module
 from dabstract.abstract import *
@@ -208,7 +209,8 @@ def dataset_factory(
 
 def get_dir_info(
     path: str,
-    extension: str = ".wav",
+    type: str = None,
+    extension: str = None,
     file_info_save_path: bool = None,
     filepath: str = None,
     overwrite_file_info: bool = False,
@@ -225,6 +227,8 @@ def get_dir_info(
     ----------
     path : str
         path to the directory to check
+    type : str ['audio', 'video'], default: None
+        if extra meta information is desired then a type should be specified
     extension : str
         only evaluate files with that extension
     map_fct : Callable
@@ -254,16 +258,32 @@ def get_dir_info(
                                         }
     """
 
-    def _get_dir_info(filepath: str, extension: str) -> List[Dict]:
+    def _get_dir_info(filepath: str, type: str) -> List[Dict]:
         info = [dict() for k in range(len(filepath))]
-        if extension == ".wav":
-            # import soundfile as sf
+        if type == "audio":
             for k in range(len(filepath)):
                 info[k] = dict()
                 f = sf.SoundFile(filepath[k])
-                info[k]["output_shape"] = np.array([len(f), f.channels])
-                info[k]["fs"] = f.samplerate
-                info[k]["time_step"] = 1 / f.samplerate
+                info[k] = { 'output_shape': np.array([len(f), f.channels]),
+                            'length': len(f),
+                            'channels': f.channels,
+                            'fs': f.samplerate,
+                            'time_step': 1 / f.samplerate,
+                            'duration': len(f)/f.samplerate}
+        elif type == "camera":
+            for k in range(len(filepath)):
+                info[k] = dict()
+                vid = cv.VideoCapture(filepath[k])
+                info[k] = {'width': int(vid.get(cv.CAP_PROP_FRAME_WIDTH)),
+                           'height': int(vid.get(cv.CAP_PROP_FRAME_HEIGHT)),
+                           'fs': vid.get(cv.CAP_PROP_FPS),
+                           'length': int(vid.get(cv.CAP_PROP_FRAME_COUNT))}
+                info[k].update({'duration': 1 / info[k]['fs'] * info[k]['length'],
+                                'output_shape': np.array([info[k]['length'],info[k]['width'],info[k]['length']])})
+        elif type is None:
+            pass
+        else:
+            raise NotImplementedError('type should be audio, camera or None')
         return info
 
     if "save_path" in kwargs:
@@ -295,7 +315,7 @@ def get_dir_info(
         not os.path.isfile(os.path.join(path, "file_info.pickle"))
         or overwrite_file_info
     ):
-        info = _get_dir_info(filepath, extension)
+        info = _get_dir_info(filepath, type)
         if (file_info_save_path is not None) and (info is not None):
             os.makedirs(path, exist_ok=True)
             with open(pathlib.Path(path, "file_info.pickle"), "wb") as fp:

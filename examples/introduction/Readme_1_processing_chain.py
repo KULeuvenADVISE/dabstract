@@ -29,7 +29,7 @@ dp.summary()
 # apply processing chain to data
 # make sure to provide sampling frequency to dp. Kwargs are always accessible for
 # all processing layer. Therefore, you should make sure naming DOES NOT overlap
-output_data = dp(data, fs=1)
+output_data = dp(input, fs=1)
 print(output_data.shape)
 
 print('\n\n\n')
@@ -46,7 +46,7 @@ dp.add(FFT(axis=1))
 dp.add(Aggregation(methods=['mean', 'std'], axis=0, combine='concatenate'))
 dp.summary()
 # apply processing chain to data
-output_data = dp(data)
+output_data = dp(input)
 print(output_data.shape)
 
 print('\n\n\n')
@@ -65,7 +65,7 @@ dp.summary()
 # fit processing chain as Normalizer contains a 'fit' method to init parameters
 dp.fit(DATA, fs=1)
 # apply processing chain to data
-output_data = dp(data, fs=1)
+output_data = dp(input, fs=1)
 print(output_data.shape)
 
 print('\n\n\n')
@@ -153,7 +153,7 @@ dp = ProcessingChain(config)
 # fit data
 dp.fit(DATA, fs=1)
 # process
-output_data = dp(data, fs=1)
+output_data = dp(input, fs=1)
 print(output_data.shape)
 
 print('\n\n\n')
@@ -168,7 +168,7 @@ dp = load_yaml_config(filename='Readme_1_dp_config', path=os.path.join('configs'
 # fit data
 dp.fit(DATA, fs=1)
 # process
-output_data = dp(data, fs=1)
+output_data = dp(input, fs=1)
 print(output_data.shape)
 
 print('\n\n\n')
@@ -195,7 +195,7 @@ dp.summary()
 # Fit data to chain
 dp.fit(DATA, fs=1)
 # process0
-output_data = dp(data, fs=1)
+output_data = dp(input, fs=1)
 print(output_data.shape)
 
 print('\n\n\n')
@@ -224,7 +224,7 @@ dp.summary()
 # fit data (it's recursive, so both the normalizer and the custom_processor are fit'ed on the data)
 dp.fit(DATA, fs=1)
 # process data
-output_data = dp(data, fs=1)
+output_data = dp(input, fs=1)
 print(output_data.shape)
 
 print('\n\n\n')
@@ -248,7 +248,7 @@ dp.summary()
 # fit data (it's recursive, so both the normalizer and the custom_processor are fit'ed on the data)
 dp.fit(DATA, fs=1)
 # process data
-output_data = dp(data, fs=1)
+output_data = dp(input, fs=1)
 print(output_data.shape)
 
 print('\n\n\n')
@@ -263,7 +263,7 @@ dp = load_yaml_config(filename='Readme_1_dp_config_custom', path=os.path.join('c
 # fit data (it's recursive, so both the normalizer and the custom_processor are fit'ed on the data)
 dp.fit(DATA, fs=1)
 # process data
-output_data = dp(data, fs=1)
+output_data = dp(input, fs=1)
 print(output_data.shape)
 
 print('\n\n\n')

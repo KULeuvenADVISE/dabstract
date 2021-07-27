@@ -116,9 +116,9 @@ class Dataset:
         self._nr_datasets = 1
         self._set_summary(paths=paths, test_only=test_only)
         # prepare paths
-        self.prepare(paths)
+        self.prepare(paths, **kwargs)
         # add data
-        self.set_data(paths)
+        self.set_data(paths, **kwargs)
 
     def __getitem__(self, index: numbers.Integral or str) -> Any:
         """Allow indexing in the form of dataset[id]"""
@@ -303,7 +303,7 @@ class Dataset:
         This class basically uses SplitAbstract and SampleReplicateAbstract. Key's including information, will be splitted,
         while keys including only data will be replicated depending on the splitting rate.
 
-        Parametersx
+        Parameters
         ----------
         split_size : float/int
             split size in seconds/samples depending on 'metric'
@@ -470,9 +470,9 @@ class Dataset:
                 module = safe_import_module(
                     os.environ["dabstract_CUSTOM_DIR"] + ".dataset.select"
                 )
-                assert hasattr(module, selectm), (
+                assert hasattr(module, selector), (
                         "Select "
-                        + selectm
+                        + selector
                         + " is not supported in both dabstract and custom xvals. Please check"
                 )
             selector = getattr(module, selector)(**parameters)

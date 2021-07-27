@@ -281,7 +281,7 @@ def listdictnp_combine(
     lst: List,
     method: str = "concatenate",
     axis: int = 0,
-    keep_nested: bool = False,
+    keep_nested: bool = True,
     allow_error: bool = False,
 ) -> Dict[str, Union[np.ndarray, List]]:
     """Concatenate or stack a list of dictionaries contains numpys along with error handling

@@ -1,6 +1,5 @@
 import numpy as np
 import sklearn.preprocessing as pp
-from soundfile import read as read_wav
 import sys
 import os
 import scipy
@@ -12,227 +11,6 @@ from dabstract.utils import listnp_combine, flatten_nested_lst
 from dabstract.dataprocessor.processors import base
 
 from typing import Dict, Any, List, Union, Callable
-
-
-
-class WavDatareader(base.Processor):
-    """
-    This processor class reads waveform data file and adds optional resampling if desired.
-    For reading it uses the read_wav function from the soundfile package.
-
-    For example consider the following usage with ProcessingChain class::
-
-        $ dp = ProcessingChain()
-        $ dp.add(WavDatareader())
-        $ wavdata = dp("path/to/test.wav")
-        $ print(wavdata)
-        $ [-0.0859375 -0.078125  -0.078125  ...  0.         0.         0.       ]
-
-    which reads the file located at path/to/test.wav. If the file contains multiple channels one can only specify
-    which channel(s) to read as by adding the select_channel argument to WavDatareader()::
-
-        WavDatareader(select_channel=0) or WavDatareader(select_channel=[0,1])
-
-    Similarly one can read a specific range of the file::
-
-        WavDatareader(read_range=[start_sample,end_sample])
-
-    If a sampling frequency is specified (fs: float) then this is used to compare it with the sampling frequency of the
-    actual wav file that has been read. In case it differs it either gives an error OR resamples the data based on the
-    resample flat (resample: bool). In case resample is True, one can specify the resample_axis (default = 0) and
-    resample_window (default = 'hann').
-
-    Once can also directly use this processor without using ProcessingChain as::
-
-        $ wr = WavDatareader()
-        $ wavdata = wr("path/to/test.wav")
-        $ print(wavdata)
-        $ [-0.0859375 -0.078125  -0.078125  ...  0.         0.         0.       ]
-
-    Parameters
-    ----------
-    select_channel : int or None: None
-        Select which channel(s) must be read from the waveform file. By default all channels are read (default = None)
-    fs : float or None
-        Defines the sampling frequency of the waveform file.
-    read_range : (int, int) or None
-        Defines the sample range that must be readed from the waveform file.
-        (default = None -> reads the entire range).
-    dtype : str = 'float64'
-        Data type of the returned array, by default 'float64'.
-        Floating point audio data is typically in the range from -1.0 to 1.0.
-        Integer data is in the range from -2**15 to 2**15-1 for 'int16' and from -2**31 to 2**31-1 for 'int32'
-    resample : bool = False
-        Defines whether a resampling on the loaded waveform data must be performed or not.
-        (default = False)
-    resample_axis : int = 0
-        The axis over which the resampling should be done.
-        (default = 0)
-    resample_window : str = 'hann
-        The window type that is used to do the resampling. See scipy.signal.resample for a list of valid window types.
-        (Default = "hann")
-
-    Returns
-    ----------
-    WavDatareader instance
-
-    Check .process() method for what it returns when using this instance.
-
-    """
-
-    def __init__(
-        self,
-        select_channel: int = None,
-        fs: float = None,
-        read_range: (int, int) = None,
-        dtype: str = 'float64',
-        resample: bool =  False,
-        resample_axis: int = 0,
-        resample_window: str = 'hann',
-        **kwargs
-    ):
-        self.select_channel = select_channel
-        self.fs = fs
-        self.read_range = read_range
-        self.dtype = dtype
-        self.resample = resample
-        if self.resample:
-            assert fs is not None
-            self.resampler = Resample(target_fs = fs, axis=resample_axis, window=resample_window)
-
-    def process(self, file: str, **kwargs) -> (np.ndarray, Dict):
-        """
-        Process method for WavDatareader. This is called by the ProcessingChain in a sequential fashion or when using the
-        reader directly.
-
-        Input
-        ----------
-        file: str
-            location to wav file
-
-        Returns
-        ----------
-        data: ndarray
-            The loaded waveform data by means of a numpy ndaddray,
-            The format is SAMPLESxCHANNELS
-        info : dict{'fs': Float}
-            dictionary representing information to be propagated,
-            containing 'fs' with a float
-        """
-
-        args = dict()
-        info = dict()
-
-        # get read params
-        if self.read_range is not None:
-            args.update({"start": self.read_range[0], "stop": self.read_range[1]})
-        if "read_range" in kwargs:
-            #info.update({'read_ranged': True})
-            args.update(
-                {"start": int(kwargs["read_range"][0]), "stop": int(kwargs["read_range"][1])}
-            )
-        if hasattr(self, "dtype"):
-            args.update({"dtype": self.dtype})
-
-        # read
-        data, fs = read_wav(file, **args)
-        info.update({'fs': fs})
-
-        # data selection
-        if self.select_channel is not None:
-            data = data[:, self.select_channel]
-
-        # resample
-        if self.fs is not None:
-            if self.resample:
-                data = self.resampler.process(data, fs = fs)[0]
-                info.update({'fs': self.fs})
-            else:
-                assert (
-                    fs == self.fs
-                ), "Input fs and provided fs different. Downsampling not supported currently."
-
-        # updata self info
-        return data, info
-
-class NumpyDatareader(base.Processor):
-    """
-    This processor class simply reads a numpy ndarray with an optional memory mapping in case a specific
-    range of samples is desired.
-
-    For example consider the following usage with ProcessingChain class::
-
-        $ dp = ProcessingChain()
-        $ dp.add(NumpyDatareader())
-        $ numpydata = dp("path/to/test.npy")
-        $ print(numpydata)
-        $ [-0.0859375 -0.078125  -0.078125  ...  0.         0.         0.       ]
-
-    Similarly one can read a specific range of the file::
-
-        NumpyDatareader(read_range=[start_sample,end_sample])
-
-    Note that one can only memory map the first dimension of your ndarray, i.e. the rows.
-    Once can also directly use this processor without using ProcessingChain as::
-
-        $ nr = NumpyDatareader()
-        $ numpydata = nr("path/to/test.npy")
-        $ print(numpydata)
-        $ [-0.0859375 -0.078125  -0.078125  ...  0.         0.         0.       ]
-
-    Parameters
-    ----------
-    read_range : (int, int) or None
-        Defines the sample range that must be readed from the waveform file.
-        (default = None -> reads the entire range).
-
-    Returns
-    ----------
-    NumpyDatareader instance
-
-    Check .process() method for what it returns when using this instance.
-
-    """
-
-    def __init__(self, read_range: (int, int) = None, **kwargs):
-        self.read_range = read_range
-
-    def process(self, file: str, **kwargs) -> (np.ndarray, Dict):
-        """
-        Process method for NumpyDatareader.
-        This is called by the ProcessingChain in a sequential fashion or when using the reader directly.
-
-        Input
-        ----------
-        file: str
-            location to wav file
-
-        Returns
-        ----------
-        data: ndarray
-            The loaded npy data
-        info : dict{'fs': Float}
-            dictionary representing information to be propagated,
-            containing 'fs' with a float
-        """
-
-        args = dict()
-        info = dict()
-
-        # get read params
-        if self.read_range is not None:
-            args.update({"read_range": self.read_range})
-        if "read_range" in kwargs:
-            args.update({"read_range": kwargs["read_range"]})
-
-        if "read_range" in args:
-            data = np.load(file, mmap_mode="r")
-            data = data[args["read_range"][0] : args["read_range"][1], :]
-            info.update({'read_ranged': True})
-        else:
-            data = np.load(file)
-
-        return data, info
 
 
 class Normalizer(base.Processor):
@@ -324,7 +102,7 @@ class Normalizer(base.Processor):
         # check axis
         if isinstance(self.axis, str):
             if self.axis == 'all':
-                self.axis = np.arange(0, len(data.shape)-1)
+                self.axis = np.arange(0, len(data.shape) - 1)
             elif self.axis == 'feature':
                 self.axis = [0]
             else:
@@ -340,8 +118,8 @@ class Normalizer(base.Processor):
             raise NotImplementedError("axis should be a list of integers OR a string all/feature")
         # adjust -1
         for k, axis in enumerate(self.axis):
-            if axis==-1:
-                self.axis[k] = len(data.shape)-2
+            if axis == -1:
+                self.axis[k] = len(data.shape) - 2
 
         # set reshape parameters based on fit dataset
         self._base_ids = np.arange(0, len(data.shape))
@@ -353,11 +131,13 @@ class Normalizer(base.Processor):
         self._inverse_transform_idx = target_ids
         self._inverse_reshape = np.array(data.shape)[self._inverse_transform_idx]
         self._reshape = np.concatenate([self._inverse_reshape[:len(self.axis)].prod(keepdims=True), np.array([-1])])
-        self._inverse_reshape[len(self.axis)] = 1 #adjust # examples for usage during the process() and inv_process() methods
+        self._inverse_reshape[
+            len(self.axis)] = 1  # adjust # examples for usage during the process() and inv_process() methods
 
         # reorder axis and flatten over non-norm axis
-        data = np.moveaxis(data, self._base_ids, self._transform_idx) #reorder such that norm_indices + flatten_indices
-        data = data.reshape(self._reshape).T #flatten and transpose to SAMPLES x FEATURES
+        data = np.moveaxis(data, self._base_ids,
+                           self._transform_idx)  # reorder such that norm_indices + flatten_indices
+        data = data.reshape(self._reshape).T  # flatten and transpose to SAMPLES x FEATURES
 
         # fit
         if self.type == "minmax":
@@ -387,7 +167,6 @@ class Normalizer(base.Processor):
 
         return self._scale_data(data, self.scaler.transform), {}
 
-
     def inv_process(self, data: np.ndarray, **kwargs):
         """
         Process method for Normalizer in a backward fashion.
@@ -415,7 +194,7 @@ class Normalizer(base.Processor):
         data = data.reshape(self._reshape)
 
         if (self.type == "minmax") | (self.type == "standard"):
-            #ToDo: avoid double transpose by incorporating in .fit()
+            # ToDo: avoid double transpose by incorporating in .fit()
             data = scaler_function(data.T).T
         else:
             raise NotImplementedError("Only MinMax and standard normalisation supported.")
@@ -424,10 +203,11 @@ class Normalizer(base.Processor):
         data = data.reshape(self._inverse_reshape)
         data = np.moveaxis(data, self._base_ids, self._inverse_transform_idx)
 
-        return data[0,:]
+        return data[0, :]
 
     def is_fitted(self):
         return hasattr(self, 'scaler')
+
 
 class Scaler(base.Processor):
     """
@@ -604,12 +384,12 @@ class Framing(base.Processor):
     """
 
     def __init__(
-        self,
-        windowsize: float = None,
-        stepsize: float = None,
-        window_func: str = "hamming",
-        axis: int = -1,
-        **kwargs
+            self,
+            windowsize: float = None,
+            stepsize: float = None,
+            window_func: str = "hamming",
+            axis: int = -1,
+            **kwargs
     ):
         # inits
         self.windowsize = windowsize
@@ -667,10 +447,10 @@ class Framing(base.Processor):
         )
         assert num_frames > 0, "num of frames is 0 in Framing()"
         indices = (
-            np.tile(np.arange(0, frame_length), (num_frames, 1))
-            + np.tile(
-                np.arange(0, num_frames * frame_step, frame_step), (frame_length, 1)
-            ).T
+                np.tile(np.arange(0, frame_length), (num_frames, 1))
+                + np.tile(
+            np.arange(0, num_frames * frame_step, frame_step), (frame_length, 1)
+        ).T
         )
         frames = np.take(data, indices, axis=axis)
         data_lo = np.take(
@@ -864,14 +644,14 @@ class FFT(base.Processor):
     """
 
     def __init__(
-        self,
-        type: str = "real",
-        nfft: str = "nextpow2",
-        format: str = "magnitude",
-        dc_reset: bool = False,
-        norm: str = None,
-        axis: int = -1,
-        **kwargs
+            self,
+            type: str = "real",
+            nfft: str = "nextpow2",
+            format: str = "magnitude",
+            dc_reset: bool = False,
+            norm: str = None,
+            axis: int = -1,
+            **kwargs
     ):
         self.format = format
         self.dc_reset = dc_reset
@@ -1002,15 +782,15 @@ class Filterbank(base.Processor):
     """
 
     def __init__(
-        self,
-        n_bands: int = None,
-        scale: str = "linear",
-        nfft: int = None,
-        fmin: int = 0,
-        norm: str = None,
-        fmax: int = np.Inf,
-        axis: int = -1,
-        **kwargs
+            self,
+            n_bands: int = None,
+            scale: str = "linear",
+            nfft: int = None,
+            fmin: int = 0,
+            norm: str = None,
+            fmax: int = np.Inf,
+            axis: int = -1,
+            **kwargs
     ):
         assert n_bands is not None, "The amount of n_bands should be provided."
         self.n_bands = n_bands
@@ -1055,7 +835,7 @@ class Filterbank(base.Processor):
         if 'nfft' in kwargs:
             nfft = kwargs['nfft']
             if self.nfft is not None:
-                assert nfft==self.nfft, "The nfft that was set mismatches with the one provided by a previous layer. Please check"
+                assert nfft == self.nfft, "The nfft that was set mismatches with the one provided by a previous layer. Please check"
         elif self.nfft is not None:
             nfft = self.nfft
         else:
@@ -1072,12 +852,12 @@ class Filterbank(base.Processor):
                 high_freq_mel = 2595 * np.log10(1 + high_freq / 700)
                 # Define the start Mel frequencies, start frequencies and start bins
                 start_freq_mel = low_freq_mel + np.arange(0, self.n_bands, 1) / (
-                    self.n_bands + 1
+                        self.n_bands + 1
                 ) * (high_freq_mel - low_freq_mel)
                 start_freq_hz = 700 * (10 ** (start_freq_mel / 2595) - 1)
                 # Define the stop Mel frequencies, start frequencies and start bins
                 stop_freq_mel = low_freq_mel + np.arange(2, self.n_bands + 2, 1) / (
-                    self.n_bands + 1
+                        self.n_bands + 1
                 ) * (high_freq_mel - low_freq_mel)
                 stop_freq_hz = 700 * (10 ** (stop_freq_mel / 2595) - 1)
             elif self.scale == "linear":
@@ -1293,11 +1073,11 @@ class Aggregation(base.Processor):
     """
 
     def __init__(
-        self,
-        methods: List[str] = ["mean", "std"],
-        axis: int = 0,
-        combine: str = None,
-        combine_axis: int = None,
+            self,
+            methods: List[str] = ["mean", "std"],
+            axis: int = 0,
+            combine: str = None,
+            combine_axis: int = None,
     ):
         self.methods = methods
         self.axis = axis
@@ -1413,13 +1193,13 @@ class FIRFilter(base.Processor):
     """
 
     def __init__(
-        self,
-        type: str = type,
-        f: float = None,
-        taps: int = None,
-        axis: int = 1,
-        fs: float = None,
-        window: str = "hamming",
+            self,
+            type: str = type,
+            f: float = None,
+            taps: int = None,
+            axis: int = 1,
+            fs: float = None,
+            window: str = "hamming",
     ):
         self.type = type
         self.f = f
@@ -1582,10 +1362,10 @@ class Resample(base.Processor):
         else:
             fs = self.fs
         data = scipy.signal.resample(data,
-                                     int(np.round(self.target_fs/fs * data.shape[self.axis])),
-                                     axis = self.axis,
-                                     window = self.window)
-        return data, {'fs': self.target_fs, 'time_step': 1/self.target_fs}
+                                     int(np.round(self.target_fs / fs * data.shape[self.axis])),
+                                     axis=self.axis,
+                                     window=self.window)
+        return data, {'fs': self.target_fs, 'time_step': 1 / self.target_fs}
 
 
 class ExpandDims(base.Processor):
