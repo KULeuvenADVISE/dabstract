@@ -2,6 +2,7 @@ import pathlib
 import pickle
 import soundfile as sf
 import cv2 as cv
+from tqdm import tqdm
 
 from dabstract.utils import safe_import_module
 from dabstract.abstract import *
@@ -258,34 +259,6 @@ def get_dir_info(
                                         }
     """
 
-    def _get_dir_info(filepath: str, type: str) -> List[Dict]:
-        info = [dict() for k in range(len(filepath))]
-        if type == "audio":
-            for k in range(len(filepath)):
-                info[k] = dict()
-                f = sf.SoundFile(filepath[k])
-                info[k] = { 'output_shape': np.array([len(f), f.channels]),
-                            'length': len(f),
-                            'channels': f.channels,
-                            'fs': f.samplerate,
-                            'time_step': 1 / f.samplerate,
-                            'duration': len(f)/f.samplerate}
-        elif type == "camera":
-            for k in range(len(filepath)):
-                info[k] = dict()
-                vid = cv.VideoCapture(filepath[k])
-                info[k] = {'width': int(vid.get(cv.CAP_PROP_FRAME_WIDTH)),
-                           'height': int(vid.get(cv.CAP_PROP_FRAME_HEIGHT)),
-                           'fs': vid.get(cv.CAP_PROP_FPS),
-                           'length': int(vid.get(cv.CAP_PROP_FRAME_COUNT))}
-                info[k].update({'duration': 1 / info[k]['fs'] * info[k]['length'],
-                                'output_shape': np.array([info[k]['length'],info[k]['width'],info[k]['length']])})
-        elif type is None:
-            pass
-        else:
-            raise NotImplementedError('type should be audio, camera or None')
-        return info
-
     if "save_path" in kwargs:
         file_info_save_path = kwargs["save_path"]
         warnings.warn(
@@ -335,3 +308,33 @@ def get_dir_info(
         "subdb": subdb,
         "info": info,
     }
+
+def _get_dir_info(filepath: str, type: str) -> List[Dict]:
+    info = [dict() for k in range(len(filepath))]
+    if type == "audio":
+        print('Acquiring info from audio folder...')
+        for k in tqdm(range(len(filepath))):
+            info[k] = dict()
+            f = sf.SoundFile(filepath[k])
+            info[k] = { 'output_shape': np.array([len(f), f.channels]),
+                        'length': len(f),
+                        'channels': f.channels,
+                        'fs': f.samplerate,
+                        'time_step': 1 / f.samplerate,
+                        'duration': len(f)/f.samplerate}
+    elif type == "camera":
+        print('Acquiring info from camera folder...')
+        for k in range(len(filepath)):
+            info[k] = dict()
+            vid = cv.VideoCapture(filepath[k])
+            info[k] = {'width': int(vid.get(cv.CAP_PROP_FRAME_WIDTH)),
+                       'height': int(vid.get(cv.CAP_PROP_FRAME_HEIGHT)),
+                       'fs': vid.get(cv.CAP_PROP_FPS),
+                       'length': int(vid.get(cv.CAP_PROP_FRAME_COUNT))}
+            info[k].update({'duration': 1 / info[k]['fs'] * info[k]['length'],
+                            'output_shape': np.array([info[k]['length'],info[k]['width'],info[k]['length']])})
+    elif type is None:
+        pass
+    else:
+        raise NotImplementedError('type should be audio, camera or None')
+    return info

@@ -51,6 +51,9 @@ class DictSeqAbstract(base.Abstract):
         assert (
             key != "all"
         ), "The name 'all' is reserved for referring to all keys when applying a transform."
+        assert (
+            "." not in key
+        ), "A dot (.) is reserved for to support a dotted path. Please select a name that does not contain a dot."
         assert hasattr(data, "__len__"), (
             "Can only use %s it object has __len__" % self.__class__.__name__
         )
@@ -226,7 +229,10 @@ class DictSeqAbstract(base.Abstract):
     ) -> Union[List, np.ndarray, Any]:
         if isinstance(index, str):
             assert key is None
-            return self._data[index]
+            fields, tmp = index.split('.'), self._data
+            for f in fields:
+                tmp = tmp[f]
+            return tmp
         elif isinstance(index, numbers.Integral):
             if key is None:
                 data, info = dict(), dict()
