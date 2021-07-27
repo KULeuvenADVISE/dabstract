@@ -14,6 +14,7 @@ from dabstract.dataprocessor.processors import base
 from typing import Dict, Any, List, Union, Callable
 
 
+
 class WavDatareader(base.Processor):
     """
     This processor class reads waveform data file and adds optional resampling if desired.
