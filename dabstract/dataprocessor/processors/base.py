@@ -14,15 +14,13 @@ class Processor:
     def inv_process(self, data: Iterable, **kwargs) -> Iterable:
         return data
 
-    def fit(self, data: Iterable, **kwargs) -> None:
-        raise NotImplementedError
+    # def fit(self, data: Iterable, **kwargs) -> None:
+    #     raise NotImplementedError
 
     def __call__(self, data: Iterable, return_info: bool = False, **kwargs) -> Iterable:
         tmp = self.process(data, **kwargs)
         return tmp if return_info else tmp[0]
 
-    def is_fitted(self):
-        return True
 
 class ExternalProcessor(Processor):
     """base class for an external function"""

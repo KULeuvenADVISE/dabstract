@@ -410,7 +410,7 @@ class Dataset:
 
     def add_select(
             self,
-            selector: Any,
+            name: Any,
             *arg,
             parameters: Optional[dict] = dict,
             eval_data: Any = None,
@@ -459,25 +459,27 @@ class Dataset:
         """
 
         # get selector
-        if isinstance(selector, dict):
-            if "parameters" in selector:
-                parameters = selector["parameters"]
-            assert "name" in selector
-            selector = selector["name"]
-        if isinstance(selector, str):
+        if isinstance(name, dict):
+            if "parameters" in name:
+                parameters = name["parameters"]
+            assert "name" in name
+            selector = name["name"]
+        if isinstance(name, str):
             module = selectm
-            if not hasattr(module, selector):
+            if not hasattr(module, name):
                 module = safe_import_module(
                     os.environ["dabstract_CUSTOM_DIR"] + ".dataset.select"
                 )
-                assert hasattr(module, selector), (
+                assert hasattr(module, name), (
                         "Select "
-                        + selector
+                        + name
                         + " is not supported in both dabstract and custom xvals. Please check"
                 )
-            selector = getattr(module, selector)(**parameters)
-        elif isinstance(selector, type):
-            selector = selector(**parameters)
+            selector = getattr(module, name)(**parameters)
+        elif isinstance(name, type):
+            selector = name(**parameters)
+        else:
+            raise NotImplementedError
 
         # apply selection
         self._data.add_select(selector, *arg, eval_data=eval_data, **kwargs)

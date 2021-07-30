@@ -89,7 +89,9 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
     if "select" in config:
         if isinstance(config["select"], list):
             for _select in config["select"]:
-                ddataset.add_select(_select)
+                ddataset.add_select(**_select)
+        elif isinstance(config["select"], dict):
+            ddataset.add_select(**config["select"])
     if "xval" in config:
         ddataset.set_xval(**config["xval"], overwrite=overwrite_xval)
     return ddataset
@@ -178,7 +180,9 @@ def dataset_factory(
     if select is not None:
         if isinstance(select, list):
             for _select in select:
-                db.add_select(_select)
+                db.add_select(**_select)
+        elif isinstance(select, dict):
+            db.add_select(**select)
     if xval is not None:
         db.set_xval(**xval)
 
