@@ -18,7 +18,7 @@ class Container():
     pass
 
 class MetaContainer(Container, Abstract):
-    time_meta_types = ('multi_time_label')
+    time_meta_types = ('multi_label_time_range','binary_time_point')
 
     def __init__(self,
                  data: Iterable = None,
@@ -61,21 +61,33 @@ class MetaContainer(Container, Abstract):
             assert isinstance(data[0], Iterable), \
                 "data should be a nested np.arrray or list in case its input_type is multi_label"
 
-        elif self.meta_type == 'multi_time_label':
+        elif self.meta_type == 'multi_label_time_range':
             assert isinstance(data, Iterable), \
-                "data should be a np.arrray or list in case its input_type is multi_time_label"
+                "data should be a np.arrray or list in case its input_type is multi_label_time_range"
             assert isinstance(data[0], np.ndarray), \
-                "data[k] should be a np.ndarray in case its input_type is multi_time_label"
+                "data[k] should be a np.ndarray in case its input_type is multi_label_time_range"
             assert len(data[0].shape), \
-                "data[k] should be a np.ndarray matrix in case its input_type is multi_time_label"
+                "data[k] should be a np.ndarray matrix in case its input_type is multi_label_time_range"
+
+        elif self.meta_type == 'binary':
+            raise NotImplementedError
+
+        elif self.meta_type == 'binary_time_range':
+            raise NotImplementedError
+
+        elif self.meta_type == 'binary_time_point':
+            assert isinstance(data, Iterable), \
+                "data should be a np.arrray or list in case its input_type is binary_time_point"
 
         else:
             raise NotImplementedError("%s is not a valid input type." % self.meta_type)
 
         if self.output_meta_type == 'as_is':
             pass
+        elif self.output_meta_type == 'binary':
+            assert self.meta_type in ('binary', 'binary_time_point')
         elif self.output_meta_type == 'multi_label':
-            assert self.meta_type in ('multi_label', 'multi_time_label')
+            assert self.meta_type in ('multi_label', 'multi_label_time_range')
         else:
             raise NotImplementedError("%s is not a valid output type." % self.output_meta_type)
 
@@ -95,20 +107,40 @@ class MetaContainer(Container, Abstract):
 
         # reformat meta
         if read_range is not None:
-            if self.meta_type == 'multi_time_label':
+            if self.meta_type == 'multi_label_time_range':
                 start_idx = np.where(data[:,2]>read_range[0])[0]
                 stop_idx = np.where(data[:,1]>read_range[1])[0]
                 data = data[np.max([start_idx[0],0]):np.min([stop_idx[0],data.shape[0]])]
                 data[:,[1,2]] -= read_range[0]
                 data[0,1] = np.max([0,data[0,1]])
                 data[-1,2] = np.min([read_range[1],data[-1,2]])
+            elif self.meta_type == 'binary_time_point':
+                if data is not None:
+                    data = np.any((data > read_range[0]) & (data < read_range[1]))
+                else:
+                    data = False
             else:
                 raise NotImplementedError("%s is not a valid input type to cope but read_range input. Something is going wrong. Please check." % self.input_type)
 
         # reformat output
-        if self.meta_type == 'multi_time_label':
-            if self.output_meta_type == 'multi_label':
+        if self.output_meta_type == 'multi_label':
+            if self.meta_type == 'multi_time_label':
                 data = data[None,:,0]
+            elif self.meta_type == 'multi_label':
+                pass
+            else:
+                raise NotImplementedError("multi_label only supported for meta_type multi_time_label and multi_label")
+        elif self.output_meta_type == 'binary':
+            if self.meta_type == 'binary_time_point':
+                if not (type(data) == bool):
+                    if data is None:
+                        data = 0
+                    elif not isinstance(data, (bool, np.bool_)):
+                        data = 1
+            else:
+                raise NotImplementedError
+        else:
+            raise NotImplementedError
 
         return (data, info) if return_info else data
 
@@ -129,6 +161,7 @@ class MetaContainer(Container, Abstract):
 
     def is_splittable(self):
         return self.meta_type in self.time_meta_types
+
 
 class FolderContainer(Container, DictSeqAbstract):
     """Get meta information of the files in a directory and place them in a DictSeq
