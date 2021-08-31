@@ -15,8 +15,13 @@ class Abstract(ABC):
             )
 
     def __iter__(self) -> Any:
+        self._call_on_iter()
         for k in range(len(self)):
             yield self[k]
+
+    def _call_on_iter(self):
+        if self._abstract:
+            self._data._call_on_iter()
 
     def __getitem__(self, index: int) -> Any:
         return self.get(index)

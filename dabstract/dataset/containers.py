@@ -287,7 +287,7 @@ class FolderContainer(Container, DictSeqAbstract):
     def is_splittable(self):
         # assumes that this is the case for ALL info
         # should we do a check on everything or assume this is always the case?
-        return 'time_step' in self['info'][0] and 'output_shape' in self['info'][0]
+        return ((self['info'][0]['time_axis'] is not None) if 'time_axis' in self['info'][0] else False) and 'output_shape' in self['info'][0]
 
     def get_split_len(self, index: int = None):
         return self.get_samples(index=index)
@@ -354,6 +354,45 @@ class WavFolderContainer(AudioFolderContainer):
                          info=info,
                          **kwargs)
         print("WavFolderContainer is deprecated. Please switch to AudioFolderContainer.")
+
+
+class FeatureFolderContainer(FolderContainer):
+    # ToDo: add summaries related to the feature folder
+    def __init__(
+        self,
+        path: str,
+        map_fct: Callable = None,
+        file_info_save_path: bool = None,
+        filepath: str = None,
+        overwrite_file_info: bool = False,
+        info: List[Dict] = None,
+        **kwargs
+    ):
+        super().__init__(path=path,
+                         extension='.npy',
+                         map_fct = map_fct,
+                         file_info_save_path=file_info_save_path,
+                         filepath=filepath,
+                         overwrite_file_info=overwrite_file_info,
+                         info=info,
+                         **kwargs)
+
+    def get_fs(self, index: int = None):
+        return self._get_info(key='fs', index=index)
+
+    def get_output_shape(self, index: int = None):
+        return self._get_info(key='output_shape', index=index)
+
+    def get_samples(self, index: int = None):
+        tmp = self._get_info(key='output_shape', index=index)
+        return tmp[:,0] if index is None else tmp[0]
+
+    def get_duration(self, index: int = None):
+        return self.get_samples(index=index)/self.get_fs(index=index)
+
+    def get_time_step(self, index: int = None):
+        return self._get_info(key='time_step', index=index)
+
 
 class CameraFolderContainer(FolderContainer):
     # ToDo: add summaries related to the camera folder
@@ -590,43 +629,4 @@ class AsyncCameraFolderContainer(CameraFolderContainer):
     def is_splittable(self):
         # assumes that this is the case for ALL info
         # should we do a check on everything or assume this is always the case?
-        return 'time_step' in self['info'][0] and 'output_shape' in self['info'][0]
-
-
-
-class FeatureFolderContainer(FolderContainer):
-    # ToDo: add summaries related to the feature folder
-    def __init__(
-        self,
-        path: str,
-        map_fct: Callable = None,
-        file_info_save_path: bool = None,
-        filepath: str = None,
-        overwrite_file_info: bool = False,
-        info: List[Dict] = None,
-        **kwargs
-    ):
-        super().__init__(path=path,
-                         extension='.npy',
-                         map_fct = map_fct,
-                         file_info_save_path=file_info_save_path,
-                         filepath=filepath,
-                         overwrite_file_info=overwrite_file_info,
-                         info=info,
-                         **kwargs)
-
-    def get_fs(self, index: int = None):
-        return self._get_info(key='fs', index=index)
-
-    def get_output_shape(self, index: int = None):
-        return self._get_info(key='output_shape', index=index)
-
-    def get_samples(self, index: int = None):
-        tmp = self._get_info(key='output_shape', index=index)
-        return tmp[:,0] if index is None else tmp[0]
-
-    def get_duration(self, index: int = None):
-        return self.get_samples(index=index)/self.get_fs(index=index)
-
-    def get_time_step(self, index: int = None):
-        return self._get_info(key='time_step', index=index)
+        return ((self['info'][0]['time_axis'] is not None) if 'time_axis' in self['info'][0] else False) and 'output_shape' in self['info'][0]

@@ -8,7 +8,7 @@ import librosa
 import numbers
 
 from dabstract.utils import listnp_combine, flatten_nested_lst
-from dabstract.dataprocessor.processors import base
+from dabstract.dataprocessor.processors import base, decorators
 
 from typing import Dict, Any, List, Union, Callable
 
@@ -91,13 +91,19 @@ class Normalizer(base.Processor):
     def __init__(self, type: str = None,
                  feature_range: (int, int) = [0, 1],
                  axis: Union[str, List[int], int] = -1,
+                 subsample_type=None,
+                 subsample_rate=None,
                  **kwargs):
         if type is None:
             AssertionError("Specify normalization type in processors.py/Normalizer")
         self.type = type
         self.feature_range = feature_range
         self.axis = axis
+        self.subsample_type = subsample_type
+        self.subsample_rate = subsample_rate
 
+    @decorators.subsample_data
+    @decorators.load_memory
     def fit(self, data: np.ndarray, **kwargs) -> None:
         # check axis
         if isinstance(self.axis, str):
@@ -189,6 +195,7 @@ class Normalizer(base.Processor):
         Hidden method that does the effective scaling given the scaler function and data input
         """
         # reorder axis and flatten over non-norm axis
+        orig_data = data
         data = data.reshape((1,) + tuple(data.shape))
         data = np.moveaxis(data, self._base_ids, self._transform_idx)
         data = data.reshape(self._reshape)
@@ -200,7 +207,10 @@ class Normalizer(base.Processor):
             raise NotImplementedError("Only MinMax and standard normalisation supported.")
 
         # unflatten and reorder
-        data = data.reshape(self._inverse_reshape)
+        try:
+            data = data.reshape(self._inverse_reshape)
+        except:
+            lol = 0
         data = np.moveaxis(data, self._base_ids, self._inverse_transform_idx)
 
         return data[0, :]
@@ -461,8 +471,15 @@ class Framing(base.Processor):
         self.window_func.axis = axis + 1
         frames = self.window_func.process(frames)[0]
 
+        # update info
+        info = {}
+        if 'time_axis' in kwargs:
+            if axis == kwargs['time_axis']:
+                info = {"time_step": self.stepsize,
+                        "length": num_frames}
+
         # return
-        return frames, {"time_step": self.stepsize} if axis == 0 else dict()
+        return frames, info
 
 
 class Windowing(base.Processor):
@@ -714,7 +731,7 @@ class FFT(base.Processor):
             )
             data[sel_tuple] = 0
 
-        return data, {"nfft": nfft}
+        return data, {"nfft": nfft, 'frequency_axis': self.axis}
 
 
 class Filterbank(base.Processor):
@@ -840,6 +857,9 @@ class Filterbank(base.Processor):
             nfft = self.nfft
         else:
             raise NotImplementedError("No nfft provided in Filterbank()")
+
+        if 'frequency_axis' in kwargs:
+            assert self.axis == kwargs['frequency_axis']
 
         low_freq = self.fmin
         high_freq = np.min((fs / 2, self.fmax))
@@ -1125,7 +1145,15 @@ class Aggregation(base.Processor):
             else tmp
         )
 
-        return output, {"time_step": 0} if self.axis == 0 else dict()
+        # update info
+        info = {}
+        if self.axis == kwargs['time_axis']:
+            if 'duration' in kwargs:
+                info.update({'time_step': kwargs['duration']})
+            info.update({'length': 1,
+                         'time_axis': None})
+
+        return output, info
 
 
 class FIRFilter(base.Processor):

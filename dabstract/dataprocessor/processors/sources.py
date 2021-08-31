@@ -164,11 +164,12 @@ class WavDatareader(base.Processor):
 
         # read
         data, fs = read_wav(file, **args)
-        info.update({'fs': fs})
+        info.update({'fs': fs, 'time_axis': 0})
 
         # data selection
         if self.select_channel is not None:
             data = data[:, self.select_channel]
+            info.update({'channels': 1})
 
         # resample
         if self.fs is not None:
@@ -255,7 +256,7 @@ class NumpyDatareader(base.Processor):
 
         if "read_range" in args:
             data = np.load(file, mmap_mode="r")
-            data = data[args["read_range"][0] : args["read_range"][1], :]
+            data = data[int(args["read_range"][0]) : int(args["read_range"][1]), :]
             info.update({'read_ranged': True})
         else:
             data = np.load(file)

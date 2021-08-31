@@ -110,25 +110,37 @@ class DictSeqAbstract(base.Abstract):
                         # make sure that data format is as desired by the base dict
                         if not isinstance(
                             self2[key],
-                            (SeqAbstract, DictSeqAbstract),
+                            SeqAbstract,
                         ):
                             self2[key] = SeqAbstract().concat(self2[key])
-                        # concatenate SeqAbstract
-                        if isinstance(
-                            data[key], SeqAbstract
-                        ):  # if already a SeqAbstract, concat cleaner to avoid overhead
-                            for _data in data[key]._data:
-                                self2[key].concat(_data)
-                        else:  # if not just concat at once
-                            self2[key].concat(data[key])
+                        self2[key].concat(data[key])
+
+                        # # make sure that data format is as desired by the base dict
+                        # if not isinstance(
+                        #     self2[key],
+                        #     (SeqAbstract, DictSeqAbstract),
+                        # ):
+                        #     self2[key] = SeqAbstract().concat(self2[key])
+                        # # concatenate SeqAbstract
+                        # if isinstance(
+                        #     data[key], SeqAbstract
+                        # ):  # if already a SeqAbstract, concat cleaner to avoid overhead
+                        #     for _data in data[key]._data:
+                        #         self2[key].concat(_data)
+                        # else:  # if not just concat at once
+                        #     self2[key].concat(data[key])
                     else:
-                        assert (
-                            self2[key].__class__ == data[key].__class__
-                        ), "When using lazy=False, datatypes should be same in case of concatenation."
-                        if isinstance(self2[key], list):
-                            self2[key] = self2[key] + data[key]
-                        elif isinstance(self2[key], np.ndarray):
-                            self2[key] = np.concatenate((self2[key], data[key]))
+                        try:
+                            assert (
+                                self2[key].__class__ == data[key].__class__
+                            ), "When using lazy=False, datatypes should be same in case of concatenation."
+                            if isinstance(self2[key], list):
+                                self2[key] = self2[key] + data[key]
+                            elif isinstance(self2[key], np.ndarray):
+                                #print(key)
+                                self2[key] = np.concatenate((self2[key], data[key]))
+                        except:
+                            lol = 0
                 self2._adjust_mode = False
             else:
                 self2.__dict__.update(data.__dict__)
@@ -203,6 +215,11 @@ class DictSeqAbstract(base.Abstract):
 
     def get_active_keys(self) -> List[str]:
         return self._active_keys
+
+    def _call_on_iter(self):
+        for key in self._abstract:
+            if self._abstract[key]:
+                self._data[key]._call_on_iter()
 
     def __len__(self) -> int:
         nr_examples = [len(self._data[key]) for key in self._data]
@@ -285,6 +302,7 @@ class SeqAbstract(base.Abstract):
     def __init__(self, data: Iterable = None, name: str = "seq"):
         self._nr_sources = 0
         self._data = []
+        self._abstract = []
         self._info = []
         self._kwargs = []
         self._name = name
@@ -296,6 +314,28 @@ class SeqAbstract(base.Abstract):
                 raise AssertionError("Input data should be a list")
 
     def concat(self, data: Iterable, info: List[Dict] = None, **kwargs: Dict) -> None:
+        # Add data
+        if isinstance(data, SeqAbstract):
+            for _data in data._data:
+                self._concat(_data)
+        else:
+            self._concat(data)
+        # Information to propagate to transforms or use for split
+        if info is not None:
+            assert isinstance(info, list), "info should be a list"
+            assert isinstance(
+                info[0], dict
+            ), "The items in info should contain a dict()"
+            assert len(info) == len(
+                data
+            ), "info should be a list with len(info)==len(data)"
+        self._info.append(info)
+        # kwargs
+        self._kwargs.append(kwargs)
+        return self
+
+    def _concat(self, data: Iterable, info: List[Dict] = None, **kwargs: Dict) -> None:
+        data = copy.deepcopy(data)
         # Check
         assert hasattr(
             data, "__getitem__"
@@ -307,25 +347,9 @@ class SeqAbstract(base.Abstract):
         assert hasattr(self._data, "__len__"), (
             "Can only use %s it object has __len__" % self.__class__.__name__
         )
-        # Add
-        data = copy.deepcopy(data)
-        if isinstance(data, SeqAbstract):
-            for _data in data._data:
-                self.concat(_data)
-        else:
-            self._data.append(data)
+        self._data.append(data)
         self._nr_sources += 1
-        # Information to propagate to transforms or use for split
-        if info is not None:
-            assert isinstance(info, list), "info should be a list"
-            assert isinstance(
-                info[0], dict
-            ), "The items in info should contain a dict()"
-            assert len(info) == len(
-                data
-            ), "info should be a list with len(info)==len(data)"
-        self._info.append(info)
-        self._kwargs.append(kwargs)
+        self._abstract.append(isinstance(data, base.Abstract))
         return self
 
     def __len__(self) -> int:
@@ -370,7 +394,7 @@ class SeqAbstract(base.Abstract):
                 else:
                     info = dict() if self._info[k] is None else self._info[k][index]
                     # get
-                    if isinstance(self._data[k], base.Abstract):
+                    if self._abstract[k]:
                         data, info = data.get(
                             index,
                             *arg,
@@ -390,6 +414,11 @@ class SeqAbstract(base.Abstract):
             raise IndexError(
                 "index should be a number (or key in case of a nested dict_seq)."
             )
+
+    def _call_on_iter(self):
+        for k, _abstract in enumerate(self._abstract):
+            if _abstract:
+                self._data[k]._call_on_iter()
 
     def summary(self) -> Dict:
         return {"nr_examples": self.nr_examples, "name": self._name}

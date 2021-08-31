@@ -98,7 +98,6 @@ class ProcessingChain:
     def fit(
         self,
         data: Iterable,
-        load_memory: bool = True,
         workers: int = 1,
         buffer_len: int = 2,
         **kwargs
@@ -117,32 +116,13 @@ class ProcessingChain:
             for k, chain in enumerate(self._chain):
                 # fit if needed
                 if hasattr(chain, "fit"):
-                    # subsample based on init_subsample key
-                    # ToDo: kind off hidden. Should we reallocate this or completely leave it up to the processor.fit()?
-                    if "init_subsample" in self._info[k]["parameters"]:
-                        if self._info[k]["parameters"]["init_subsample"] is not None:
-                            sel_ind = np.random.choice(
-                                np.arange(len(data)),
-                                size=int(
-                                    self._info[k]["parameters"]["init_subsample"]
-                                    * len(data)
-                                ),
-                                replace=False,
-                            )
-                            data = SelectAbstract(data, (lambda x, k: k in sel_ind))
+                    data = MapAbstract(data, init_processor)
                     data_tmp = DataAbstract(
                         MapAbstract(data, init_processor),
                         workers=workers,
                         buffer_len=buffer_len,
                     )
-                    # load into memory
-                    if load_memory:
-                        data_tmp, info_tmp = data_tmp.get(
-                            slice(0, len(data)), return_info=True, **kwargs
-                        )
-                        chain.fit(data_tmp, info=info_tmp)
-                    else:
-                        chain.fit(data_tmp)
+                    chain.fit(data_tmp)
                 # keep processor of previous stages (to be used for recursion if fit is needed)
                 init_processor.add(chain)
         return self
@@ -150,15 +130,18 @@ class ProcessingChain:
     def save(self, filepath: str = None, ext = '.pickle'):
         """Save processor from filepath"""
         assert isinstance(filepath,str)
+        os.makedirs(os.path.split(filepath)[0], exist_ok=True)
         with open(filepath + ext, 'wb') as f:
             pickle.dump(self.__dict__, f)  # save
 
     def load(self, filepath: str = None, ext = '.pickle'):
         """Load processor from filepath"""
         assert isinstance(filepath,str)
+        assert os.path.exists(filepath + ext), "%s does not exist." % os.path.exists(filepath + ext)
         with open(filepath + ext, "rb") as f:
             tmp = pickle.load(f)  # load
             self.__dict__.update(tmp)
+        return self
 
     def exists(self, filepath: str = None, ext = '.pickle'):
         assert isinstance(filepath,str)

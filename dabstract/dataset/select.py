@@ -1,5 +1,6 @@
 import numpy as np
-from typing import TypeVar, List, Union
+import datetime as dt
+from typing import TypeVar, List, Union, Tuple
 
 tvSubsampleFunc = TypeVar("subsample_fct")
 
@@ -41,24 +42,50 @@ def subsample_by_str(
 
 
 def subsample_comparison(
-    key: str = None, type:str = None, value:float = None, **kwargs
+        key: str = None,
+        type:str = None,
+        value: Union[float, dt.datetime, Tuple[Union[float, dt.datetime]]] = None,
+        convert_str_to_datetime: bool = False,
+        datetime_str: str = '%Y-%m-%d %H:%M:%S',
+        **kwargs
 ) -> tvSubsampleFunc:
     """Subsampling fct: compare"""
-    types = ('equal','lower_or_equal','greater_or_equal','greater','lower', \
-             '=', '<=', '>=', '>', '<')
+    types = ('equal','lower_or_equal','greater_or_equal','greater','lower', 'within',\
+             '=', '<=', '>=', '>', '<','<x<')
     assert type in types, "subsample_comparison type is %s but should be one of %s" % (type, str(types))
     assert not isinstance(value, float)
+    if type in ('<x<', 'within'):
+        assert len(value) == 2, "value should have a length of two, i.e. (start_value, stop_value)"
+
+    if convert_str_to_datetime:
+        value = dt.datetime.strptime(value, datetime_str)
 
     def func(data):
-        if type in ('=','equal'):
-            return [k for k in np.arange(len(data)) if data[key][k]==value]
-        elif type in ('<=','lower_or_equal'):
-            return [k for k in np.arange(len(data)) if data[key][k]<=value]
-        elif type in ('>=','greater_or_equal'):
-            return [k for k in np.arange(len(data)) if data[key][k]>=value]
-        elif type in ('>','greater'):
-            return [k for k in np.arange(len(data)) if data[key][k]>value]
-        elif type in ('<','lower'):
-            return [k for k in np.arange(len(data)) if data[key][k]>value]
+        if isinstance(data[key], np.ndarray):
+            if type in ('=','equal'):
+                return np.where(data[key]==value)[0]
+            elif type in ('<=','lower_or_equal'):
+                return np.where(data[key]<=value)[0]
+            elif type in ('>=','greater_or_equal'):
+                return np.where(data[key]>=value)[0]
+            elif type in ('>','greater'):
+                return np.where(data[key]>value)[0]
+            elif type in ('<','lower'):
+                return np.where(data[key]<value)[0]
+            elif type in ('<x<','within'):
+                return np.where((data[key]>value[0]) & (data[key]<value[1]))[0]
+        else:
+            if type in ('=','equal'):
+                return [k for k in np.arange(len(data)) if data[key][k]==value]
+            elif type in ('<=','lower_or_equal'):
+                return [k for k in np.arange(len(data)) if data[key][k]<=value]
+            elif type in ('>=','greater_or_equal'):
+                return [k for k in np.arange(len(data)) if data[key][k]>=value]
+            elif type in ('>','greater'):
+                return [k for k in np.arange(len(data)) if data[key][k]>value]
+            elif type in ('<','lower'):
+                return [k for k in np.arange(len(data)) if data[key][k]<value]
+            elif type in ('<x<', 'within'):
+                return [k for k in np.arange(len(data)) if ((data[key][k]>value[0]) & (data[key][k]<value[1]))]
     return func
 

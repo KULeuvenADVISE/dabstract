@@ -82,10 +82,15 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
         if k == 0:
             ddataset = tmp_ddataset
         else:
-            ddataset.concat(tmp_ddataset, intersect = True)
+            ddataset.concat(tmp_ddataset, intersect=True)
     # add other functionality
     if "split" in config:
-        ddataset.add_split(**config["split"])
+        if isinstance(config["split"], (int, float)):
+            ddataset.add_split(config["split"])
+        elif isinstance(config["split"], dict):
+            ddataset.add_split(**config["split"])
+        else:
+            raise NotImplementedError
     if "select" in config:
         if isinstance(config["select"], list):
             for _select in config["select"]:
@@ -217,7 +222,6 @@ def get_dir_info(
     type: str = None,
     extension: str = None,
     file_info_save_path: bool = None,
-    filepath: str = None,
     overwrite_file_info: bool = False,
     **kwargs
 ) -> Dict[str, List[Any]]:
@@ -238,9 +242,9 @@ def get_dir_info(
         only evaluate files with that extension
     map_fct : Callable
         add a mapping function y = f(x) to the 'data'
-    filepath : str
-        in case you already have the files you want to obtain information from,
-        the dir tree search is not done and this is used instead
+    # filepath : str
+    #     in case you already have the files you want to obtain information from,
+    #     the dir tree search is not done and this is used instead
     file_info_save_path: : str
         save the information to this location
         this function can be costly, so saving is useful
@@ -271,14 +275,14 @@ def get_dir_info(
         )
 
     # get dirs
-    if not isinstance(filepath, list):
-        filepath = []
-        for root, dirs, files in os.walk(path):
-            dirs.sort()
-            tmp = [os.path.join(root, file) for file in files if extension in file]
-            if len(tmp) > 0:
-                tmp.sort()
-                filepath += tmp
+    #if not isinstance(filepath, list):
+    filepath = []
+    for root, dirs, files in os.walk(path):
+        dirs.sort()
+        tmp = [os.path.join(root, file) for file in files if extension in file]
+        if len(tmp) > 0:
+            tmp.sort()
+            filepath += tmp
 
     example = [os.path.relpath(file, path) for file in filepath if extension in file]
     filename = [os.path.split(file)[1] for file in example]
@@ -323,6 +327,7 @@ def _get_dir_info(filepath: str, type: str) -> List[Dict]:
             info[k] = { 'output_shape': np.array([len(f), f.channels]),
                         'length': len(f),
                         'channels': f.channels,
+                        'time_axis': 0,
                         'fs': f.samplerate,
                         'time_step': 1 / f.samplerate,
                         'duration': len(f)/f.samplerate}

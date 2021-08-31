@@ -4,6 +4,8 @@ import numpy as np
 from tqdm import tqdm
 import inspect
 import os
+import itertools
+import datetime
 
 import warnings
 
@@ -30,6 +32,122 @@ tvSeqAbstract = TypeVar("SeqAbstract")
 
 from dabstract.abstract import base as base
 from dabstract.dataprocessor import ProcessingChain
+
+class ShuffleAbstract(base.Abstract):
+    """
+    The class is an abstract wrapper that shuffles an iterable
+
+    Parameters
+    ----------
+    data : iterable
+    reshuffle : bool
+        Reshuffle each call for an iteration or not
+
+    Returns
+    ----------
+    BatchAbstract class
+    """
+
+    def __init__(self, data: Iterable, reshuffle: bool = True):
+        super().__init__(data)
+        self._data = data
+        self._idx = np.arange(len(self))
+        self.shuffle()
+
+    def shuffle(self):
+        np.random.shuffle(self._idx)
+
+    def _call_on_iter(self):
+        self.shuffle()
+        super()._call_on_iter()
+
+    def get(self, index: int, *args, return_info: bool = False, **kwargs) -> List[Any]:
+        """
+        Parameters
+        ----------
+        index : int
+            index to retrieve data from
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+            info contains the information that has been propagated through the chain of operations
+        Returns
+        ----------
+        List of Any
+        """
+        if isinstance(index, numbers.Integral):
+            if self._abstract:
+                data, info = self._data.get(
+                    self._idx[index], return_info=True, *args, **kwargs
+                )
+            else:
+                data, info = self._data[self._idx[index]], {}
+            return (data, info) if return_info else data
+        else:
+            raise NotImplementedError("You should provide a numbers.Integral when indexing a ShuffleAbstract.")
+
+    def __repr__(self) -> str:
+        return "%s\n Shuffle" % self._data.__repr__()
+
+class BatchAbstract(base.Abstract):
+    """
+    The class is an abstract wrapper around an iterable to batch the dataset.
+    Parameters
+    ----------
+    data : iterable
+    batch_size : int
+        size of each of the batches
+    unzip : bool
+        In case each sample contains a list that needs to be unzipped.
+        This is similar to the zip(...) operation.
+    unzip : bool
+        In case each sample contains a list that needs to be unzipped.
+        This is similar to the unzip(*...) operation.
+    drop_last : bool
+        Remove the last batch if the size does not match the batch_size.
+    Returns
+    ----------
+    BatchAbstract class
+    """
+
+    def __init__(self, data: Iterable,
+                 batch_size: int,
+                 drop_last: bool = False,
+                 unzip: bool = False,
+                 zip: bool = False):
+        super().__init__(data)
+        self._data_abstract = DataAbstract(data, unzip=unzip, zip=zip)
+        self.batch_size = batch_size
+        self.drop_last = drop_last
+
+    def get(self, index: int, return_info: bool = False) -> List[Any]:
+        """
+        Parameters
+        ----------
+        index : int
+            index to retrieve data from
+        return_info : bool
+            return tuple (data, info) if True else data (default = False)
+            info contains the information that has been propagated through the chain of operations
+        Returns
+        ----------
+        List of Any
+        """
+        # assert return_info is False, "BatchAbstract breaks the information flow. It is meant as a final step to batch data as input to a learner."
+        if isinstance(index, numbers.Integral):
+            input_index = index * self.batch_size
+            tmp = self._data_abstract[input_index:min(input_index + self.batch_size,len(self._data))]
+            return (tmp, {}) if return_info else tmp
+        else:
+            raise NotImplementedError("You should provide a numbers.Integral when indexing a BatchAbstract.")
+
+    def __len__(self) -> int:
+        length = len(self._data) / self.batch_size
+        if self.drop_last:
+            return int(length)
+        return int(np.ceil(length))
+
+    def __repr__(self) -> str:
+        return "%s\n Batch of size %d" % (self._data.__repr__(), self.batch_size)
 
 
 class UnpackAbstract(base.Abstract):
@@ -81,9 +199,6 @@ class UnpackAbstract(base.Abstract):
         ----------
         index : int
             index to retrieve data from
-        return_info : bool
-            return tuple (data, info) if True else data (default = False)
-            info contains the information that has been propagated through the chain of operations
         Returns
         ----------
         List of Any
@@ -95,12 +210,9 @@ class UnpackAbstract(base.Abstract):
             else:
                 for key in self._keys:
                     out.append(self._data[key][index])
-            if return_info:
-                return out, dict()
-            else:
-                return out
+            return out, {} if return_info else out
         else:
-            return self._data[index]
+            raise NotImplementedError("You should index with integers.")
 
     def __len__(self) -> int:
         return len(self._data)
@@ -283,14 +395,19 @@ class DataAbstract(base.Abstract):
             workers: int = 0,
             buffer_len: int = 3,
             load_memory: bool = False,
+            unzip: bool = False,
+            zip: bool = False
     ):
         super().__init__(data)
         self._output_datatype = output_datatype
         self._workers = workers
         self._buffer_len = buffer_len
         self._load_memory = load_memory
+        self._unzip = unzip
+        self._zip = zip
 
     def __iter__(self) -> Generator:
+        super().__iter__()
         return parallel_op(
             self._data,
             workers=self._workers,
@@ -302,8 +419,8 @@ class DataAbstract(base.Abstract):
             self,
             index: Iterable = None,
             return_info: bool = False,
-            workers: int = 0,
-            buffer_len: int = 3,
+            #workers: int = 0,
+            #buffer_len: int = 3,
             return_generator: bool = False,
             verbose: bool = False,
             *args: list,
@@ -357,8 +474,8 @@ class DataAbstract(base.Abstract):
             gen = parallel_op(
                 _data,
                 *args,
-                workers=workers,
-                buffer_len=buffer_len,
+                workers=self._workers,
+                buffer_len=self._buffer_len,
                 return_info=return_info,
                 **kwargs,
             )
@@ -374,31 +491,36 @@ class DataAbstract(base.Abstract):
                     if len(_data) == 1:
                         return (tmp_data, tmp_info) if return_info else tmp_data
                     else:
+                        # init data_out
                         if k == 0:
                             if return_info:
                                 info_out = [dict()] * len(self._data)
-                            if isinstance(
-                                    tmp_data, (np.ndarray)
-                            ) and self._output_datatype in ("numpy", "auto"):
-                                data_out = np.zeros((len(_data),) + tmp_data.shape)
-                            elif isinstance(
-                                    tmp_data, (np.int, np.int64, int, np.float64)
-                            ) and self._output_datatype in ("numpy", "auto"):
-                                data_out = np.zeros((len(_data), 1))
-                            elif self._output_datatype in ("list", "auto"):
-                                data_out = [None] * len(_data)
-                        elif self._output_datatype == "auto" and isinstance(
-                                data_out, np.ndarray
-                        ):
-                            if (
-                                    np.squeeze(data_out[0]).shape
-                                    != np.squeeze(tmp_data).shape
-                            ):
-                                tmp_data_out = data_out
-                                data_out = [None] * len(data_out)
-                                for j in range(0, k):
-                                    data_out[j] = tmp_data_out[j]
-                        data_out[k] = tmp_data
+
+                            if self._unzip:
+                                assert not self._zip, "Zip and unzip can't both be active."
+                                data_out = [None] * len(tmp_data)
+                                for j in range(len(tmp_data)):
+                                    data_out[j] = self._check_data_type(_data, tmp_data[j])
+                            else:
+                                data_out = self._check_data_type(_data,tmp_data)
+
+                        # failsafe in not all outputs are numpy's, revert back to list
+                        #ToDo: put within the method, as this temporarily doubles mem usage
+                        elif self._output_datatype == "auto":
+                            if self._unzip:
+                                for j in range(len(tmp_data)):
+                                    data_out[j] = self._check_numpy_array(data_out[j], tmp_data[j], k)
+                            else:
+                                data_out = self._check_numpy_array(data_out, tmp_data, k)
+
+                        # save data
+                        if self._zip:
+                            raise NotImplementedError("zipping not supported yet.")
+                        elif self._unzip:
+                            for j in range(len(tmp_data)):
+                                data_out[j][k] = tmp_data[j]
+                        else:
+                            data_out[k] = tmp_data
                         if return_info:
                             info_out[k] = tmp_info
                 return (data_out, info_out) if return_info else data_out
@@ -407,8 +529,8 @@ class DataAbstract(base.Abstract):
                 gen = parallel_op(
                     self._data,
                     *args,
-                    workers=workers,
-                    buffer_len=buffer_len,
+                    workers=self._workers,
+                    buffer_len=self._buffer_len,
                     return_info=return_info,
                     **kwargs,
                 )
@@ -424,6 +546,39 @@ class DataAbstract(base.Abstract):
                             This is because a SeqAbstract may contain a DictSeqAbstract with a single active key \n \
                             and other data including no keys."
             )
+
+    def _check_numpy_array(self, data_out, tmp_data, k):
+        if isinstance(data_out, np.ndarray):
+            if (
+                    np.squeeze(data_out[0]).shape
+                    != np.squeeze(tmp_data).shape
+            ):
+                tmp_data_out = data_out
+                data_out = [None] * len(data_out)
+                for j in range(0, k):
+                    data_out[j] = tmp_data_out[j]
+        return data_out
+
+    def _check_data_type(self, _data, tmp_data):
+        if isinstance(
+                tmp_data, (np.ndarray)
+        ) and self._output_datatype in ("numpy", "auto"):
+            #assert not self._unzip and not self._zip, "No (un)zip available for numpy datatype."
+            data_out = np.zeros((len(_data),) + tmp_data.shape, tmp_data.dtype)
+        elif isinstance(tmp_data, np.datetime64) and \
+                self._output_datatype in ("numpy", "auto"):
+            #assert not self._unzip and not self._zip, "No (un)zip available for numpy datatype."
+            data_out = np.zeros((len(_data), 1), dtype=tmp_data.dtype)
+        elif isinstance(tmp_data, (np.int, np.int64, int)) and \
+                self._output_datatype in ("numpy", "auto"):
+            #assert not self._unzip and not self._zip, "No (un)zip available for numpy datatype."
+            data_out = np.zeros((len(_data), 1), dtype=tmp_data.dtype)
+        elif self._output_datatype in ("list", "auto"):
+            data_out = [None] * len(_data)
+        else:
+            raise NotImplementedError("datatype of %s and target datatype %s not supported by DataAbstract" % \
+                                      (str(tmp_data.__class__),str(self._output_datatype)))
+        return data_out
 
     def __len__(self) -> int:
         return len(self._data)
@@ -840,11 +995,20 @@ def SampleReplicate(
         return SampleReplicateAbstract(data, factor, *arg, **kwargs)
     else:
         # ToDo: replace by a list and np equivalent
-        return DataAbstract(
-            SampleReplicateAbstract(data, factor, *arg, **kwargs),
-            workers=workers,
-            buffer_len=buffer_len,
-        )[:]
+        if isinstance(data, np.ndarray):
+            # faster implementation suited for np.ndarrays
+            return np.repeat(data, factor)
+        elif isinstance(data, list):
+            # faster implementation suited for lists
+            return list(
+                itertools.chain(*[[tmp_data for k in range(tmp_fact)] for tmp_fact, tmp_data in zip(factor, data)]))
+        else:
+            # slowest implementation for other iterable datatypes
+            return DataAbstract(
+                SampleReplicateAbstract(data, factor, *arg, **kwargs),
+                workers=workers,
+                buffer_len=buffer_len,
+            )[:]
 
 
 class SplitAbstract(base.Abstract):
@@ -906,7 +1070,8 @@ class SplitAbstract(base.Abstract):
 
     def get_param(self):
         return {'split_len': self._split_len,
-                'sample_len': self._sample_len}
+                'sample_len': self._sample_len,
+                'splits': self._splits}
 
     def _init_split(self):
         assert all(self._split_len > 0)
@@ -934,6 +1099,7 @@ class SplitAbstract(base.Abstract):
                 (1, 2),
             )
             self._splits[j] = num_frames
+        lol = 0
 
     def get(
             self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
@@ -975,11 +1141,11 @@ class SplitAbstract(base.Abstract):
                         )
                         if not splittable:
                             try:
-                                data = data[int(read_range[0]): int(read_range[1])]
+                                data = data[int(read_range[0]): int(read_range[1]) + 1]
                             except:
                                 raise ValueError("data is not splittable.")
                     else:
-                        data, info = self._data[k][int(read_range[0]): int(read_range[1])], {}
+                        data, info = self._data[k][int(read_range[0]): int(read_range[1]) + 1], {}
                     return (data, info) if return_info else data
         elif isinstance(index, str):
             return KeyAbstract(self, index)
@@ -990,7 +1156,7 @@ class SplitAbstract(base.Abstract):
         return int(np.sum(self._splits))
 
     def __repr__(self):
-        split_ratios = self._split_len/self._sample_len
+        split_ratios = self._split_len / self._sample_len
         return "%s\n\tsplit: %.2f (mean relative length), %d to %d" % (self._data.__repr__(),
                                                                        split_ratios.mean(),
                                                                        len(self._data),

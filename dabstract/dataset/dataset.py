@@ -177,7 +177,8 @@ class Dataset:
     def _assert_key_name(self, keys: Union[List[str], str]):
         if isinstance(keys, str): keys = [str]
         for key in keys:
-            assert not (key in ('xval','test_only','dataset_id','dataset_str')), "%s can't be used as a key as it's already used internally." % key
+            assert not (key in ('xval', 'test_only', 'dataset_id',
+                                'dataset_str')), "%s can't be used as a key as it's already used internally." % key
 
     def concat(
             self, data: tvDataset, intersect: bool = False, adjust_base: bool = True
@@ -205,6 +206,7 @@ class Dataset:
         data = copy.deepcopy(data)
         nr_datasets = copy.deepcopy(self._nr_datasets)
         data['dataset_id'] = MapAbstract(data['dataset_id'], lambda x: x + nr_datasets)
+        #data['dataset_id'] += nr_datasets
         # prep base dataset
         if adjust_base:
             self2 = self
@@ -270,15 +272,14 @@ class Dataset:
         }
         pprint(summary)
 
-
     def _set_internal_meta(self, test_only: int = False):
         """Internal function to set some internal meta"""
         # Set other database meta
-        if self._nr_datasets==1:
+        if self._nr_datasets == 1:
             if "test_only" not in self.keys():
-                self.add("test_only", self._param[0]['test_only'] * np.ones(len(self)), lazy=False)
+                self.add("test_only", self._param[0]['test_only'] * np.ones((len(self),1)), lazy=False)
             if "dataset_id" not in self.keys():
-                self.add("dataset_id", np.zeros((len(self),1), np.int), lazy=True)
+                self.add("dataset_id", np.zeros((len(self), 1), np.int), lazy=True)
                 # Note that dataset_id and test_only should remain lazy
                 # To ensure that pop dive works in prepare_feat()
             if "dataset_str" not in self.keys():
@@ -325,7 +326,7 @@ class Dataset:
                     sample_duration[key] = self[key].get_duration()
                     sample_period[key] = self[key].get_time_step()
                     sample_len[key] = self[key].get_split_len()
-                    if reference_key is None: # select A key as a reference. Should all be equal in duration
+                    if reference_key is None:  # select A key as a reference. Should all be equal in duration
                         reference_key = key
                     continue
             sample_len[key], sample_period[key], sample_duration[key] = None, None, None
@@ -343,7 +344,7 @@ class Dataset:
                 "%s is not usable to extract split_size reference from. Make sure it contains a split_len." % key
             assert sample_len[reference_key] is not None, \
                 "%s does not have split_len." % reference_key
-        elif type=='seconds':
+        elif type == 'seconds':
             pass
 
         # adjust sample_len and durations based on minimum covered duration (e.g. framing at edges vs raw audio)
@@ -367,7 +368,7 @@ class Dataset:
         # get relative split_len
         if type == "samples":
             split_ratio = split_value * sample_period[reference_key] / sample_duration[reference_key]
-        elif type=='seconds':
+        elif type == 'seconds':
             split_ratio = split_value / sample_duration[reference_key]
         split_len = dict()
         for key in self.keys():
@@ -396,6 +397,7 @@ class Dataset:
             assert np.all(
                 ref == new_data[key]._splits
             ), "Amount of splits are not equal. Please check why!"
+
         # do other keys (replicating)
         for key in self.keys():
             if sample_len[key] is None:
@@ -616,7 +618,7 @@ class Dataset:
         """Placeholder for the dataset. You can add dataset download ops here."""
         pass
 
-    def get_unique(self, key: str, fold: int = None, set: str = None, return_idx = False) -> List[Any]:
+    def get_unique(self, key: str, fold: int = None, set: str = None, return_idx=False) -> List[Any]:
         """returns the unique values and corresponding ids  to the examples that belong to a unique group for a particular key/item.
 
         If not fold/set is specified, it will return the unique value and ids for all data.
@@ -664,7 +666,7 @@ class Dataset:
         if fold is None:
             data_key = DataAbstract(self[key])[:]
         else:
-            data_key = DataAbstract(self.get_xval_set(set=set,fold=fold)[key])[:]
+            data_key = DataAbstract(self.get_xval_set(set=set, fold=fold)[key])[:]
 
         # get location of ids
         data_unique = np.unique(data_key)
@@ -673,7 +675,7 @@ class Dataset:
         if return_idx:
             data_ids = [None] * len(data_unique)
             for k in range(len(data_unique)):
-                data_ids[k] = np.where([data_tmp==data_unique[k] for data_tmp in data_key])[0]
+                data_ids[k] = np.where([data_tmp == data_unique[k] for data_tmp in data_key])[0]
 
             # get plot ids
             plot_ids = [np.in1d(np.concatenate(data_ids), data_id).nonzero()[0] for data_id in data_ids]
@@ -747,9 +749,10 @@ class Dataset:
                         data_rec.append([SelectAbstract, data.get_indices()])
                     elif isinstance(data, SplitAbstract):
                         data_rec.append([SplitAbstract, data.get_param()])
+                    # ToDo: add sample replicate
                     data = data.pop()
                     assert hasattr(dataset_ids, 'pop'), "dataset_id and " + key + " do not contain the same operations"
-                    dataset_ids.pop()
+                    dataset_ids = dataset_ids.pop()
         assert isinstance(data, FolderContainer), (
                 key + " should be of type FolderContainer"
         )
@@ -772,7 +775,7 @@ class Dataset:
             if verbose:
                 print("Dataset " + self._param[dataset_id]["name"])
                 print("Feat " + fe_name)
-                #fe_dp.summary()
+                # fe_dp.summary()
 
             # feature location base
             featpath_base = os.path.join(
@@ -825,12 +828,12 @@ class Dataset:
                     # init
                     output_info = [None] * len(sel_ind)
                     # init dataloader
-                    dataloader = DataAbstract(data).get(
+                    dataloader = DataAbstract(data,
+                                              workers=workers,
+                                              buffer_len=buffer_len).get(
                         sel_ind,
                         return_generator=True,
-                        return_info=True,
-                        workers=workers,
-                        buffer_len=buffer_len)
+                        return_info=True)
                     # loop over the data
                     for k, data_tmp in enumerate(tqdm(dataloader, disable=(not verbose))):  # for every sample
                         # unpack
@@ -839,6 +842,7 @@ class Dataset:
                         np.save(tmp_featfilelist[k], data_tmp)
                         # keep info
                         output_info[k] = info_tmp
+                        #print(output_info[k])
                     # save info
                     with open(
                             os.path.join(featpath_base, subdb, "file_info.pickle"), "wb"
@@ -888,21 +892,39 @@ class Dataset:
         if isinstance(key, str):
             # retrieve data
             from dabstract.dataset.containers import FeatureFolderContainer
-            feat_data = FeatureFolderContainer(featpath_base,
-                                            filepath=featfilelist,
-                                            map_fct=ProcessingChain().add(NumpyDatareader()),
-                                            info=infofilelist)
+
+            for dataset_id in range(self._nr_datasets):
+                # feature location base
+                featpath_base = os.path.join(
+                    self._param[dataset_id]["paths"]["feat"],
+                    self._param[dataset_id]["name"],
+                    key,
+                    fe_name,
+                )
+
+                #ToDo: should be replaced by a .concat method in FeatureFolderContainer. Currently FeatureFolderContainer does not support an empty init which is not conform with other abstract containers.
+                tmp = FeatureFolderContainer(featpath_base,
+                                             map_fct=ProcessingChain().add(NumpyDatareader()))
+                if dataset_id == 0:
+                    feat_data = tmp
+                else:
+                    feat_data += tmp
+
 
             # apply operations retrieved from popping
             if allow_data_pop:
                 for data_rec_op in reversed(data_rec):
-                    if data_rec_op[0]==SelectAbstract:
+                    if data_rec_op[0] == SelectAbstract:
                         feat_data = data_rec_op[0](feat_data, data_rec_op[1])
-                    elif data_rec_op[0]==SplitAbstract:
-                        #sample_len = [info['output_shape'][0] * info['time_step'] for info in feat_data['info']]
-                        #sample_period = [info['time_step'] for info in feat_data['info']]
-                        #assert np.all([sample_period[0]==_sample_period for _sample_period in sample_period]), "Each example should be of equal time_step"
-                        feat_data = data_rec_op[0](feat_data, **data_rec_op[1])
+                    elif data_rec_op[0] == SplitAbstract:
+                        if feat_data.is_splittable():
+                            # if still splittable
+                            length = np.array([tmp['length'] for tmp in feat_data['info']])
+                            step = np.round(length * data_rec_op[1]['split_len'] / data_rec_op[1]['sample_len'])
+                            feat_data = data_rec_op[0](feat_data, split_len=step, sample_len=length)
+                        else:
+                            # if time_axis is gone, it is replaced by a SampleReplicate
+                            feat_data = SampleReplicate(feat_data, factor=data_rec_op[1]['splits'])
 
             # add to dataset
             self.add(new_key, feat_data)
@@ -1015,7 +1037,8 @@ class Dataset:
             assert len(xval_inds[keys[0]]) == len(
                 xval_inds[key]
             ), "Amount of folds (items in list) should be the same for each test phase (train/val/test)."
-            assert np.max([np.max(set) for set in xval_inds[key]]) <= len(self), "Crossvalidation indices contain values larger than the dataset. Please check."
+            assert np.max([np.max(set) for set in xval_inds[key]]) <= len(
+                self), "Crossvalidation indices contain values larger than the dataset. Please check."
 
         # update indices based on sel_vect_train
         for key in xval_inds:
@@ -1050,6 +1073,11 @@ class Dataset:
             set: str = None,
             fold: int = None,
             keys: str = "all",
+            batch_size: int = 1,
+            drop_last: bool = True,
+            unzip: bool = False,
+            zip: bool = False,
+            shuffle: bool = False,
             lazy: bool = True,
             workers: int = 1,
             buffer_len: int = 3,
@@ -1066,6 +1094,11 @@ class Dataset:
             get a particular fold
         keys : str
             get a subset of the keys, e.g. only input and target
+        batch_size : int
+            size of the batches. If None than no batching is performed.
+        drop_last : bool
+            when batching is performed (batch_size is >1), the last one might not be of size equal to the batch_size.
+            If that is the case and, this last batch is dropped.
         lazy : bool
             apply lazily
         workers : int
@@ -1088,25 +1121,34 @@ class Dataset:
         kwargs = {'lazy': lazy, 'workers': workers, 'buffer_len': buffer_len}
         if keys == "all":
             if set is None:
-
                 def get_xval_set(set=None, keys="all"):
-                    if keys == "all":
-                        data = self._data
-                    else:
-                        data = UnpackAbstract(self._data, keys)
-                    return Select(
-                        data,
+                    data = Select(
+                        self._data,
                         np.where(self['xval'][set]['fold_' + str(fold)])[0],
                         **kwargs
                     )
+                    if keys != "all":
+                        data = UnpackAbstract(data, keys)
+                    if shuffle:
+                        data = ShuffleAbstract(data)
+                    if batch_size > 1:
+                        data = BatchAbstract(data, batch_size=batch_size, drop_last=drop_last, unzip=unzip, zip=zip)
+                    return data
 
                 return get_xval_set
             else:
                 data = self._data
         else:
-            data = UnpackAbstract(self._data, keys)
-        return Select(
-            data,
-            np.where(self['xval'][set]['fold_' + str(fold)])[0],
-            **kwargs
-        )
+            data = self._data
+
+        data = Select(data,
+                      np.where(self['xval'][set]['fold_' + str(fold)])[0],
+                      **kwargs)
+        if keys != "all":
+            data = UnpackAbstract(data, keys)
+        if shuffle:
+            data = ShuffleAbstract(data)
+        if batch_size > 1:
+            data = BatchAbstract(data, batch_size=batch_size, drop_last=drop_last, unzip=unzip, zip=zip)
+
+        return data
