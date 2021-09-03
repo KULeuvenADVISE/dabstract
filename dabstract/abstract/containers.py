@@ -22,40 +22,46 @@ tvSeqAbstract = TypeVar("SeqAbstract")
 
 from dabstract.abstract import base as base
 from dabstract.abstract import operators as ops
-from dabstract.utils import list_intersection, list_difference
+from dabstract.utils import list_intersection, list_difference, safe_len
 
 
 class DictSeqAbstract(base.Abstract):
     """DictSeq base class"""
 
-    def __init__(self, name: str = ""):
+    def __init__(self, allow_dive: bool = False):
         self._nr_keys = 0
-        self._name = name
+        self._name = self.__class__.__name__
+        self._group = None
         self._data = dict()
         self._active_keys = []
         self._lazy = dict()
         self._abstract = dict()
         self._adjust_mode = False
+        self._diveable = allow_dive
+        self.set_data()
+
+    def set_data(self):
+        pass
 
     def add(
-        self,
-        key: str,
-        data: Iterable,
-        lazy: bool = True,
-        info: List[Dict] = None,
-        **kwargs: Dict
+            self,
+            key: str,
+            data: Iterable,
+            lazy: bool = True,
+            info: List[Dict] = None,
+            **kwargs: Dict
     ) -> None:
         assert hasattr(
             data, "__getitem__"
         ), "provided data instance must have __getitem__ method."
         assert (
-            key != "all"
+                key != "all"
         ), "The name 'all' is reserved for referring to all keys when applying a transform."
         assert (
-            "." not in key
+                "." not in key
         ), "A dot (.) is reserved for to support a dotted path. Please select a name that does not contain a dot."
         assert hasattr(data, "__len__"), (
-            "Can only use %s it object has __len__" % self.__class__.__name__
+                "Can only use %s it object has __len__" % self.__class__.__name__
         )
         if not self._adjust_mode:
             if self._nr_keys > 0 and len(self) > 0:
@@ -73,13 +79,26 @@ class DictSeqAbstract(base.Abstract):
             self._nr_keys += 1
         return self
 
+    def set(
+            self,
+            key: str,
+            data: Iterable,
+            lazy: bool = True,
+            info: List[Dict] = None,
+            **kwargs: Dict
+    ) -> None:
+        self.add(key=key, data=data, lazy=lazy, info=info, **kwargs)
+
     def add_dict(self, dct: Dict, lazy: bool = True) -> None:
         for key in dct:
             self.add(key, dct[key], lazy=lazy)
         return self
 
     def concat(
-        self, data: Iterable, intersect: bool = False, adjust_base: bool = True
+            self, data: Iterable,
+            intersect: bool = False,
+            adjust_base: bool = True,
+            allow_dive: bool = False
     ) -> None:
         if isinstance(data, list):
             for d in data:
@@ -92,7 +111,7 @@ class DictSeqAbstract(base.Abstract):
             if self2._nr_keys != 0:
                 if not intersect:
                     assert (
-                        data.keys() == self2.keys()
+                            data.keys() == self2.keys()
                     ), "keys do not match. Set intersect=True for keeping common keys."
                     keys = data.keys()
                 else:
@@ -109,10 +128,10 @@ class DictSeqAbstract(base.Abstract):
                     if self2._lazy[key]:
                         # make sure that data format is as desired by the base dict
                         if not isinstance(
-                            self2[key],
-                            SeqAbstract,
+                                self2[key],
+                                SeqAbstract,
                         ):
-                            self2[key] = SeqAbstract().concat(self2[key])
+                            self2[key] = SeqAbstract(allow_dive=allow_dive).concat(self2[key])
                         self2[key].concat(data[key])
 
                         # # make sure that data format is as desired by the base dict
@@ -121,7 +140,7 @@ class DictSeqAbstract(base.Abstract):
                         #     (SeqAbstract, DictSeqAbstract),
                         # ):
                         #     self2[key] = SeqAbstract().concat(self2[key])
-                        # # concatenate SeqAbstract
+                        # # concatenate Abstract
                         # if isinstance(
                         #     data[key], SeqAbstract
                         # ):  # if already a SeqAbstract, concat cleaner to avoid overhead
@@ -132,12 +151,12 @@ class DictSeqAbstract(base.Abstract):
                     else:
                         try:
                             assert (
-                                self2[key].__class__ == data[key].__class__
+                                    self2[key].__class__ == data[key].__class__
                             ), "When using lazy=False, datatypes should be same in case of concatenation."
                             if isinstance(self2[key], list):
                                 self2[key] = self2[key] + data[key]
                             elif isinstance(self2[key], np.ndarray):
-                                #print(key)
+                                # print(key)
                                 self2[key] = np.concatenate((self2[key], data[key]))
                         except:
                             lol = 0
@@ -162,13 +181,14 @@ class DictSeqAbstract(base.Abstract):
                 data._adjust_mode = True
                 for key in data.keys():
                     if isinstance(data[key], DictSeqAbstract):
-                        data[key] = iterative_select(
-                            data[key], indices, *arg, lazy=data._lazy[key], **kwargs
-                        )
-                    else:
-                        data[key] = ops.Select(
-                            data[key], indices, *arg, lazy=data._lazy[key], **kwargs
-                        )
+                        if data[key].is_diveable:
+                            data[key] = iterative_select(
+                                data[key], indices, *arg, lazy=data._lazy[key], **kwargs
+                            )
+                            continue
+                    data[key] = ops.Select(
+                        data[key], indices, *arg, lazy=data._lazy[key], **kwargs
+                    )
                 data._adjust_mode = False
             else:
                 data = ops.Select(data, indices, *arg, lazy=lazy, **kwargs)
@@ -231,18 +251,26 @@ class DictSeqAbstract(base.Abstract):
         return self.concat(other, adjust_base=False)
 
     def __setitem__(self, k: str, v: Any) -> None:
-        assert isinstance(k, str), "Assignment only possible by key (str)."
+        # ToDo: replace by dive
+        assert isinstance(k, str), "Assignment only possible by (dotted) key (str)."
+        fields, tmp = k.split('.'), self
+        k = fields.pop()
+        for f in fields:
+            tmp = tmp[f]
         new_key = False if k in self.keys() else True
         lazy = True if new_key else self._lazy[k]  # make sure that lazy is kept
-        self.add(k, v, lazy=lazy)
+        if isinstance(tmp, DictSeqAbstract):
+            tmp.set(k, v, lazy=lazy)
+        else:
+            tmp.set(k, v)
 
     def get(
-        self,
-        index: int,
-        key: str = None,
-        return_info: bool = False,
-        *arg: List,
-        **kwargs: Dict
+            self,
+            index: int,
+            key: str = None,
+            return_info: bool = False,
+            *arg: List,
+            **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
         if isinstance(index, str):
             assert key is None
@@ -264,9 +292,12 @@ class DictSeqAbstract(base.Abstract):
                     data, info = data[key], info[key]
             else:
                 assert isinstance(key, str)
-                data, info = self._data[key].get(
-                    index=index, return_info=True, **kwargs
-                )
+                if self._abstract[key]:
+                    data, info = self._data[key].get(
+                        index=index, return_info=True, **kwargs
+                    )
+                else:
+                    data, info = self._data[key][index], dict()
             return (data, info) if return_info else data
         else:
             raise IndexError("index should be a number or str")
@@ -274,8 +305,23 @@ class DictSeqAbstract(base.Abstract):
     def unpack(self, keys: List[str]) -> ops.UnpackAbstract:
         return ops.UnpackAbstract(self._data, keys)
 
-    def keys(self) -> List[str]:
-        return list(self._data.keys())
+    def keys(self, dive: bool = False) -> List[str]:
+        # ToDo: test iterative dive
+        def iterative_dive(data, prefix=''):
+            keys = []
+            for key in data.keys():
+                keypath = key if prefix == '' else prefix + '.%s' % key
+                if isinstance(data[key], DictSeqAbstract):
+                    if data[key].is_diveable:
+                        keys += iterative_dive(data[key], prefix=keypath)
+                        continue
+                keys.append(keypath)
+            return keys
+
+        if dive:
+            return iterative_dive(self._data)
+        else:
+            return list(self._data.keys())
 
     def summary(self) -> Dict:
         summary = dict()
@@ -284,7 +330,8 @@ class DictSeqAbstract(base.Abstract):
         return summary
 
     def __repr__(self) -> str:
-        return "dict_seq containing: " + str(self.keys())
+        """string print representation of function"""
+        return "%s containing: %s" % (self.__class__.__name__, str(self.keys()))
 
     def pop(self, key) -> Any:
         if self._abstract[key]:
@@ -292,26 +339,49 @@ class DictSeqAbstract(base.Abstract):
         else:
             raise NotImplementedError("Can't pop a data object that is not of type Abstract")
 
+    @property
     def is_splittable(self):
         return False
+
+    @property
+    def is_diveable(self):
+        return self._diveable
+
+    @property
+    def group(self):
+        return self._group
+
+    @group.setter
+    def group(self, group: str):
+        self._group = group
+        for key in self._abstract:
+            if self._abstract[key]:
+                self._data[key].group = group
+
 
 
 class SeqAbstract(base.Abstract):
     """Seq base class"""
 
-    def __init__(self, data: Iterable = None, name: str = "seq"):
+    def __init__(self, data: Iterable = None, allow_dive: bool = False):
         self._nr_sources = 0
         self._data = []
         self._abstract = []
         self._info = []
         self._kwargs = []
-        self._name = name
+        self._name = self.__class__.__name__
+        self._group = None
+        self._diveable = allow_dive
         if data is not None:
             if isinstance(data, list):
                 for _data in data:
                     self.concat(_data)
             else:
                 raise AssertionError("Input data should be a list")
+        self.set_data()
+
+    def set_data(self):
+        pass
 
     def concat(self, data: Iterable, info: List[Dict] = None, **kwargs: Dict) -> None:
         # Add data
@@ -342,20 +412,17 @@ class SeqAbstract(base.Abstract):
         ), "provided data instance must have __getitem__ method."
         if isinstance(data, DictSeqAbstract):
             assert (
-                len(data._active_keys) == 1
+                    len(data._active_keys) == 1
             ), "You can only add a dict_abstract in case there is only one active key."
         assert hasattr(self._data, "__len__"), (
-            "Can only use %s it object has __len__" % self.__class__.__name__
+                "Can only use %s it object has __len__" % self.__class__.__name__
         )
         self._data.append(data)
         self._nr_sources += 1
         self._abstract.append(isinstance(data, base.Abstract))
         return self
 
-    def __len__(self) -> int:
-        return np.sum([len(data) for data in self._data])
-
-    def __setitem__(self, index: int, value: Iterable):
+    def set(self, index: int, value: Iterable, **kwargs):
         if isinstance(index, numbers.Integral):
             if index < 0:
                 index = index % len(self)
@@ -363,28 +430,42 @@ class SeqAbstract(base.Abstract):
                 if len(data) <= index:
                     index -= len(data)
                 else:
+                    assert safe_len(data[index]) == safe_len(value), \
+                        "When you change an entry in a SeqAbstract container the length should be equal."
                     data[index] = value
                 return None
             raise IndexError("Index should be lower than len(dataset)")
         elif isinstance(index, str):
-            return ops.KeyAbstract(self, index)
+            if index[0] == '[' and index[-1] == ']':
+                assert safe_len(self._data[int(index[1:-1])]) == safe_len(value), \
+                    "When you change an entry in a SeqAbstract container the length should be equal."
+                self._data[int(index[1:-1])] = value
+            else:
+                return ops.KeyAbstract(self, index)
         else:
             raise IndexError(
                 "index should be a number (or key in case of a nested dict_seq)."
             )
+
+    def __len__(self) -> int:
+        return np.sum([len(data) for data in self._data])
+
+    def __setitem__(self, index: int, value: Iterable):
+        self.set(index, value)
 
     def __add__(self, other: Union[tvSeqAbstract, Iterable]):
         # assert isinstance(other)
         return self.concat(other)
 
     def get(
-        self,
-        index: int,
-        key: str = None,
-        return_info: bool = False,
-        *arg: List,
-        **kwargs: Dict
+            self,
+            index: int,
+            key: str = None,
+            return_info: bool = False,
+            *arg: List,
+            **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
+        # ToDo: check what this key thing is still doing here
         if isinstance(index, numbers.Integral):
             if index < 0:
                 index = index % len(self)
@@ -409,7 +490,10 @@ class SeqAbstract(base.Abstract):
                     return (data, info) if return_info else data
             raise IndexError("Index should be lower than len(dataset)")
         elif isinstance(index, str):
-            return ops.KeyAbstract(self, index)
+            if index[0] == '[' and index[-1] == ']':
+                return self._data[int(index[1:-1])]
+            else:
+                return ops.KeyAbstract(self, index)
         else:
             raise IndexError(
                 "index should be a number (or key in case of a nested dict_seq)."
@@ -424,7 +508,7 @@ class SeqAbstract(base.Abstract):
         return {"nr_examples": self.nr_examples, "name": self._name}
 
     def __repr__(self):
-        r = "seq containing:"
+        r = "%s containing:" % str(self.name)
         for data in self._data:
             if not isinstance(data, (base.Abstract)):
                 r += "\n[ \t" + str(type(data)) + "\t]"
@@ -435,3 +519,20 @@ class SeqAbstract(base.Abstract):
 
     def pop(self) -> Any:
         raise NotImplementedError
+
+    def keys(self, dive: bool = False):
+        if self.is_diveable and dive:
+            return ["[%d]" % k for k in range(len(self._data))]
+        else:
+            return []
+
+    @property
+    def group(self):
+        return self._group
+
+    @group.setter
+    def group(self, group: str):
+        self._group = group
+        for abstract, data in zip(self._abstract,self._data):
+            if abstract:
+                data.group = group

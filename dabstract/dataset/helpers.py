@@ -84,6 +84,12 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
         else:
             ddataset.concat(tmp_ddataset, intersect=True)
     # add other functionality
+    if "select" in config:
+        if isinstance(config["select"], list):
+            for _select in config["select"]:
+                ddataset.add_select(**_select)
+        elif isinstance(config["select"], dict):
+            ddataset.add_select(**config["select"])
     if "split" in config:
         if isinstance(config["split"], (int, float)):
             ddataset.add_split(config["split"])
@@ -91,12 +97,6 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
             ddataset.add_split(**config["split"])
         else:
             raise NotImplementedError
-    if "select" in config:
-        if isinstance(config["select"], list):
-            for _select in config["select"]:
-                ddataset.add_select(**_select)
-        elif isinstance(config["select"], dict):
-            ddataset.add_select(**config["select"])
     if "xval" in config:
         ddataset.set_xval(**config["xval"], overwrite=overwrite_xval)
     return ddataset
@@ -175,6 +175,12 @@ def dataset_factory(
             raise ValueError("Class is not a Dataset.")
 
     # add other functionality
+    if select is not None:
+        if isinstance(select, list):
+            for _select in select:
+                db.add_select(**_select)
+        elif isinstance(select, dict):
+            db.add_select(**select)
     if split is not None:
         if isinstance(split, (int, float)):
             db.add_split(split)
@@ -182,12 +188,6 @@ def dataset_factory(
             db.add_split(**split)
         else:
             raise NotImplementedError
-    if select is not None:
-        if isinstance(select, list):
-            for _select in select:
-                db.add_select(**_select)
-        elif isinstance(select, dict):
-            db.add_select(**select)
     if xval is not None:
         db.set_xval(**xval)
 

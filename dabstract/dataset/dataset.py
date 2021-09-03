@@ -111,14 +111,15 @@ class Dataset:
 
     def __init__(self, paths: list = None, test_only: Optional[bool] = False, **kwargs):
         # Init dataset
-        self._data = DictSeqAbstract()
-        # internals
-        self._nr_datasets = 1
-        self._set_summary(paths=paths, test_only=test_only)
+        self._data = DictSeqAbstract(allow_dive=True)
+        self._data.name = self.__class__.__name__
         # prepare paths
         self.prepare(paths, **kwargs)
         # add data
         self.set_data(paths, **kwargs)
+        # update internals
+        self._add_internal(test_only=test_only)
+        self._init_meta(paths=paths, test_only=test_only)
 
     def __getitem__(self, index: numbers.Integral or str) -> Any:
         """Allow indexing in the form of dataset[id]"""
@@ -155,7 +156,6 @@ class Dataset:
         """
         self._assert_key_name(key)
         self._data.add(key, data, info=info, lazy=lazy, **kwargs)
-        self._set_internal_meta()
 
     def add_dict(
             self, data: dict or DictSeqAbstract, lazy: bool = True, **kwargs
@@ -201,25 +201,26 @@ class Dataset:
         """
         assert isinstance(
             data, Dataset
-        ), "You can only concatenate with a dict_dataset instance"
-        # prep to-add dataset
-        data = copy.deepcopy(data)
-        nr_datasets = copy.deepcopy(self._nr_datasets)
-        data['dataset_id'] = MapAbstract(data['dataset_id'], lambda x: x + nr_datasets)
-        #data['dataset_id'] += nr_datasets
-        # prep base dataset
+        ), "You can only concatenate with a dabstract.Dataset instance"
+        # prep the to-add dataset
+        data['dataset_id'] += self.nr_datasets
+        # safe-copy depending on adjust_base
         if adjust_base:
             self2 = self
         else:
             self2 = copy.deepcopy(self)
-        # adjust meta
-        for par in data._param:
-            self2._param.append(par)
-        self2._nr_datasets += data._nr_datasets
-        # concat
-        self2._data = self2._data.concat(
-            data._data, intersect=intersect, adjust_base=adjust_base
+        # concat the new dataset
+        self2._data.concat(
+            data._data,
+            intersect=intersect,
+            adjust_base=True,
+            allow_dive=True
         )
+        # update meta information of the dataset
+        assert all([key not in self2._meta.keys() for key in data._meta.keys()])
+        self2._meta.update(data._meta)
+        self2._meta[data.__hash__()].update({'dataset_id': self2.nr_datasets})
+
         return self2
 
     def remove(self, key: str) -> None:
@@ -245,45 +246,40 @@ class Dataset:
             map_fct=map_fct,
         )
 
-    def _set_summary(
+    def _init_meta(
             self, paths: dict = dict(), test_only: bool = False, **kwargs
     ) -> None:
-        """Internal function to set the summary"""
-        self._param = [
-            {
-                "name": self.__class__.__name__,
-                "test_only": test_only,
-                "paths": paths,
-                **kwargs,
-            }
-        ]
-        # ToDo(gert): add additional general summary stats
+        # get class's hash (before any other additional steps)
+        self_hash = self.__hash__()
+
+        # set meta
+        self._meta = {self_hash: {}}
+        self._meta[self_hash]['name'] = self.name
+        self._meta[self_hash]['dataset_id'] = 1
+        self._meta[self_hash]['test_only'] = test_only
+        self._meta[self_hash]['paths'] = paths
+        self._meta[self_hash]['length'] = len(self)
+        self._meta[self_hash]['keys'] = self.keys(dive=True)
+
+        # set groups
+        for key in self._data.keys():
+            if self._data._abstract[key]:
+                self._data[key].group = self_hash
 
     def summary(self) -> None:
-        """Print a dataset summary"""
-        summary = {
-            "keys": self._data.keys(),
-            "database": [par["name"] for par in self._param],
-            "test_only": [par["test_only"] for par in self._param],
-            "len": [
-                np.sum([dataset_id == id for dataset_id in self._data["dataset_id"]])
-                for id in range(self._nr_datasets)
-            ],
-        }
-        pprint(summary)
+        print('Dataset summary')
+        for key in self._meta:
+            print('-- Dataset %s:' % key)
+            pprint(self._meta[key])
 
-    def _set_internal_meta(self, test_only: int = False):
-        """Internal function to set some internal meta"""
-        # Set other database meta
-        if self._nr_datasets == 1:
-            if "test_only" not in self.keys():
-                self.add("test_only", self._param[0]['test_only'] * np.ones((len(self),1)), lazy=False)
-            if "dataset_id" not in self.keys():
-                self.add("dataset_id", np.zeros((len(self), 1), np.int), lazy=True)
-                # Note that dataset_id and test_only should remain lazy
-                # To ensure that pop dive works in prepare_feat()
-            if "dataset_str" not in self.keys():
-                self.add("dataset_str", [self.__class__.__name__] * len(self), lazy=True)
+    def _add_internal(self, test_only: List[int]) -> None:
+        # internal data
+        assert 'test_only' not in self.keys(), "test_only is a protected key."
+        self.add("test_only", test_only * np.ones((len(self), 1)), lazy=False)
+        assert 'dataset_id' not in self.keys(), "dataset_id is a protected key."
+        self.add("dataset_id", np.zeros((len(self), 1), np.int), lazy=False)
+        assert 'dataset_str' not in self.keys(), "dataset_str is a protected key."
+        self.add("dataset_str", [self.name] * len(self), lazy=False)
 
     def add_split(
             self,
@@ -318,18 +314,21 @@ class Dataset:
         from dabstract.dataset.containers import Container
 
         # get sample information
-        sample_len, sample_period, sample_duration = dict(), dict(), dict()
-        for key in self.keys():
+        sample_len, sample_period, sample_duration, is_splittable = dict(), dict(), dict(), False
+        for key in self.keys(dive=True):
             # check if info available
             if isinstance(self[key], Container):
-                if self[key].is_splittable():
+                if self[key].is_splittable:
                     sample_duration[key] = self[key].get_duration()
                     sample_period[key] = self[key].get_time_step()
                     sample_len[key] = self[key].get_split_len()
                     if reference_key is None:  # select A key as a reference. Should all be equal in duration
                         reference_key = key
+                    is_splittable = True
                     continue
             sample_len[key], sample_period[key], sample_duration[key] = None, None, None
+        assert is_splittable, "None of the entries appear to be splittable. Are you certain they contain time information? " \
+                              "Numpy's are not directly splittable and need to contained in a FeatureContainer if desired."
 
         # sanity checks
         if type == "samples":
@@ -340,7 +339,7 @@ class Dataset:
                 "reference_key should be a str"
             assert isinstance(self[reference_key], Container), \
                 "reference set should be of type Container"
-            assert self[reference_key].is_splittable(), \
+            assert self[reference_key].is_splittable, \
                 "%s is not usable to extract split_size reference from. Make sure it contains a split_len." % key
             assert sample_len[reference_key] is not None, \
                 "%s does not have split_len." % reference_key
@@ -352,7 +351,7 @@ class Dataset:
             np.array(
                 [
                     sample_duration[key]
-                    for key in self.keys()
+                    for key in self.keys(dive=True)
                     if sample_duration[key] is not None
                 ]
             ),
@@ -371,15 +370,17 @@ class Dataset:
         elif type == 'seconds':
             split_ratio = split_value / sample_duration[reference_key]
         split_len = dict()
-        for key in self.keys():
+        for key in self.keys(dive=True):
             if sample_len[key] is not None:
                 split_len[key] = split_ratio * sample_len[key]
 
         # Apply split for the ones with sample_len information
+        # ToDo: update dict by means of allow_update instead of creating a new dict
+        # raise NotImplementedError
         new_data = DictSeqAbstract()
-        for key in self.keys():
+        for key in self.keys(dive=True):
             if isinstance(self[key], Container):
-                if self[key].is_splittable():
+                if self[key].is_splittable:
                     try:
                         tmp = Split(
                             self[key],
@@ -391,7 +392,7 @@ class Dataset:
                     except:
                         sample_len[key] = None
         # check split lengths
-        for k, key in enumerate(new_data.keys()):
+        for k, key in enumerate(new_data.keys(dive=True)):
             if k == 0:
                 ref = new_data[key]._splits
             assert np.all(
@@ -399,7 +400,7 @@ class Dataset:
             ), "Amount of splits are not equal. Please check why!"
 
         # do other keys (replicating)
-        for key in self.keys():
+        for key in self.keys(dive=True):
             if sample_len[key] is None:
                 new_data.add(
                     key,
@@ -492,9 +493,10 @@ class Dataset:
         """
         self._data.add_alias(key, new_key)
 
-    def keys(self) -> None:
-        """Show the keys in the dataset"""
-        return self._data.keys()
+    def keys(self, dive: bool = False) -> List[str]:
+        """Show the keys in the dataset
+        """
+        return self._data.keys(dive=dive)
 
     def set_active_keys(self, keys: Union[List[str], str]) -> None:
         """Set an active key.
@@ -520,6 +522,7 @@ class Dataset:
         """
         return self._data.unpack(keys)
 
+    @abstractmethod
     def set_data(self, paths: Dict[str, str]) -> None:
         """Placeholder that should be used to set your data in your own database class
         E.g. self.add(..) and so on
@@ -527,15 +530,7 @@ class Dataset:
         pass
 
     def pop(self, key: str = None) -> Any:
-        if key is not None:
-            assert key in self.keys()
-            assert hasattr(self[key], 'pop')
-            self[key].pop()
-        else:
-            for key in self.keys():
-                assert hasattr(self[key], 'pop')
-                self[key].pop()
-        return self
+        return self._data.pop(key = key)
 
     def load_memory(
             self,
@@ -692,7 +687,7 @@ class Dataset:
             fe_dp: ProcessingChain,
             new_key: str = None,
             overwrite: bool = False,
-            allow_data_pop: bool = True,
+            allow_dive: bool = True,
             verbose: bool = True,
             workers: int = 2,
             buffer_len: int = 2,
@@ -731,203 +726,167 @@ class Dataset:
             buffer_len of the pool
         """
         # checks
-        from dabstract.dataset.containers import FolderContainer
+        from dabstract.dataset.containers import Container
 
         # pop diving to search for a FolderContainer
-        # ToDo(gert): think about better option
-        # tbh this is a bit hacky but I think it's the most elegant way to support prepare_feat at any moment
-        # Without pop diving one can only extract features prior to selecting and splitting the dataset. This would
-        # allow a way to this at any moment. There could be cases where this would result in unexpected behaviour tho..
-        # ToDo(gert): add checks such that dataset_id is not adjusted at any time or evaluated
-        data = copy.deepcopy(self[key])
-        dataset_ids = copy.deepcopy(self['dataset_id'])
-        if allow_data_pop:
-            data_rec = []
-            if not isinstance(data, FolderContainer):
-                while isinstance(data, (SelectAbstract, SplitAbstract)):
-                    if isinstance(data, SelectAbstract):
-                        data_rec.append([SelectAbstract, data.get_indices()])
-                    elif isinstance(data, SplitAbstract):
-                        data_rec.append([SplitAbstract, data.get_param()])
-                    # ToDo: add sample replicate
-                    data = data.pop()
-                    assert hasattr(dataset_ids, 'pop'), "dataset_id and " + key + " do not contain the same operations"
-                    dataset_ids = dataset_ids.pop()
-        assert isinstance(data, FolderContainer), (
-                key + " should be of type FolderContainer"
-        )
+        data = self[key]
+        if allow_dive:
+            def dive_and_pop(tmp):
+                data_recs = []
+                containers = []
+                tree = [tmp.name]
+                while isinstance(tmp, Abstract):
+                    if isinstance(tmp, (SelectAbstract, SplitAbstract)):
+                        data_recs.append(('op', tmp.__class__, tmp.get_param()))
+                        tree[0] += "." + tmp.name
+                        tmp = tmp.pop()
+                    elif isinstance(tmp, (DictSeqAbstract, SeqAbstract)):
+                        if tmp.is_diveable:
+                            data_recs.append(('dive', tmp.__class__, []))
+                            tree_tmp = []
+                            for key in tmp.keys(dive=True):
+                                data_rec_tmp, containers_tmp, branch_tmp = dive_and_pop(tmp[key])
+                                data_recs[-1][2].append((key, data_rec_tmp))
+                                containers += containers_tmp
+                                for branch_tmp_tmp in branch_tmp:
+                                    tree_tmp.append(tree[0] + branch_tmp_tmp)
+                            tree = tree_tmp
+                        elif isinstance(tmp, Container):
+                            data_recs.append(('container', tmp.__class__, tmp))
+                            containers.append(tmp)
+                            tree[0] += "." + tmp.name
+                        break
+                    else:
+                        break
+                return data_recs, containers, tree
 
-        # inits
-        data_subdb = [subdb for subdb in data["subdb"]]
-        example = [
-            os.path.splitext(example)[0] + ".npy" for example in data["example"]
-        ]
-        u_subdb = list(np.unique(data_subdb))
-        dataset_ids = DataAbstract(dataset_ids)[:].squeeze()
+            assert isinstance(data, Abstract), "If you want to dive to extract features from a FolderContainer your " \
+                                               " objects it needs to dive through should atleast be of class Abstract."
+            data_recs, containers, trees = dive_and_pop(data)
+            assert len(containers), "The item in key %s should atleast contain one FolderContainer." % key
+        else:
+            assert isinstance(data, Container), "The item in key %s is not a container. " \
+                                                "One can only use prepare_feat if a Container is given."
 
-        # Add MapAbstract to data
-        data = MapAbstract(data, fe_dp)
+        # Extract features for each container
+        fe_containers = [None] * len(containers)
+        for k, (container, tree) in enumerate(zip(containers, trees)):
+            # Add MapAbstract to container
+            fe_container = MapAbstract(container, fe_dp)
 
-        # extract features for every dataset
-        featfilelist, infofilelist = [None] * len(data), [None] * len(data)
-        for dataset_id in range(self._nr_datasets):
+            # init filepath
+            assert container.group in self._meta.keys(), "The group %s of container %s does not match the groups in the" \
+                                                         " meta info: %s" % \
+                                                         (container.group, str(container), str(self._meta.keys()))
+
+            meta = self._meta[container.group]
+            base = os.path.join(meta['paths']['feat'],meta['name'],key,fe_name)
+            filenames = [os.path.join(subdb, os.path.splitext(example)[0] + ".npy") for example, subdb in zip(container["example"], container['subdb'])]
+            filepaths = [os.path.join(base,filename) for filename in filenames]
+            for usubdb in np.unique(container['subdb']):
+                os.makedirs(os.path.join(base,usubdb), exist_ok=True)
+
             # print
             if verbose:
-                print("Dataset " + self._param[dataset_id]["name"])
-                print("Feat " + fe_name)
-                # fe_dp.summary()
+                print("Doing dataset: %s // %s" % (container.group, self._meta[container.group]['name']))
+                print("Diving structure: %s" % tree)
+                print("Feature extraction: %s" % fe_name)
+                print("Saving at location: %s" % base)
 
-            # feature location base
-            featpath_base = os.path.join(
-                self._param[dataset_id]["paths"]["feat"],
-                self._param[dataset_id]["name"],
-                key,
-                fe_name,
-            )
-
-            # loop over subdb for feature extraction
-            for subdb in u_subdb:
-                # create dirs
-                os.makedirs(os.path.join(featpath_base, subdb), exist_ok=True)
-                # get indices to do for this subdb and dataset
-                sel_ind = np.where(
-                    [
-                        i == subdb and j == dataset_id
-                        for i, j in zip(data_subdb, dataset_ids)
-                    ]
-                )[
-                    0
-                ]  # get indices
-                # print
-                if verbose:
-                    print(
-                        "Preparing "
-                        + str(len(sel_ind))
-                        + " examples in "
-                        + self._param[dataset_id]["name"]
-                        + " - "
-                        + subdb
+            # extract loop
+            if (
+                    np.any(
+                        [
+                            not pathlib.Path(tmp).is_file()
+                            for tmp in filepaths
+                        ]
                     )
-
-                # create list of filenames for feat and audio
-                tmp_featfilelist = [
-                    os.path.join(featpath_base, example[k]) for k in sel_ind
-                ]
-                tmp_example = [example[k] for k in sel_ind]
-
-                # extract if one is missing
-                if (
-                        np.any(
-                            [
-                                not pathlib.Path(tmp_featfile).is_file()
-                                for tmp_featfile in tmp_featfilelist
-                            ]
-                        )
-                        or overwrite
-                ):
-                    # init
-                    output_info = [None] * len(sel_ind)
-                    # init dataloader
-                    dataloader = DataAbstract(data,
-                                              workers=workers,
-                                              buffer_len=buffer_len).get(
-                        sel_ind,
-                        return_generator=True,
-                        return_info=True)
-                    # loop over the data
-                    for k, data_tmp in enumerate(tqdm(dataloader, disable=(not verbose))):  # for every sample
-                        # unpack
-                        data_tmp, info_tmp = data_tmp
-                        # save data
-                        np.save(tmp_featfilelist[k], data_tmp)
-                        # keep info
-                        output_info[k] = info_tmp
-                        #print(output_info[k])
-                    # save info
-                    with open(
-                            os.path.join(featpath_base, subdb, "file_info.pickle"), "wb"
-                    ) as fp:
-                        pickle.dump((output_info, tmp_example), fp)
-                    # if (
-                    #         not pathlib.Path(
-                    #             featpath_base, subdb, "file_info.pickle"
-                    #         ).is_file()
-                    # ) or overwrite:
-                    #     with open(
-                    #             os.path.join(featpath_base, subdb, "file_info.pickle"), "wb"
-                    #     ) as fp:
-                    #         pickle.dump((output_info, tmp_example), fp)
-
-                # load information
+                    or overwrite
+            ):
+                # init dataloader
+                dataloader = DataAbstract(fe_container,
+                                          workers=workers,
+                                          buffer_len=buffer_len).get(index=None, return_generator=True,return_info=True)
+                # loop over the data
+                output_infos = [None] * len(container)
+                for k, data_tmp in enumerate(tqdm(dataloader, disable=(not verbose))):  # for every sample
+                    # unpack
+                    data_tmp, info_tmp = data_tmp
+                    # save data
+                    np.save(filepaths[k], data_tmp)
+                    # keep info
+                    output_infos[k] = info_tmp
+                # save info
                 with open(
-                        os.path.join(featpath_base, subdb, "file_info.pickle"), "rb"
+                        os.path.join(base, "file_info.pickle"), "wb"
                 ) as fp:
-                    info_in, example_in = pickle.load(fp)
-                # intersect information with desired samples
-                tmp_infofilelist = [
-                    info_in[k]
-                    for k in range(len(tmp_example))
-                    if tmp_example[k] in example_in
-                ]
-                # reorder as a sanity check
-                for k, j in enumerate(sel_ind):
-                    infofilelist[j] = tmp_infofilelist[k]
-                    featfilelist[j] = tmp_featfilelist[k]
+                    pickle.dump((output_infos, filenames), fp)
+
+            # load in container
+            fe_containers[k] = container.get_feature_container()(base, map_fct=ProcessingChain().add(NumpyDatareader()))
 
         # save chain config
-        feconfdir = pathlib.Path(featpath_base, "config.pickle")
-        if (not feconfdir.is_file()) or overwrite:
-            with open(feconfdir, "wb") as fp:
-                pickle.dump(fe_dp._info, fp)
+        feconfdir = os.path.join(base, "config.pickle")
+        if (not os.path.isfile(feconfdir)) or overwrite:
+            fe_dp.save(feconfdir)
         else:
-            with open(feconfdir, "rb") as fp:
-                feconf = pickle.load(fp)
-            # assert fe_dp.summary(verbose=False)==feconf, "Feature configuration in " + str(feconfdir) + " does not match the provided processing chain. Please check."
-            # ToDo(gert): check why this check does not work after serialization. Should be identical...
+            fe_dp2 = ProcessingChain().load(feconfdir)
+            #ToDo add a sanity check that these are equal
 
-        # add features to the dataset
+        # add features to dataset
         if new_key is None:
             new_key = key
             self.remove(key)
+
         if isinstance(key, str):
-            # retrieve data
-            from dabstract.dataset.containers import FeatureFolderContainer
+            # reconstruct function
+            def reconstruct(data_recs2, containers2, fe_containers2):
+                data = None
+                for data_rec in reversed(data_recs2):
+                    if data_rec[0] == 'dive':
+                        data = data_rec[1]()
+                        for branch in data_rec[2]:
+                            data_tmp, containers2, fe_containers2 = reconstruct(branch[1], containers2, fe_containers2)
+                            if isinstance(data, SeqAbstract):
+                                data.concat(data_tmp)
+                            elif isinstance(data, DictSeqAbstract):
+                                data.add(branch[0], data_tmp)
+                    elif data_rec[0] == 'op':
+                        assert data is not None
+                        if SelectAbstract in data_rec[1].__bases__:
+                            data = data_rec[1](data, data_rec[2])
+                        elif SplitAbstract in data_rec[1].__bases__:
+                            #ToDo: is this the most elegant way?
+                            if data.is_splittable:
+                                # if still splittable
+                                length = np.array([tmp['length'] for tmp in data['info']])
+                                step = np.round(length * data_rec[2]['split_len'] / data_rec[2]['sample_len'])
+                                data = data_rec[1](data, split_len=step, sample_len=length)
+                            else:
+                                # if time_axis is gone, it is replaced by a SampleReplicate
+                                data = SampleReplicate(data, factor=data_rec[2]['splits'])
+                    elif data_rec[0] == 'container':
+                        assert data_rec[2] == containers2[0], "Sanity check went wrong. Oops... . What did you do?"
+                        _, data = containers2.pop(0), fe_containers2.pop(0)
+                    else:
+                        raise NotImplementedError
+                return data, containers2, fe_containers2
 
-            for dataset_id in range(self._nr_datasets):
-                # feature location base
-                featpath_base = os.path.join(
-                    self._param[dataset_id]["paths"]["feat"],
-                    self._param[dataset_id]["name"],
-                    key,
-                    fe_name,
-                )
-
-                #ToDo: should be replaced by a .concat method in FeatureFolderContainer. Currently FeatureFolderContainer does not support an empty init which is not conform with other abstract containers.
-                tmp = FeatureFolderContainer(featpath_base,
-                                             map_fct=ProcessingChain().add(NumpyDatareader()))
-                if dataset_id == 0:
-                    feat_data = tmp
-                else:
-                    feat_data += tmp
-
-
-            # apply operations retrieved from popping
-            if allow_data_pop:
-                for data_rec_op in reversed(data_rec):
-                    if data_rec_op[0] == SelectAbstract:
-                        feat_data = data_rec_op[0](feat_data, data_rec_op[1])
-                    elif data_rec_op[0] == SplitAbstract:
-                        if feat_data.is_splittable():
-                            # if still splittable
-                            length = np.array([tmp['length'] for tmp in feat_data['info']])
-                            step = np.round(length * data_rec_op[1]['split_len'] / data_rec_op[1]['sample_len'])
-                            feat_data = data_rec_op[0](feat_data, split_len=step, sample_len=length)
-                        else:
-                            # if time_axis is gone, it is replaced by a SampleReplicate
-                            feat_data = SampleReplicate(feat_data, factor=data_rec_op[1]['splits'])
+                # for data_rec_op in reversed(data_rec):
+                #     if data_rec_op[0] == SelectAbstract:
+                #         feat_data = data_rec_op[0](feat_data, data_rec_op[1])
+                #     elif data_rec_op[0] == SplitAbstract:
+                #         if feat_data.is_splittable:
+                #             # if still splittable
+                #             length = np.array([tmp['length'] for tmp in feat_data['info']])
+                #             step = np.round(length * data_rec_op[1]['split_len'] / data_rec_op[1]['sample_len'])
+                #             feat_data = data_rec_op[0](feat_data, split_len=step, sample_len=length)
+                #         else:
+                #             # if time_axis is gone, it is replaced by a SampleReplicate
+                #             feat_data = SampleReplicate(feat_data, factor=data_rec_op[1]['splits'])
 
             # add to dataset
-            self.add(new_key, feat_data)
+            self.add(new_key, reconstruct(data_recs, containers, fe_containers)[0])
         else:
             raise Exception(
                 "new_key should be a str or None. In case of str a new key is added to the dataset, in case of None the original item is replaced."
@@ -1152,3 +1111,15 @@ class Dataset:
             data = BatchAbstract(data, batch_size=batch_size, drop_last=drop_last, unzip=unzip, zip=zip)
 
         return data
+
+    @property
+    def nr_datasets(self):
+        return len(self._meta.keys())
+
+    @property
+    def name(self):
+        return self._data._name
+
+    @name.setter
+    def name(self, name: str):
+        raise NotImplementedError("Name of a dataset is equal to the name of the class. Please select an unique name.")

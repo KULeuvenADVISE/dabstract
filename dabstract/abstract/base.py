@@ -1,17 +1,21 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+
 class Abstract(ABC):
-    def __init__(self, data: Any):
+    def __init__(self, data: Any, diveable: bool = False):
         self._data = data
         self._abstract = True if isinstance(data, Abstract) else False
+        self._diveable = diveable
+        self._name = self.__class__.__name__
+        self._group = None
         if self._abstract:
             assert self._data.len_defined, (
-                "Can only use %s it data has __len__" % self.__class__.__name__
+                    "Can only use %s it data has __len__" % self.__class__.__name__
             )
         else:
             assert hasattr(self._data, "__len__"), (
-                "Can only use %s it data has __len__" % self.__class__.__name__
+                    "Can only use %s it data has __len__" % self.__class__.__name__
             )
 
     def __iter__(self) -> Any:
@@ -54,13 +58,35 @@ class Abstract(ABC):
     def pop(self) -> Any:
         return self._data
 
-    @property
     def len_defined(self):
         return True
 
     @property
-    def is_splittable(self):
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name: str):
+        self._name = name
+
+    @property
+    def group(self):
+        return self._group
+
+    @group.setter
+    def group(self, group: str):
+        self._group = group
         if self._abstract:
-            return self._data.is_splittable()
-        else:
-            False
+            self._data.group = group
+
+    @property
+    def is_diveable(self):
+        return self._diveable
+
+    @is_diveable.setter
+    def is_diveable(self, value: bool):
+        self._diveable = value
+
+    @staticmethod
+    def get_augmented_wrapper(base_class):
+        return None

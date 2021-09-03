@@ -33,6 +33,7 @@ tvSeqAbstract = TypeVar("SeqAbstract")
 from dabstract.abstract import base as base
 from dabstract.dataprocessor import ProcessingChain
 
+
 class ShuffleAbstract(base.Abstract):
     """
     The class is an abstract wrapper that shuffles an iterable
@@ -50,15 +51,16 @@ class ShuffleAbstract(base.Abstract):
 
     def __init__(self, data: Iterable, reshuffle: bool = True):
         super().__init__(data)
-        self._data = data
         self._idx = np.arange(len(self))
+        self._reshuffle = reshuffle
         self.shuffle()
 
     def shuffle(self):
         np.random.shuffle(self._idx)
 
     def _call_on_iter(self):
-        self.shuffle()
+        if self._reshuffle:
+            self.shuffle()
         super()._call_on_iter()
 
     def get(self, index: int, *args, return_info: bool = False, **kwargs) -> List[Any]:
@@ -87,6 +89,7 @@ class ShuffleAbstract(base.Abstract):
 
     def __repr__(self) -> str:
         return "%s\n Shuffle" % self._data.__repr__()
+
 
 class BatchAbstract(base.Abstract):
     """
@@ -135,7 +138,7 @@ class BatchAbstract(base.Abstract):
         # assert return_info is False, "BatchAbstract breaks the information flow. It is meant as a final step to batch data as input to a learner."
         if isinstance(index, numbers.Integral):
             input_index = index * self.batch_size
-            tmp = self._data_abstract[input_index:min(input_index + self.batch_size,len(self._data))]
+            tmp = self._data_abstract[input_index:min(input_index + self.batch_size, len(self._data))]
             return (tmp, {}) if return_info else tmp
         else:
             raise NotImplementedError("You should provide a numbers.Integral when indexing a BatchAbstract.")
@@ -419,8 +422,8 @@ class DataAbstract(base.Abstract):
             self,
             index: Iterable = None,
             return_info: bool = False,
-            #workers: int = 0,
-            #buffer_len: int = 3,
+            # workers: int = 0,
+            # buffer_len: int = 3,
             return_generator: bool = False,
             verbose: bool = False,
             *args: list,
@@ -502,10 +505,10 @@ class DataAbstract(base.Abstract):
                                 for j in range(len(tmp_data)):
                                     data_out[j] = self._check_data_type(_data, tmp_data[j])
                             else:
-                                data_out = self._check_data_type(_data,tmp_data)
+                                data_out = self._check_data_type(_data, tmp_data)
 
                         # failsafe in not all outputs are numpy's, revert back to list
-                        #ToDo: put within the method, as this temporarily doubles mem usage
+                        # ToDo: put within the method, as this temporarily doubles mem usage
                         elif self._output_datatype == "auto":
                             if self._unzip:
                                 for j in range(len(tmp_data)):
@@ -563,21 +566,21 @@ class DataAbstract(base.Abstract):
         if isinstance(
                 tmp_data, (np.ndarray)
         ) and self._output_datatype in ("numpy", "auto"):
-            #assert not self._unzip and not self._zip, "No (un)zip available for numpy datatype."
+            # assert not self._unzip and not self._zip, "No (un)zip available for numpy datatype."
             data_out = np.zeros((len(_data),) + tmp_data.shape, tmp_data.dtype)
         elif isinstance(tmp_data, np.datetime64) and \
                 self._output_datatype in ("numpy", "auto"):
-            #assert not self._unzip and not self._zip, "No (un)zip available for numpy datatype."
+            # assert not self._unzip and not self._zip, "No (un)zip available for numpy datatype."
             data_out = np.zeros((len(_data), 1), dtype=tmp_data.dtype)
         elif isinstance(tmp_data, (np.int, np.int64, int)) and \
                 self._output_datatype in ("numpy", "auto"):
-            #assert not self._unzip and not self._zip, "No (un)zip available for numpy datatype."
+            # assert not self._unzip and not self._zip, "No (un)zip available for numpy datatype."
             data_out = np.zeros((len(_data), 1), dtype=tmp_data.dtype)
         elif self._output_datatype in ("list", "auto"):
             data_out = [None] * len(_data)
         else:
             raise NotImplementedError("datatype of %s and target datatype %s not supported by DataAbstract" % \
-                                      (str(tmp_data.__class__),str(self._output_datatype)))
+                                      (str(tmp_data.__class__), str(self._output_datatype)))
         return data_out
 
     def __len__(self) -> int:
@@ -997,7 +1000,7 @@ def SampleReplicate(
         # ToDo: replace by a list and np equivalent
         if isinstance(data, np.ndarray):
             # faster implementation suited for np.ndarrays
-            return np.repeat(data, factor)
+            return np.repeat(data, factor, axis = 0)
         elif isinstance(data, list):
             # faster implementation suited for lists
             return list(
@@ -1131,21 +1134,23 @@ class SplitAbstract(base.Abstract):
                     read_range = self._split_range[k][int(index)]
                     # get data
                     if self._abstract:
-                        splittable = self._data.is_splittable()
                         data, info = self._data.get(
                             k,
                             *args,
                             return_info=True,
                             **kwargs,
-                            **({'read_range': read_range} if splittable else {})
+                            **({'read_range': read_range} if self._data.is_splittable else {})
                         )
-                        if not splittable:
+                        if not self._data.is_splittable:
                             try:
                                 data = data[int(read_range[0]): int(read_range[1]) + 1]
                             except:
                                 raise ValueError("data is not splittable.")
                     else:
-                        data, info = self._data[k][int(read_range[0]): int(read_range[1]) + 1], {}
+                        try:
+                            data, info = self._data[k][int(read_range[0]): int(read_range[1]) + 1], {}
+                        except:
+                            raise ValueError("data is not splittable.")
                     return (data, info) if return_info else data
         elif isinstance(index, str):
             return KeyAbstract(self, index)
@@ -1209,6 +1214,14 @@ def Split(
     SplitAbstract OR DataAbstract OR np.ndarray OR list
     """
     if lazy:
+        if isinstance(data, base.Abstract):
+            AugmentedSplitAbstract = data.get_augmented_wrapper(base_class=SplitAbstract)
+            if AugmentedSplitAbstract is not None:
+                return AugmentedSplitAbstract(
+                    data,
+                    split_len=split_len,
+                    sample_len=sample_len,
+                )
         return SplitAbstract(
             data,
             split_len=split_len,
@@ -1326,6 +1339,9 @@ class SelectAbstract(base.Abstract):
     def get_indices(self):
         return self._indices
 
+    def get_param(self):
+        return {'selector': self._indices}
+
     def get(
             self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
     ) -> Union[List, np.ndarray, Any]:
@@ -1354,8 +1370,8 @@ class SelectAbstract(base.Abstract):
                 data, info = self._data[index], {}
             return (data, info) if return_info else data
         elif isinstance(index, str):
-            return SelectAbstract(self._data[index], self._indices)
-            # return KeyAbstract(self, index)
+            #return SelectAbstract(self._data[index], self._indices)
+            return KeyAbstract(self, index)
         else:
             raise TypeError("Index should be a str or number")
 
@@ -1406,6 +1422,10 @@ def Select(
     SelectAbstract OR DataAbstract OR np.ndarray OR list
     """
     if lazy:
+        if isinstance(data, base.Abstract):
+            AugmentedSelectAbstract = data.get_augmented_wrapper(base_class=SelectAbstract)
+            if AugmentedSelectAbstract is not None:
+                return AugmentedSelectAbstract(data, selector, *args, eval_data=eval_data, **kwargs)
         return SelectAbstract(data, selector, *args, eval_data=eval_data, **kwargs)
     else:
         # ToDo: replace by a list and np equivalent
