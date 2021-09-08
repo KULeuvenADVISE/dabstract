@@ -570,11 +570,11 @@ class Dataset:
 
             def load_data(data):
                 return SeqAbstract().concat(
-                    DataAbstract(data).get(
+                    DataAbstract(data,
+                                 workers=workers,
+                                 buffer_len=buffer_len).get(
                         slice(0, len(self)),
-                        verbose=verbose,
-                        workers=workers,
-                        buffer_len=buffer_len,
+                        verbose=verbose
                     )
                 )
 
@@ -598,11 +598,11 @@ class Dataset:
 
             self[key] = iterative_load(self[key], key_str=key)
         else:
-            self[key] = DataAbstract(self[key]).get(
+            self[key] = DataAbstract(self[key],
+                                     workers=workers,
+                                     buffer_len=buffer_len).get(
                 slice(0, len(self)),
-                verbose=verbose,
-                workers=workers,
-                buffer_len=buffer_len,
+                verbose=verbose
             )
 
     def __repr__(self) -> str:
@@ -788,7 +788,8 @@ class Dataset:
 
             # print
             if verbose:
-                print("Doing dataset: %s // %s" % (container.group, self._meta[container.group]['name']))
+                print(" ")
+                print("Doing dataset %s/%s of %s examples" % (container.group, self._meta[container.group]['name'], len(container)))
                 print("Diving structure: %s" % tree)
                 print("Feature extraction: %s" % fe_name)
                 print("Saving at location: %s" % base)
@@ -809,13 +810,13 @@ class Dataset:
                                           buffer_len=buffer_len).get(index=None, return_generator=True,return_info=True)
                 # loop over the data
                 output_infos = [None] * len(container)
-                for k, data_tmp in enumerate(tqdm(dataloader, disable=(not verbose))):  # for every sample
+                for j, data_tmp in enumerate(tqdm(dataloader, disable=(not verbose))):  # for every sample
                     # unpack
                     data_tmp, info_tmp = data_tmp
                     # save data
-                    np.save(filepaths[k], data_tmp)
+                    np.save(filepaths[j], data_tmp)
                     # keep info
-                    output_infos[k] = info_tmp
+                    output_infos[j] = info_tmp
                 # save info
                 with open(
                         os.path.join(base, "file_info.pickle"), "wb"
@@ -825,12 +826,17 @@ class Dataset:
             # load in container
             fe_containers[k] = container.get_feature_container()(base, map_fct=ProcessingChain().add(NumpyDatareader()))
 
+            # print
+            if verbose:
+                print("Features loaded.")
+
         # save chain config
         feconfdir = os.path.join(base, "config.pickle")
         if (not os.path.isfile(feconfdir)) or overwrite:
             fe_dp.save(feconfdir)
         else:
-            fe_dp2 = ProcessingChain().load(feconfdir)
+            fe_dp.save(feconfdir)
+            #fe_dp2 = ProcessingChain().load(feconfdir)
             #ToDo add a sanity check that these are equal
 
         # add features to dataset
@@ -854,7 +860,7 @@ class Dataset:
                     elif data_rec[0] == 'op':
                         assert data is not None
                         if SelectAbstract in data_rec[1].__bases__:
-                            data = data_rec[1](data, data_rec[2])
+                            data = data_rec[1](data, **data_rec[2])
                         elif SplitAbstract in data_rec[1].__bases__:
                             #ToDo: is this the most elegant way?
                             if data.is_splittable:
@@ -871,20 +877,6 @@ class Dataset:
                     else:
                         raise NotImplementedError
                 return data, containers2, fe_containers2
-
-                # for data_rec_op in reversed(data_rec):
-                #     if data_rec_op[0] == SelectAbstract:
-                #         feat_data = data_rec_op[0](feat_data, data_rec_op[1])
-                #     elif data_rec_op[0] == SplitAbstract:
-                #         if feat_data.is_splittable:
-                #             # if still splittable
-                #             length = np.array([tmp['length'] for tmp in feat_data['info']])
-                #             step = np.round(length * data_rec_op[1]['split_len'] / data_rec_op[1]['sample_len'])
-                #             feat_data = data_rec_op[0](feat_data, split_len=step, sample_len=length)
-                #         else:
-                #             # if time_axis is gone, it is replaced by a SampleReplicate
-                #             feat_data = SampleReplicate(feat_data, factor=data_rec_op[1]['splits'])
-
             # add to dataset
             self.add(new_key, reconstruct(data_recs, containers, fe_containers)[0])
         else:

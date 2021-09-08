@@ -238,23 +238,6 @@ class TimeFolderContainer(TimeMethWrap, FolderContainer):
 
 class SplitTimeContainer(TimeMethWrap, SplitAbstract, Container):
     pass
-    # #ToDo: Could be a thing to swith to Abstract methods?
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     a = self['info']
-    #     a[0]
-    #     self._data_rep = {}
-    #     for key in self._data.keys():
-    #         if key not in self._data.get_active_keys():
-    #             self._data_rep[key] = SampleReplicate(self._data[key], factor=self._splits, lazy=self._data._lazy[key])
-
-    # def get(
-    #         self, index: int, return_info: bool = False, *args: List, **kwargs: Dict
-    # ) -> Union[List, np.ndarray, Any]:
-    #     if isinstance(index, numbers.Integral):
-    #         return super().get(index, return_info=return_info, *args, **kwargs)
-    #     elif isinstance(index, str):
-    #         return self._data_rep[index]
 
 
 class SelectTimeContainer(TimeMethWrap, SelectAbstract, Container):
@@ -313,23 +296,6 @@ class AudioFeatureFolderContainer(AudioMethWrap, FolderContainer):
                          overwrite_file_info=overwrite_file_info,
                          info=info,
                          **kwargs)
-
-    def get_fs(self, index: int = None):
-        return self._get_info(key='fs', index=index)
-
-    def get_output_shape(self, index: int = None):
-        return self._get_info(key='output_shape', index=index)
-
-    def get_samples(self, index: int = None):
-        tmp = self._get_info(key='output_shape', index=index)
-        return tmp[:, 0] if index is None else tmp[0]
-
-    def get_duration(self, index: int = None):
-        return self.get_samples(index=index) / self.get_fs(index=index)
-
-    def get_time_step(self, index: int = None):
-        return self._get_info(key='time_step', index=index)
-
 
 # ToDo: change structure of inheritance such that is modular such as the FolderContainer and so on
 class MetaContainer(Container):

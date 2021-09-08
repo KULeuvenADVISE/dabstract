@@ -207,10 +207,7 @@ class Normalizer(base.Processor):
             raise NotImplementedError("Only MinMax and standard normalisation supported.")
 
         # unflatten and reorder
-        try:
-            data = data.reshape(self._inverse_reshape)
-        except:
-            lol = 0
+        data = data.reshape(self._inverse_reshape)
         data = np.moveaxis(data, self._base_ids, self._inverse_transform_idx)
 
         return data[0, :]

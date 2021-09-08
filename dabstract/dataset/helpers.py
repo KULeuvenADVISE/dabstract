@@ -85,12 +85,14 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
             ddataset.concat(tmp_ddataset, intersect=True)
     # add other functionality
     if "select" in config:
+        raise NotImplementedError("This is currently under dev. Please add select to each dataset branch.")
         if isinstance(config["select"], list):
             for _select in config["select"]:
                 ddataset.add_select(**_select)
         elif isinstance(config["select"], dict):
             ddataset.add_select(**config["select"])
     if "split" in config:
+        raise NotImplementedError("This is currently under dev. Please add select to each dataset branch.")
         if isinstance(config["split"], (int, float)):
             ddataset.add_split(config["split"])
         elif isinstance(config["split"], dict):
