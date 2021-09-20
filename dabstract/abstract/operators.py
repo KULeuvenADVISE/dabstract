@@ -497,7 +497,7 @@ class DataAbstract(base.Abstract):
                         # init data_out
                         if k == 0:
                             if return_info:
-                                info_out = [dict()] * len(self._data)
+                                info_out = [dict()] * len(_data)
 
                             if self._unzip:
                                 assert not self._zip, "Zip and unzip can't both be active."
