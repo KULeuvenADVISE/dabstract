@@ -375,41 +375,32 @@ class Dataset:
                 split_len[key] = split_ratio * sample_len[key]
 
         # Apply split for the ones with sample_len information
-        # ToDo: update dict by means of allow_update instead of creating a new dict
-        # raise NotImplementedError
-        new_data = DictSeqAbstract()
+        self._data.adjust_mode = True
         for key in self.keys(dive=True):
             if isinstance(self[key], Container):
                 if self[key].is_splittable:
                     try:
-                        tmp = Split(
-                            self[key],
-                            split_len=split_len[key],
-                            sample_len=sample_len[key],
-                            lazy=self._data._lazy[key],
-                        )
-                        new_data[key] = tmp
+                        self[key] = Split(self[key],
+                                          split_len=split_len[key],
+                                          sample_len=sample_len[key],
+                                          lazy=self.is_lazy(dive=True)[key])
                     except:
                         sample_len[key] = None
         # check split lengths
-        for k, key in enumerate(new_data.keys(dive=True)):
-            if k == 0:
-                ref = new_data[key]._splits
-            assert np.all(
-                ref == new_data[key]._splits
-            ), "Amount of splits are not equal. Please check why!"
+        for key in self._data.keys(dive=True):
+            ref = None
+            if sample_len[key] is not None:
+                if ref is None:
+                    ref = self._data[key]._splits
+                assert np.all(
+                    ref == self._data[key]._splits
+                ), "Amount of splits are not equal. Please check why!"
 
         # do other keys (replicating)
         for key in self.keys(dive=True):
             if sample_len[key] is None:
-                new_data.add(
-                    key,
-                    SampleReplicate(self[key], factor=ref, lazy=self._data._lazy[key]),
-                    lazy=self._data._lazy[key],
-                )
-
-        # replace existing dataset
-        self._data = new_data
+                self[key] = SampleReplicate(self[key], factor=ref, lazy=self.is_lazy(dive=True)[key])
+        self._data.adjust_mode = False
 
     def add_select(
             self,
@@ -726,7 +717,7 @@ class Dataset:
             buffer_len of the pool
         """
         # checks
-        from dabstract.dataset.containers import Container
+        from dabstract.dataset.containers import FolderContainer
 
         # pop diving to search for a FolderContainer
         data = self[key]
@@ -751,7 +742,7 @@ class Dataset:
                                 for branch_tmp_tmp in branch_tmp:
                                     tree_tmp.append(tree[0] + branch_tmp_tmp)
                             tree = tree_tmp
-                        elif isinstance(tmp, Container):
+                        elif isinstance(tmp, FolderContainer):
                             data_recs.append(('container', tmp.__class__, tmp))
                             containers.append(tmp)
                             tree[0] += "." + tmp.name
@@ -765,7 +756,7 @@ class Dataset:
             data_recs, containers, trees = dive_and_pop(data)
             assert len(containers), "The item in key %s should atleast contain one FolderContainer." % key
         else:
-            assert isinstance(data, Container), "The item in key %s is not a container. " \
+            assert isinstance(data, FolderContainer), "The item in key %s is not a container. " \
                                                 "One can only use prepare_feat if a Container is given."
 
         # Extract features for each container
@@ -1103,6 +1094,9 @@ class Dataset:
             data = BatchAbstract(data, batch_size=batch_size, drop_last=drop_last, unzip=unzip, zip=zip)
 
         return data
+
+    def is_lazy(self, dive: bool = False):
+        return self._data.is_lazy(dive=dive)
 
     @property
     def nr_datasets(self):

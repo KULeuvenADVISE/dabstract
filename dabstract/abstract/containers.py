@@ -63,7 +63,7 @@ class DictSeqAbstract(base.Abstract):
         assert hasattr(data, "__len__"), (
                 "Can only use %s it object has __len__" % self.__class__.__name__
         )
-        if not self._adjust_mode:
+        if not self.adjust_mode:
             if self._nr_keys > 0 and len(self) > 0:
                 assert len(data) == len(self), "len(self) is not the same as len(data)"
         new_key = False if key in self.keys() else True
@@ -105,7 +105,7 @@ class DictSeqAbstract(base.Abstract):
                 self.concat(d, intersect=intersect)
         else:
             self2 = self if adjust_base else copy.deepcopy(self)
-            self2._adjust_mode = True
+            self2.adjust_mode = True
             data = copy.deepcopy(data)
             assert isinstance(data, DictSeqAbstract)
             if self2._nr_keys != 0:
@@ -160,7 +160,7 @@ class DictSeqAbstract(base.Abstract):
                                 self2[key] = np.concatenate((self2[key], data[key]))
                         except:
                             lol = 0
-                self2._adjust_mode = False
+                self2.adjust_mode = False
             else:
                 self2.__dict__.update(data.__dict__)
 
@@ -178,7 +178,7 @@ class DictSeqAbstract(base.Abstract):
     def add_select(self, selector, *arg, eval_data=None, **kwargs):
         def iterative_select(data, indices, *arg, lazy=True, **kwargs):
             if isinstance(data, DictSeqAbstract):
-                data._adjust_mode = True
+                data.adjust_mode = True
                 for key in data.keys():
                     if isinstance(data[key], DictSeqAbstract):
                         if data[key].is_diveable:
@@ -189,7 +189,7 @@ class DictSeqAbstract(base.Abstract):
                     data[key] = ops.Select(
                         data[key], indices, *arg, lazy=data._lazy[key], **kwargs
                     )
-                data._adjust_mode = False
+                data.adjust_mode = False
             else:
                 data = ops.Select(data, indices, *arg, lazy=lazy, **kwargs)
             return data
@@ -323,6 +323,24 @@ class DictSeqAbstract(base.Abstract):
         else:
             return list(self._data.keys())
 
+    def is_lazy(self, dive: bool = False) -> List[str]:
+        # ToDo: test iterative dive
+        def iterative_dive(data, prefix=''):
+            lazys = {}
+            for key in data.keys():
+                keypath = key if prefix == '' else prefix + '.%s' % key
+                if isinstance(data[key], DictSeqAbstract):
+                    if data[key].is_diveable:
+                        lazys.update(iterative_dive(data[key], prefix=keypath))
+                        continue
+                lazys.update({keypath: data._lazy[key]})
+            return lazys
+
+        if dive:
+            return iterative_dive(self)
+        else:
+            return self._lazy
+
     def summary(self) -> Dict:
         summary = dict()
         for name, data in zip(self.keys(), self._data):
@@ -340,14 +358,6 @@ class DictSeqAbstract(base.Abstract):
             raise NotImplementedError("Can't pop a data object that is not of type Abstract")
 
     @property
-    def is_splittable(self):
-        return False
-
-    @property
-    def is_diveable(self):
-        return self._diveable
-
-    @property
     def group(self):
         return self._group
 
@@ -358,6 +368,13 @@ class DictSeqAbstract(base.Abstract):
             if self._abstract[key]:
                 self._data[key].group = group
 
+    @property
+    def adjust_mode(self):
+        return self._adjust_mode
+
+    @adjust_mode.setter
+    def adjust_mode(self, value: bool):
+        self._adjust_mode = value
 
 
 class SeqAbstract(base.Abstract):
