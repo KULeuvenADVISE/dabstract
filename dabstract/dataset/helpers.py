@@ -103,14 +103,15 @@ def dataset_from_config(config: Dict, overwrite_xval: bool = False) -> tvDataset
         ddataset.set_xval(**config["xval"], overwrite=overwrite_xval)
     return ddataset
 
+
 def dataset_factory(
-    name: (str, tvDataset, type) = None,
-    paths: Dict[str, str] = None,
-    xval: Optional[Dict[str, Union[str, int, Dict]]] = None,
-    split: Optional[Dict[str, Union[str, int, Dict]]] = None,
-    select: Optional[Dict[str, Union[str, int, Dict]]] = None,
-    test_only: Optional[bool] = 0,
-    **kwargs
+        name: (str, tvDataset, type) = None,
+        paths: Dict[str, str] = None,
+        xval: Optional[Dict[str, Union[str, int, Dict]]] = None,
+        split: Optional[Dict[str, Union[str, int, Dict]]] = None,
+        select: Optional[Dict[str, Union[str, int, Dict]]] = None,
+        test_only: Optional[bool] = 0,
+        **kwargs
 ) -> tvDataset:
     """Dataset factory
 
@@ -163,9 +164,9 @@ def dataset_factory(
                 os.environ["dabstract_CUSTOM_DIR"] + ".dataset.dbs"
             )
             assert hasattr(module, name), (
-                "Database class is not supported in both dabstract.dataset.dbs "
-                + os.environ["dabstract_CUSTOM_DIR"]
-                + ".dataset.dbs. Please check"
+                    "Database class is not supported in both dabstract.dataset.dbs "
+                    + os.environ["dabstract_CUSTOM_DIR"]
+                    + ".dataset.dbs. Please check"
             )
         db = getattr(module, name)(paths=paths, test_only=test_only, **kwargs)
     elif isinstance(name, Dataset):
@@ -195,37 +196,14 @@ def dataset_factory(
 
     return db
 
-# class FolderDictSeqAbstract(FolderContainer):
-#     def __init__(
-#         self,
-#         path: str,
-#         extension: str = 'wav',
-#         map_fct: Callable = None,
-#         file_info_save_path: bool = None,
-#         filepath: str = None,
-#         overwrite_file_info: bool = False,
-#         info: List[Dict] = None,
-#         **kwargs
-#     ):
-#         print('helpers.FolderDictSeqAbstract is deprecated and will be removed in the next version, please use wrapper.FolderContainer instead. \
-#                 If using wav files, one can also use WavFolderContainer which provides additional functionality for wav specificly.')
-#         super().__init__(path=path,
-#                          extension=extension,
-#                          map_fct = map_fct,
-#                          file_info_save_path=file_info_save_path,
-#                          filepath=filepath,
-#                          overwrite_file_info=overwrite_file_info,
-#                          info=info,
-#                          **kwargs)
-
 
 def get_dir_info(
-    path: str,
-    type: str = None,
-    extension: str = None,
-    file_info_save_path: bool = None,
-    overwrite_file_info: bool = False,
-    **kwargs
+        path: str,
+        type: str = None,
+        extension: str = None,
+        file_info_save_path: bool = None,
+        overwrite_file_info: bool = False,
+        **kwargs
 ) -> Dict[str, List[Any]]:
     """Get meta information of the files in a directory.
 
@@ -277,7 +255,7 @@ def get_dir_info(
         )
 
     # get dirs
-    #if not isinstance(filepath, list):
+    # if not isinstance(filepath, list):
     filepath = []
     for root, dirs, files in os.walk(path):
         dirs.sort()
@@ -286,64 +264,79 @@ def get_dir_info(
             tmp.sort()
             filepath += tmp
 
-    example = [os.path.relpath(file, path) for file in filepath if extension in file]
-    filename = [os.path.split(file)[1] for file in example]
-    subdb = [os.path.split(file)[0] for file in example]
+    rfilepath = [os.path.relpath(file, path) for file in filepath if extension in file]
+    filename = [os.path.split(file)[1] for file in rfilepath]
+    rfolderstructure = [os.path.split(file)[0] for file in rfilepath]
+    identifier = [os.path.splitext(file)[0] for file in filename]
+    postfix = ['' for file in filename]
 
     if file_info_save_path is not None:
         path = file_info_save_path
 
     # get additional info
     if (
-        not os.path.isfile(os.path.join(path, "file_info.pickle"))
-        or overwrite_file_info
+            not os.path.isfile(os.path.join(path, "file_info.pickle"))
+            or overwrite_file_info
     ):
         info = _get_dir_info(filepath, type)
         if (file_info_save_path is not None) and (info is not None):
             os.makedirs(path, exist_ok=True)
             with open(pathlib.Path(path, "file_info.pickle"), "wb") as fp:
-                pickle.dump((info, example), fp)
+                pickle.dump((info, rfilepath), fp)
     else:
         with open(os.path.join(path, "file_info.pickle"), "rb") as fp:
-            info, example_in = pickle.load(fp)
-        if example != example_in:
-            info = [info[k] for k in range(len(example)) if example[k] in example_in]
-        assert len(info) == len(
-            filepath
-        ), "info file not of same size as directory"
+            info, rfilepath_in = pickle.load(fp)
+        if isinstance(info, list):
+            print("This format of file_info.pickle is deprecated. Converting to the new format...")
+            info = _get_dir_info(filepath, type)
+            if (file_info_save_path is not None) and (info is not None):
+                os.makedirs(path, exist_ok=True)
+                with open(pathlib.Path(path, "file_info.pickle"), "wb") as fp:
+                    pickle.dump((info, rfilepath), fp)
+        if rfilepath != rfilepath_in:
+            raise NotImplementedError("Amount of examples in info file does not match the "
+                                      "amount of examples in the folder.")
     return {
         "filepath": filepath,
-        "example": example,
+        "rfilepath": rfilepath,
         "filename": filename,
-        "subdb": subdb,
-        "info": info,
+        "rfolder": rfolderstructure,
+        "identifier": identifier,
+        "postfix": postfix,
+        **info,
     }
 
+
 def _get_dir_info(filepath: str, type: str) -> List[Dict]:
-    info = [dict() for k in range(len(filepath))]
     if type == "audio":
         print('Acquiring info from audio folder...')
+        info = dict()
+        for key in ['length', 'channels', 'time_axis']:
+            info[key] = np.zeros(len(filepath), dtype='int')
+        for key in ['fs', 'time_step', 'duration']:
+            info[key] = np.zeros(len(filepath))
+        info['output_shape'] = np.zeros((len(filepath),2),dtype=int)
         for k in tqdm(range(len(filepath))):
-            info[k] = dict()
             f = sf.SoundFile(filepath[k])
-            info[k] = { 'output_shape': np.array([len(f), f.channels]),
-                        'length': len(f),
-                        'channels': f.channels,
-                        'time_axis': 0,
-                        'fs': f.samplerate,
-                        'time_step': 1 / f.samplerate,
-                        'duration': len(f)/f.samplerate}
+            info['output_shape'][k] = np.array([len(f), f.channels])
+            info['length'][k] = len(f)
+            info['channels'][k] = f.channels
+            info['time_axis'][k] = 0
+            info['fs'][k] = f.samplerate
+            info['time_step'][k] = 1 / f.samplerate
+            info['duration'][k] = len(f) / f.samplerate
     elif type == "camera":
-        print('Acquiring info from camera folder...')
-        for k in range(len(filepath)):
-            info[k] = dict()
-            vid = cv.VideoCapture(filepath[k])
-            info[k] = {'width': int(vid.get(cv.CAP_PROP_FRAME_WIDTH)),
-                       'height': int(vid.get(cv.CAP_PROP_FRAME_HEIGHT)),
-                       'fs': vid.get(cv.CAP_PROP_FPS),
-                       'length': int(vid.get(cv.CAP_PROP_FRAME_COUNT))}
-            info[k].update({'duration': 1 / info[k]['fs'] * info[k]['length'],
-                            'output_shape': np.array([info[k]['length'],info[k]['width'],info[k]['length']])})
+        raise NotImplementedError
+        # print('Acquiring info from camera folder...')
+        # for k in range(len(filepath)):
+        #     info[k] = dict()
+        #     vid = cv.VideoCapture(filepath[k])
+        #     info[k] = {'width': int(vid.get(cv.CAP_PROP_FRAME_WIDTH)),
+        #                'height': int(vid.get(cv.CAP_PROP_FRAME_HEIGHT)),
+        #                'fs': vid.get(cv.CAP_PROP_FPS),
+        #                'length': int(vid.get(cv.CAP_PROP_FRAME_COUNT))}
+        #     info[k].update({'duration': 1 / info[k]['fs'] * info[k]['length'],
+        #                     'output_shape': np.array([info[k]['length'],info[k]['width'],info[k]['length']])})
     elif type is None:
         pass
     else:

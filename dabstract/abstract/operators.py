@@ -1215,13 +1215,12 @@ def Split(
     """
     if lazy:
         if isinstance(data, base.Abstract):
-            AugmentedSplitAbstract = data.get_augmented_wrapper(base_class=SplitAbstract)
-            if AugmentedSplitAbstract is not None:
-                return AugmentedSplitAbstract(
-                    data,
-                    split_len=split_len,
-                    sample_len=sample_len,
-                )
+            HandledSplitAbstract = data._abstract_handler(
+                base_class=SplitAbstract,
+                split_len=split_len,
+                sample_len=sample_len)
+            if HandledSplitAbstract is not None:
+                return HandledSplitAbstract
         return SplitAbstract(
             data,
             split_len=split_len,
@@ -1423,9 +1422,15 @@ def Select(
     """
     if lazy:
         if isinstance(data, base.Abstract):
-            AugmentedSelectAbstract = data.get_augmented_wrapper(base_class=SelectAbstract)
-            if AugmentedSelectAbstract is not None:
-                return AugmentedSelectAbstract(data, selector, *args, eval_data=eval_data, **kwargs)
+            HandledSelectAbstract = data._abstract_handler(
+                data,
+                selector,
+                *args,
+                base_class=SelectAbstract,
+                eval_data=eval_data,
+                **kwargs)
+            if HandledSelectAbstract is not None:
+                return HandledSelectAbstract
         return SelectAbstract(data, selector, *args, eval_data=eval_data, **kwargs)
     else:
         # ToDo: replace by a list and np equivalent

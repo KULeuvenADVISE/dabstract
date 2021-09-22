@@ -20,24 +20,80 @@ from typing import (
 tvDictSeqAbstract = TypeVar("DictSeqAbstract")
 tvSeqAbstract = TypeVar("SeqAbstract")
 
+import abc
+
 from dabstract.abstract import base as base
 from dabstract.abstract import operators as ops
 from dabstract.utils import list_intersection, list_difference, safe_len
 
 
-class DictSeqAbstract(base.Abstract):
-    """DictSeq base class"""
-
-    def __init__(self, allow_dive: bool = False):
-        self._nr_keys = 0
+class ContainerAbstract(base.Abstract):
+    def __init__(self, allow_dive: bool = False, allow_nested: bool = False):
+        self._allow_dive = allow_dive
+        self._allow_nested = allow_nested
         self._name = self.__class__.__name__
         self._group = None
+
+    @abc.abstractmethod
+    def concat(self):
+        raise NotImplementedError
+
+    @property
+    def allow_dive(self):
+        return self._allow_dive
+
+    @allow_dive.setter
+    def allow_dive(self, value: bool):
+        self._allow_dive = value
+
+    @property
+    def allow_nested(self):
+        return self._allow_nested
+
+    @allow_nested.setter
+    def allow_nested(self, value: bool):
+        self._allow_nested = value
+
+    @property
+    def group(self):
+        return self._group
+
+    @group.setter
+    def group(self, group: str):
+        self._group = group
+        for key in self.keys():
+            if self.is_abstract()[key]:
+                self[key].group = group
+
+    @property
+    def adjust_mode(self):
+        return self._adjust_mode
+
+    @adjust_mode.setter
+    def adjust_mode(self, value: bool):
+        self._adjust_mode = value
+        for key in self.keys():
+            if isinstance(self[key], ContainerAbstract):
+                self[key].adjust_mode = value
+
+    @abc.abstractmethod
+    def is_abstract(self, key):
+        raise NotImplementedError
+
+
+class DictSeqAbstract(ContainerAbstract):
+    """DictSeq base class"""
+
+    def __init__(self, allow_dive: bool = False, allow_nested: bool = False):
+        super().__init__(allow_dive=allow_dive, allow_nested=allow_nested)
+        self._nr_keys = 0
         self._data = dict()
         self._active_keys = []
         self._lazy = dict()
         self._abstract = dict()
         self._adjust_mode = False
-        self._diveable = allow_dive
+        self._allowed_keys = None
+        self._restricted_keys = None
         self.set_data()
 
     def set_data(self):
@@ -64,6 +120,14 @@ class DictSeqAbstract(base.Abstract):
                 "Can only use %s it object has __len__" % self.__class__.__name__
         )
         if not self.adjust_mode:
+            if self._allowed_keys is not None:
+                assert key in self._allowed_keys, (
+                        "Key %s is not in the list of allowed keys: %s" % (key, str(self._allowed_keys))
+                )
+            if self._restricted_keys is not None:
+                assert key not in self._restricted_keys, (
+                        "Key %s is in the list of restricted keys: %s" % (key, str(self._restricted_keys))
+                )
             if self._nr_keys > 0 and len(self) > 0:
                 assert len(data) == len(self), "len(self) is not the same as len(data)"
         new_key = False if key in self.keys() else True
@@ -133,21 +197,6 @@ class DictSeqAbstract(base.Abstract):
                         ):
                             self2[key] = SeqAbstract(allow_dive=allow_dive).concat(self2[key])
                         self2[key].concat(data[key])
-
-                        # # make sure that data format is as desired by the base dict
-                        # if not isinstance(
-                        #     self2[key],
-                        #     (SeqAbstract, DictSeqAbstract),
-                        # ):
-                        #     self2[key] = SeqAbstract().concat(self2[key])
-                        # # concatenate Abstract
-                        # if isinstance(
-                        #     data[key], SeqAbstract
-                        # ):  # if already a SeqAbstract, concat cleaner to avoid overhead
-                        #     for _data in data[key]._data:
-                        #         self2[key].concat(_data)
-                        # else:  # if not just concat at once
-                        #     self2[key].concat(data[key])
                     else:
                         try:
                             assert (
@@ -181,7 +230,7 @@ class DictSeqAbstract(base.Abstract):
                 data.adjust_mode = True
                 for key in data.keys():
                     if isinstance(data[key], DictSeqAbstract):
-                        if data[key].is_diveable:
+                        if data[key].allow_dive:
                             data[key] = iterative_select(
                                 data[key], indices, *arg, lazy=data._lazy[key], **kwargs
                             )
@@ -251,7 +300,9 @@ class DictSeqAbstract(base.Abstract):
         return self.concat(other, adjust_base=False)
 
     def __setitem__(self, k: str, v: Any) -> None:
-        # ToDo: replace by dive
+        # ToDo: add checks on length. In this case these are avoided.
+        # ToDo: functionality of "self['something'] = " and self.set("something", value) differs
+        # ToDo: what is the distinction between a set and an add? should be made more clear
         assert isinstance(k, str), "Assignment only possible by (dotted) key (str)."
         fields, tmp = k.split('.'), self
         k = fields.pop()
@@ -312,7 +363,7 @@ class DictSeqAbstract(base.Abstract):
             for key in data.keys():
                 keypath = key if prefix == '' else prefix + '.%s' % key
                 if isinstance(data[key], DictSeqAbstract):
-                    if data[key].is_diveable:
+                    if data[key].allow_dive:
                         keys += iterative_dive(data[key], prefix=keypath)
                         continue
                 keys.append(keypath)
@@ -324,13 +375,12 @@ class DictSeqAbstract(base.Abstract):
             return list(self._data.keys())
 
     def is_lazy(self, dive: bool = False) -> List[str]:
-        # ToDo: test iterative dive
         def iterative_dive(data, prefix=''):
             lazys = {}
             for key in data.keys():
                 keypath = key if prefix == '' else prefix + '.%s' % key
                 if isinstance(data[key], DictSeqAbstract):
-                    if data[key].is_diveable:
+                    if data[key].allow_dive:
                         lazys.update(iterative_dive(data[key], prefix=keypath))
                         continue
                 lazys.update({keypath: data._lazy[key]})
@@ -357,38 +407,56 @@ class DictSeqAbstract(base.Abstract):
         else:
             raise NotImplementedError("Can't pop a data object that is not of type Abstract")
 
+    def is_abstract(self, dive: bool = False) -> List[str]:
+        def iterative_dive(data, prefix=''):
+            abstracts = {}
+            for key in data.keys():
+                keypath = key if prefix == '' else prefix + '.%s' % key
+                if isinstance(data[key], DictSeqAbstract):
+                    if data[key].allow_dive:
+                        abstracts.update(iterative_dive(data[key], prefix=keypath))
+                        continue
+                abstracts.update({keypath: data._abstract[key]})
+            return abstracts
+
+        if dive:
+            return iterative_dive(self)
+        else:
+            return self._abstract
+
     @property
-    def group(self):
-        return self._group
+    def allowed_keys(self):
+        return self._allowed_keys
 
-    @group.setter
-    def group(self, group: str):
-        self._group = group
-        for key in self._abstract:
-            if self._abstract[key]:
-                self._data[key].group = group
+    @allowed_keys.setter
+    def allowed_keys(self, value: Union[List[str], None]):
+        assert isinstance(value, List) or None, "list of allowed keys should be a List or None"
+        if isinstance(value, Iterable):
+            assert all([isinstance(key, str) for key in value]), "The iterable of allowed keys should contain all strings."
+        self._allowed_keys = value
 
     @property
-    def adjust_mode(self):
-        return self._adjust_mode
+    def restricted_keys(self):
+        return self._allowed_keys
 
-    @adjust_mode.setter
-    def adjust_mode(self, value: bool):
-        self._adjust_mode = value
+    @restricted_keys.setter
+    def restricted_keys(self, value: Union[Iterable[str], None]):
+        assert isinstance(value, Iterable) or None, "The iterable of restricted_keys should be a List or None"
+        if isinstance(value, Iterable):
+            assert all([isinstance(key, str) for key in value]), "The iterable of restricted keys should contain all strings."
+        self._restricted_keys = value
 
 
-class SeqAbstract(base.Abstract):
+class SeqAbstract(ContainerAbstract):
     """Seq base class"""
 
-    def __init__(self, data: Iterable = None, allow_dive: bool = False):
+    def __init__(self, data: Iterable = None, allow_dive: bool = False, allow_nested: bool = False):
+        super().__init__(allow_dive=allow_dive, allow_nested=allow_nested)
         self._nr_sources = 0
         self._data = []
         self._abstract = []
         self._info = []
         self._kwargs = []
-        self._name = self.__class__.__name__
-        self._group = None
-        self._diveable = allow_dive
         if data is not None:
             if isinstance(data, list):
                 for _data in data:
@@ -538,18 +606,7 @@ class SeqAbstract(base.Abstract):
         raise NotImplementedError
 
     def keys(self, dive: bool = False):
-        if self.is_diveable and dive:
+        if self.allow_dive and dive:
             return ["[%d]" % k for k in range(len(self._data))]
         else:
             return []
-
-    @property
-    def group(self):
-        return self._group
-
-    @group.setter
-    def group(self, group: str):
-        self._group = group
-        for abstract, data in zip(self._abstract,self._data):
-            if abstract:
-                data.group = group

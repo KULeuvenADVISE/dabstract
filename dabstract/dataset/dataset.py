@@ -113,6 +113,8 @@ class Dataset:
         # Init dataset
         self._data = DictSeqAbstract(allow_dive=True)
         self._data.name = self.__class__.__name__
+        # set restricted keys
+        self._data.restricted_keys = ('xval', 'test_only', 'dataset_id', 'dataset_str')
         # prepare paths
         self.prepare(paths, **kwargs)
         # add data
@@ -154,7 +156,6 @@ class Dataset:
         lazy : bool
             apply lazily or not
         """
-        self._assert_key_name(key)
         self._data.add(key, data, info=info, lazy=lazy, **kwargs)
 
     def add_dict(
@@ -170,15 +171,8 @@ class Dataset:
         data : dictseq/dict
             dict to add
         """
-        self._assert_key_name(data.keys())
         self._data.add_dict(data, lazy=lazy, **kwargs)
         self._set_internal_meta()
-
-    def _assert_key_name(self, keys: Union[List[str], str]):
-        if isinstance(keys, str): keys = [str]
-        for key in keys:
-            assert not (key in ('xval', 'test_only', 'dataset_id',
-                                'dataset_str')), "%s can't be used as a key as it's already used internally." % key
 
     def concat(
             self, data: tvDataset, intersect: bool = False, adjust_base: bool = True
@@ -274,12 +268,14 @@ class Dataset:
 
     def _add_internal(self, test_only: List[int]) -> None:
         # internal data
+        self.adjust_mode = True
         assert 'test_only' not in self.keys(), "test_only is a protected key."
         self.add("test_only", test_only * np.ones((len(self), 1)), lazy=False)
         assert 'dataset_id' not in self.keys(), "dataset_id is a protected key."
         self.add("dataset_id", np.zeros((len(self), 1), np.int), lazy=False)
         assert 'dataset_str' not in self.keys(), "dataset_str is a protected key."
         self.add("dataset_str", [self.name] * len(self), lazy=False)
+        self.adjust_mode = False
 
     def add_split(
             self,
@@ -327,8 +323,10 @@ class Dataset:
                     is_splittable = True
                     continue
             sample_len[key], sample_period[key], sample_duration[key] = None, None, None
-        assert is_splittable, "None of the entries appear to be splittable. Are you certain they contain time information? " \
-                              "Numpy's are not directly splittable and need to contained in a FeatureContainer if desired."
+        assert is_splittable, "None of the entries appear to be splittable. " \
+                              "Are you certain they contain time information? " \
+                              "Numpy's are not directly splittable and " \
+                              "need to contained in a FeatureContainer if desired."
 
         # sanity checks
         if type == "samples":
@@ -732,7 +730,7 @@ class Dataset:
                         tree[0] += "." + tmp.name
                         tmp = tmp.pop()
                     elif isinstance(tmp, (DictSeqAbstract, SeqAbstract)):
-                        if tmp.is_diveable:
+                        if tmp.allow_dive:
                             data_recs.append(('dive', tmp.__class__, []))
                             tree_tmp = []
                             for key in tmp.keys(dive=True):
@@ -772,10 +770,11 @@ class Dataset:
 
             meta = self._meta[container.group]
             base = os.path.join(meta['paths']['feat'],meta['name'],key,fe_name)
-            filenames = [os.path.join(subdb, os.path.splitext(example)[0] + ".npy") for example, subdb in zip(container["example"], container['subdb'])]
-            filepaths = [os.path.join(base,filename) for filename in filenames]
-            for usubdb in np.unique(container['subdb']):
-                os.makedirs(os.path.join(base,usubdb), exist_ok=True)
+            rfilepaths = [os.path.join(rfolder, (identifier + postfix + ".npy")) for rfolder, identifier, postfix in \
+                         zip(container['info.rfolder'],container['info.identifier'],container["info.postfix"])]
+            filepaths = [os.path.join(base,filename) for filename in rfilepaths]
+            for ufolder in np.unique(container['info.rfolder']):
+                os.makedirs(os.path.join(base,ufolder), exist_ok=True)
 
             # print
             if verbose:
@@ -785,16 +784,15 @@ class Dataset:
                 print("Feature extraction: %s" % fe_name)
                 print("Saving at location: %s" % base)
 
+            # check is it is needed to extract
+            extract = False
+            if overwrite:
+                extract = True
+            else:
+                extract = np.any([not pathlib.Path(tmp).is_file() for tmp in filepaths])
+
             # extract loop
-            if (
-                    np.any(
-                        [
-                            not pathlib.Path(tmp).is_file()
-                            for tmp in filepaths
-                        ]
-                    )
-                    or overwrite
-            ):
+            if extract:
                 # init dataloader
                 dataloader = DataAbstract(fe_container,
                                           workers=workers,
@@ -812,7 +810,7 @@ class Dataset:
                 with open(
                         os.path.join(base, "file_info.pickle"), "wb"
                 ) as fp:
-                    pickle.dump((output_infos, filenames), fp)
+                    pickle.dump((output_infos, rfilepaths), fp)
 
             # load in container
             fe_containers[k] = container.get_feature_container()(base, map_fct=ProcessingChain().add(NumpyDatareader()))
@@ -856,9 +854,8 @@ class Dataset:
                             #ToDo: is this the most elegant way?
                             if data.is_splittable:
                                 # if still splittable
-                                length = np.array([tmp['length'] for tmp in data['info']])
-                                step = np.round(length * data_rec[2]['split_len'] / data_rec[2]['sample_len'])
-                                data = data_rec[1](data, split_len=step, sample_len=length)
+                                step = np.round(data['info.length'] * data_rec[2]['split_len'] / data_rec[2]['sample_len'])
+                                data = data_rec[1](data, split_len=step, sample_len=data['info.length'])
                             else:
                                 # if time_axis is gone, it is replaced by a SampleReplicate
                                 data = SampleReplicate(data, factor=data_rec[2]['splits'])
@@ -1109,3 +1106,11 @@ class Dataset:
     @name.setter
     def name(self, name: str):
         raise NotImplementedError("Name of a dataset is equal to the name of the class. Please select an unique name.")
+
+    @property
+    def adjust_mode(self):
+        return self._data._adjust_mode
+
+    @adjust_mode.setter
+    def adjust_mode(self, value: bool):
+        self._data._adjust_mode = value

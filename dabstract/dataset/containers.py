@@ -9,7 +9,7 @@ import cv2 as cv
 import datetime as dt
 
 from dabstract.abstract import DictSeqAbstract, SeqAbstract, MapAbstract, Abstract, SelectAbstract, SplitAbstract, \
-    SampleReplicate, Select
+    SampleReplicate, Select, Split
 from dabstract.dataprocessor import ProcessingChain, Processor
 from dabstract.dataset.helpers import get_dir_info
 from dabstract.utils import listdictnp_combine
@@ -33,26 +33,17 @@ class InfoMethWrap(MethWrap):
     def required_info(self):
         return []
 
-    def _info_checks(self, info: Union[Iterable, None]):
-        if info is None:
-            return [{}] * len(self)
-        else:
-            return info
-        assert all([all([key in self.required_info for key in tmp.keys()]) for tmp in info]), \
+    def _info_checks(self, info: Dict = {}):
+        assert all([key in info.keys() for key in self.required_info]), \
             "keys in the info argument do not all contain the requirements (%s)" % str(self.required_info)
+        return info
 
     def _get_info(self, key: str, index: int = None):
-        assert key in self['info'][0], '%s not available in %s instance' % (key, self.__class__.__name__)
+        assert key in self['info'].keys(), '%s not available in %s instance' % (key, self.__class__.__name__)
         if index is None:
-            return np.array([tmp[key] for tmp in self['info']])
+            return self[".".join(['info',key])]
         else:
-            return self['info'][index][key]
-
-    def get_info(self, index: int = None):
-        if index is None:
-            return self['info']
-        else:
-            return self['info'][index]
+            return self[".".join(['info',key])][index]
 
     def concat(self, *arg: Any, **kwargs: dict):
         raise NotImplementedError("Concatenation not supported. \
@@ -67,9 +58,8 @@ class InfoContainer(InfoMethWrap, DictSeqAbstract, Container):
             self.add_dict(data)
         elif data is not None:
             self.add('data', data)
-        if info in self.keys():
-            assert info is None, "info should be None when data contains a dict with info as key."
-        self.add('info', self._info_checks(info))
+        if info is not None:
+            self.add('info', self._info_checks(info))
 
 
 class TimeMethWrap(InfoMethWrap):
@@ -79,10 +69,10 @@ class TimeMethWrap(InfoMethWrap):
 
     @property
     def is_splittable(self):
-        # assumes that this is the case for ALL info
-        # should we do a check on everything or assume this is always the case?
-        return ((self['info'][0]['time_axis'] is not None) if 'time_axis' in self['info'][
-            0] else False) and 'output_shape' in self['info'][0]
+        if 'time_axis' in self['info'].keys() and 'output_shape' in self['info'].keys():
+            if all([isinstance(value, numbers.Integral) for value in self['info.time_axis']]):
+                return True
+        return False
 
     def get_output_shape(self, index: int = None):
         return self._get_info(key='output_shape', index=index)
@@ -100,17 +90,58 @@ class TimeMethWrap(InfoMethWrap):
     def get_split_len(self, index: int = None):
         return self.get_samples(index=index)
 
-    @staticmethod
-    def get_augmented_wrapper(base_class):
+    def _abstract_handler(self, base_class: object, deep_copy: bool = False, **kwargs):
+        data = copy.deepcopy(self) if deep_copy else self
         if base_class == SplitAbstract:
-            return SplitTimeContainer
+            return split_time_factory(data, allow_nested=self.allow_nested, **kwargs)
         elif base_class == SelectAbstract:
-            return SelectTimeContainer
+            return select_time_factory(data, allow_nested=self.allow_nested, **kwargs)
         else:
             return None
 
 
-class TimeContainer(TimeMethWrap, DictSeqAbstract, Container):
+def split_time_factory(data, allow_nested: bool = False, **kwargs):
+    assert isinstance(data, TimeContainer), "when using split_time_factory, the data should be of class TimeContainer"
+    if allow_nested:
+        #ToDo: this is a bit hacky. Maybe pose this as a new container?
+        data.adjust_mode = True
+        data['data'].is_splittable = True
+        data["data"] = Split(data=data['data'], **kwargs, lazy=data.is_lazy()["data"])
+        for key in data['info'].keys(dive=True):
+            data['info'][key] = SampleReplicate(data['info'][key],
+                                                factor=data['data'].get_param()['splits'],
+                                                lazy=data["info"].is_lazy(dive=True)[key])
+        tmp = np.concatenate([np.arange(split) for split in data["data"]._splits])
+        data['info']['postfix'] = ["_".join([oldpostfix,str(newpostfix)]) for oldpostfix,newpostfix in zip(data['info']['postfix'], tmp)]
+        data._splits = data["data"]._splits
+        data.adjust_mode = False
+
+        return data
+    else:
+        return SplitTimeAbstract(data=data, **kwargs)
+
+
+class SplitTimeAbstract(TimeMethWrap, SplitAbstract):
+    pass
+
+
+def select_time_factory(data, allow_nested: bool = False, **kwargs):
+    assert isinstance(data, TimeContainer), "when using select_time_factory, the data should be of class TimeContainer"
+    if allow_nested:
+        data.adjust_mode = True
+        for key in data.keys():
+            data[key] = Select(data=data[key] **kwargs, lazy=data.is_lazy()[key])
+        data.adjust_mode = False
+        return data
+    else:
+        return SelectTimeAbstract(data=data, **kwargs)
+
+
+class SelectTimeAbstract(TimeMethWrap, SelectAbstract):
+    pass
+
+
+class TimeContainer(TimeMethWrap, InfoContainer):
     pass
 
 
@@ -119,11 +150,15 @@ class AudioMethWrap(TimeMethWrap):
         return self._get_info(key='fs', index=index)
 
 
-class AudioContainer(AudioMethWrap, DictSeqAbstract, Container):
+class SelectAudioAbstract(AudioMethWrap, SelectAbstract):
     pass
 
 
-class FolderContainer(InfoMethWrap, DictSeqAbstract, Container):
+class AudioContainer(AudioMethWrap, TimeContainer):
+    pass
+
+
+class FolderContainer(InfoContainer):
     """Get meta information of the files in a directory and place them in a DictSeq
 
     This function gets meta information (e.g. sampling frequency, length) of files in your provided directory.
@@ -175,7 +210,6 @@ class FolderContainer(InfoMethWrap, DictSeqAbstract, Container):
             file_info_save_path: bool = None,
             filepath: str = None,
             overwrite_file_info: bool = False,
-            info: List[Dict] = None,
             **kwargs
     ):
         super().__init__()
@@ -195,21 +229,15 @@ class FolderContainer(InfoMethWrap, DictSeqAbstract, Container):
             overwrite_file_info=overwrite_file_info,
         )
         # overwrite file info
-        if info is not None:
-            fileinfo["info"] = info
-        fileinfo["info"] = self._info_checks(fileinfo["info"])
-        # init class
-        # ToDo check why info is needed to propagate (legacy prepare_feat?)
-        self.add("data", fileinfo["filepath"], info=fileinfo["info"])
-        self.add_dict(fileinfo, lazy=False)
+        fileinfo = self._info_checks(fileinfo)
+        # init data
+        self.add("data", fileinfo["filepath"])
+        self.add("info", DictSeqAbstract(allow_dive=True).add_dict(fileinfo, lazy=False))
         # add map
         if map_fct is not None:
             self["data"] = MapAbstract(self["data"], map_fct=map_fct)
         # set active key
         self._set_active_keys("data")
-        # check info
-        if info in self.keys():
-            assert info is None, "info should be None when data contains a dict with info as key."
 
     def set_active_keys(self, keys: List[str]) -> None:
         """Disables set of active keys"""
@@ -223,32 +251,12 @@ class FolderContainer(InfoMethWrap, DictSeqAbstract, Container):
             "A FolderDictSeqAbstract should always have data as the only active key. Resetting not possible. Please use DictSeqAbstract if other functionality is needed."
         )
 
-    def __setitem__(self, k: int, v: Any) -> None:
-        if isinstance(k, str):
-            self._data[k] = v
-        elif isinstance(k, numbers.Integral):
-            self._data["data"][k] = v
-        else:
-            raise NotImplementedError
 
-
-class TimeFolderContainer(TimeMethWrap, FolderContainer):
+class TimeFolderContainer(FolderContainer, TimeContainer):
     pass
 
 
-class SplitTimeContainer(TimeMethWrap, SplitAbstract, Container):
-    pass
-
-
-class SelectTimeContainer(TimeMethWrap, SelectAbstract, Container):
-    pass
-
-
-class SelectAudioContainer(AudioMethWrap, SelectAbstract, Container):
-    pass
-
-
-class AudioFolderContainer(AudioMethWrap, FolderContainer):
+class AudioFolderContainer(AudioMethWrap, TimeFolderContainer):
     # ToDo: add summaries related to the wav folder
     def __init__(
             self,
@@ -276,7 +284,7 @@ class AudioFolderContainer(AudioMethWrap, FolderContainer):
         return AudioFeatureFolderContainer
 
 
-class AudioFeatureFolderContainer(AudioMethWrap, FolderContainer):
+class AudioFeatureFolderContainer(AudioMethWrap, TimeFolderContainer):
     # ToDo: add summaries related to the feature folder
     def __init__(
             self,

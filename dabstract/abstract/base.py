@@ -3,10 +3,10 @@ from typing import Any
 
 
 class Abstract(ABC):
-    def __init__(self, data: Any, diveable: bool = False):
+    def __init__(self, data: Any, allow_dive: bool = False):
         self._data = data
         self._abstract = True if isinstance(data, Abstract) else False
-        self._diveable = diveable
+        self._allow_dive = allow_dive
         self._name = self.__class__.__name__
         self._group = None
         if self._abstract:
@@ -76,17 +76,14 @@ class Abstract(ABC):
     @group.setter
     def group(self, group: str):
         self._group = group
-        if self._abstract:
+        if self.is_abstract:
             self._data.group = group
 
     @property
-    def is_diveable(self):
-        return self._diveable
+    def is_abstract(self):
+        return self._abstract
 
-    @is_diveable.setter
-    def is_diveable(self, value: bool):
-        self._diveable = value
-
-    @staticmethod
-    def get_augmented_wrapper(base_class):
+    def _abstract_handler(self,
+                          base_class: object,
+                          **kwargs: object) -> object:
         return None
